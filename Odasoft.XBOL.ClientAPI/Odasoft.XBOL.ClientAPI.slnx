@@ -1,3 +1,6 @@
 <Solution>
+  <Project Path="Odasoft.XBOL.Business/Odasoft.XBOL.Business.csproj" />
   <Project Path="Odasoft.XBOL.ClientAPI/Odasoft.XBOL.ClientAPI.csproj" />
+  <Project Path="Odasoft.XBOL.Data/Odasoft.XBOL.Data.csproj" />
+  <Project Path="Odasoft.XBOL.Models/Odasoft.XBOL.Models.csproj" />
 </Solution>
