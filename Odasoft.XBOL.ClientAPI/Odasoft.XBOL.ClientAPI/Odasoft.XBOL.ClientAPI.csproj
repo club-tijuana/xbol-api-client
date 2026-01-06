@@ -4,10 +4,27 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Docker configuration for Visual Studio -->
+    <DockerfileContext>..\..</DockerfileContext>
+    <DockerfilePath>..\Dockerfile</DockerfilePath>
+  </PropertyGroup>
+
+  <!-- Production optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <ContainerUser>app</ContainerUser>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.0.1" />
+    <!-- Container environment variables -->
+    <ContainerEnvironmentVariable Include="ASPNETCORE_HTTP_PORTS" Value="8080"/>
+    <ContainerEnvironmentVariable Include="ASPNETCORE_URLS" Value="http://+:8080"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0"/>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.0.1"/>
   </ItemGroup>
 
 </Project>
