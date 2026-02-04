@@ -6,8 +6,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Odasoft.XBOL.Data\Odasoft.XBOL.Data.csproj" />
-  </ItemGroup>
-
 </Project>
