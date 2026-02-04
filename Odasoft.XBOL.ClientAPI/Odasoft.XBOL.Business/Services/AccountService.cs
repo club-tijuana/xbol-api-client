@@ -1,6 +1,6 @@
 ﻿namespace Odasoft.XBOL.Business.Services
 {
-    public class AccountServices()
+    public class AccountService()
     {
 
     }

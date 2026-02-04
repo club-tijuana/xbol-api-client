@@ -8,6 +8,7 @@ namespace Odasoft.XBOL.Data.Extensions
         public static IServiceCollection ConfigureRepositories(this IServiceCollection services)
         {
             services.AddScoped<EventRepository>();
+            services.AddScoped<ClientRepository>();
 
             return services;
         }

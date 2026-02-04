@@ -53,7 +53,10 @@ namespace Odasoft.XBOL.Data.Repositories
             int totalCount = await query.CountAsync();
             var skip = (filters.Page - 1) * filters.PageSize;
 
-            List<EventItemDTO> events = await query.Select(e => new EventItemDTO
+            List<EventItemDTO> events = await query
+            .Skip(skip)
+            .Take(filters.PageSize)
+            .Select(e => new EventItemDTO
             {
                 Id = e.Id,
                 BannerImageUrl = e.BannerImageUrl,
@@ -66,8 +69,6 @@ namespace Odasoft.XBOL.Data.Repositories
                 Location = e.VenueMap.Venue.Name,
                 Category = e.Category
             })
-            .Skip(skip)
-            .Take(filters.PageSize)
             .ToListAsync();
 
             return (events, totalCount);
