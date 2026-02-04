@@ -1,8 +1,10 @@
-﻿namespace Odasoft.XBOL.Commons.Requests.Filters
+﻿using Odasoft.XBOL.Commons.Enums;
+
+namespace Odasoft.XBOL.Commons.Requests.Filters
 {
     public class TicketsFilters : BaseFilters
     {
-        public string? TicketType { get; set; }
-        public long? EventId { get; set; }
+        public OrderType? OrderType { get; set; }
+        public long? OrderId { get; set; }
     }
 }

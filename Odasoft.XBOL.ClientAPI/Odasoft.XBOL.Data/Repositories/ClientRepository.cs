@@ -7,55 +7,98 @@ namespace Odasoft.XBOL.Data.Repositories
 {
     public class ClientRepository(XBOLDbContext dbContext) : BaseRepository<Client>(dbContext)
     {
-        public async Task<(List<MyEventTicketDTO> Items, int TotalCount)> GetMyEventTicketsAsync(TicketsFilters filters, long idClient)
+        public async Task<(List<MyEventDTO> Items, int TotalCount)> GetMyEventsAsync(TicketsFilters filters, long idClient)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
-            var query = DbContext.Set<Models.Ticket>()
-                .Where(t =>
-                    t.CurrentClientId == idClient
-                    && t.TicketType == (filters.TicketType != null ? filters.TicketType : t.TicketType)
-                )
-                .GroupBy(t => t.EventSchedule.EventId);
+            var query = DbContext.Set<Models.Order>()
+                .Where(o =>
+                    o.ClientId == idClient
+                    && o.OrderType == filters.OrderType
+                    && o.Tickets.Any()
+                );
 
             int totalCount = await query.CountAsync();
             var skip = (filters.Page - 1) * filters.PageSize;
 
-            List<MyEventTicketDTO> eventTickets = await query
-                .OrderByDescending(g => g.Min(t => t.EventSchedule.StartDateTime))
+            List<MyEventDTO> events = await query
+                .OrderBy(o => o.Id)
                 .Skip(skip)
                 .Take(filters.PageSize)
-                .Select(g => new MyEventTicketDTO
+                .Select(o => new
                 {
-                    Id = g.Key,
-                    Name = g.First().EventSchedule.Event.Name,
-                    Location = g.First().EventSchedule.Event.VenueMap.Name,
-                    StartDate = g.First().EventSchedule.Event.Schedules
+                    Order = o,
+                    Event = o.Tickets.Select(t => t.EventSchedule.Event).FirstOrDefault()
+                })
+                .Select(x => new MyEventDTO
+                {
+                    OrderId = x.Order.Id,
+                    EventId = x.Event.Id,
+                    Name = x.Event.Name,
+                    StartDate = x.Event.Schedules
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
-                        .FirstOrDefault(),
-                    isSeasonPass = g.Any(t => t.TicketType.ToUpper().Trim() == "SEASONPASS"),
-                    isPastEvent = g.First().EventSchedule.Event.Schedules
-                        .All(s => s.StartDateTime < now)
+                        .First(),
+                    Location = x.Event.VenueMap.Name,
+                    isSeasonPass = x.Order.Tickets.Any(t => t.TicketType.ToUpper().Trim() == "SEASONPASS"),
+                    isPastEvent = x.Event.Schedules.All(s => s.StartDateTime < now)
                 })
                 .ToListAsync();
 
-            return (eventTickets, totalCount);
+            return (events, totalCount);
         }
 
-        public async Task<(List<MyTicketDTO> Items, int TotalCount)> GetMyTicketsByEventAsync(TicketsFilters filters, long idClient)
+        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId)
         {
-            var query = DbContext.Set<Models.Ticket>()
+            var query = DbContext.Set<Order>()
+                .Where(o => o.ClientId == clientId)
+                .SelectMany(o => o.Tickets)
                 .Where(t =>
-                    t.CurrentClientId == idClient
-                    && t.EventSchedule.EventId == filters.EventId
+                    t.EventSchedule.EventId == eventId &&
+                    t.OriginalOrder != null
                 )
+                .GroupBy(t => new
+                {
+                    EventId = t.EventSchedule.Event.Id,
+                    OrderId = t.OriginalOrder!.Id
+                })
+                .Select(g => new MyEventDetailDTO
+                {
+                    OrderId = g.Key.OrderId,
+                    EventId = g.Key.EventId,
+                    Folio = g.First().OriginalOrder!.Reference,
+                    Name = g.First().EventSchedule.Event.Name,
+                    Date = g.First().EventSchedule.Event.Schedules
+                        .Min(s => s.StartDateTime),
+                    Location = g.First().EventSchedule.Event.VenueMap.Name,
+                    SubTotal = g.First().OriginalOrder!.SubTotal,
+                    TotalFees = g.First().OriginalOrder!.TotalFees,
+                    TotalTaxes = g.First().OriginalOrder!.TotalTaxes,
+                    Total = g.First().OriginalOrder!.Total,
+                    Seats = g
+                        .GroupBy(x => x.SectionLabelSnapshot)
+                        .Select(gTicket => new MyEventSeatDTO
+                        {
+                            Section = $"{gTicket.Key} x{gTicket.Count()}",
+                            Seats = string.Join(", ", gTicket.Select(x => x.SeatLabelSnapshot))
+                        })
+                        .ToList()
+                });
+
+            return await query.SingleOrDefaultAsync();
+        }
+
+        public async Task<(List<MyTicketDTO> Items, int TotalCount)> GetMyTicketsByOrderAsync(TicketsFilters filters)
+        {
+            var query = DbContext.Set<Order>()
+                .Where(o => o.Id == filters.OrderId)
+                .SelectMany(o => o.Tickets)
                 .OrderByDescending(t => t.EventSchedule.StartDateTime);
 
             int totalCount = await query.CountAsync();
             var skip = (filters.Page - 1) * filters.PageSize;
 
-            List<MyTicketDTO> tickets = await query
+            var tickets = await query
                 .Skip(skip)
                 .Take(filters.PageSize)
                 .Select(t => new MyTicketDTO

@@ -1,0 +1,17 @@
+﻿namespace Odasoft.XBOL.DTO
+{
+    public class MyEventDetailDTO
+    {
+        public long OrderId { get; set; }
+        public long EventId { get; set; }
+        public string Folio { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public DateTimeOffset Date { get; set; }
+        public string Location { get; set; } = string.Empty;
+        public decimal SubTotal { get; set; }
+        public decimal TotalFees { get; set; }
+        public decimal TotalTaxes { get; set; }
+        public decimal Total { get; set; }
+        public List<MyEventSeatDTO> Seats { get; set; } = new List<MyEventSeatDTO>();
+    }
+}

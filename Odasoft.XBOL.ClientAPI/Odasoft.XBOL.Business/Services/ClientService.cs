@@ -14,14 +14,14 @@ namespace Odasoft.XBOL.Business.Services
             _clientRepository = clientRepository;
         }
 
-        public async Task<PagedResponse<MyEventTicketDTO>> GetMyEventTicketsAsync(TicketsFilters filters, long idClient)
+        public async Task<PagedResponse<MyEventDTO>> GetMyEventsAsync(TicketsFilters filters, long idClient)
         {
             filters.Page = Math.Max(filters.Page, 1);
             filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
 
-            (List<MyEventTicketDTO> result, int totalCount) = await _clientRepository.GetMyEventTicketsAsync(filters, idClient);
+            (List<MyEventDTO> result, int totalCount) = await _clientRepository.GetMyEventsAsync(filters, idClient);
 
-            return new PagedResponse<MyEventTicketDTO>
+            return new PagedResponse<MyEventDTO>
             {
                 Items = result,
                 CurrentPage = filters.Page,
@@ -31,12 +31,17 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByEventAsync(TicketsFilters filters, long idClient)
+        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId)
+        {
+            return await _clientRepository.GetMyEventDetailAsync(clientId, eventId);
+        }
+
+        public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByOrderAsync(TicketsFilters filters)
         {
             filters.Page = Math.Max(filters.Page, 1);
             filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
 
-            (List<MyTicketDTO> result, int totalCount) = await _clientRepository.GetMyTicketsByEventAsync(filters, idClient);
+            (List<MyTicketDTO> result, int totalCount) = await _clientRepository.GetMyTicketsByOrderAsync(filters);
 
             return new PagedResponse<MyTicketDTO>
             {

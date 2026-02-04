@@ -18,23 +18,36 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         }
 
         [HttpPost("my-events")]
-        [EndpointName("GetMyEventTicketsAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyEventTicketsAsync([FromBody] TicketsFilters filters)
+        [EndpointName("GetMyEventsAsync")]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyEventsAsync([FromBody] TicketsFilters filters)
         {
             long idClient = 1;
 
-            var result = await _clientService.GetMyEventTicketsAsync(filters, idClient);
+            var result = await _clientService.GetMyEventsAsync(filters, idClient);
+
+            return Ok(result);
+        }
+
+        [HttpGet("my-event/{eventId}")]
+        [EndpointName("GetMyEventDetailAsync")]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyEventDetailAsync(long eventId)
+        {
+            long idClient = 1;
+            var result = await _clientService.GetMyEventDetailAsync(idClient, eventId);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
 
             return Ok(result);
         }
 
         [HttpPost("my-event-tickets")]
-        [EndpointName("GetMyTicketsByEventAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyTicketsByEventAsync([FromBody] TicketsFilters filters)
+        [EndpointName("GetMyTicketsByOrderAsync")]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyTicketsByOrderAsync([FromBody] TicketsFilters filters)
         {
-            long idClient = 1;
-
-            var result = await _clientService.GetMyTicketsByEventAsync(filters, idClient);
+            var result = await _clientService.GetMyTicketsByOrderAsync(filters);
 
             return Ok(result);
         }

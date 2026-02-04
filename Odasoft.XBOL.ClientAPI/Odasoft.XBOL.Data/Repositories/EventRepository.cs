@@ -73,5 +73,31 @@ namespace Odasoft.XBOL.Data.Repositories
 
             return (events, totalCount);
         }
+
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId)
+        {
+            var query = DbContext.Set<Models.Event>()
+                .Where(e => e.Id == eventId);
+
+            EventDetailDTO? eventDetail = await query
+                .Select(e => new EventDetailDTO
+                {
+                    Id = e.Id,
+                    Gallery = new List<string> { e.BannerImageUrl, e.PosterImageUrl },
+                    Name = e.Name,
+                    LongDescription = e.LongDescription,
+                    ShortDescription = e.ShortDescription,
+                    Schedules = e.Schedules.OrderBy(s => s.StartDateTime)
+                        .Select(s => new EventScheduleDTO
+                        {
+                            Id = s.Id,
+                            Date = s.StartDateTime,
+                            Location = s.Event.VenueMap.Name
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            return eventDetail;
+        }
     }
 }

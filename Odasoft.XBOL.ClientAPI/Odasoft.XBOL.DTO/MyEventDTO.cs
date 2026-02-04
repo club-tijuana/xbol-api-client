@@ -1,8 +1,9 @@
 ﻿namespace Odasoft.XBOL.DTO
 {
-    public class MyEventTicketDTO
+    public class MyEventDTO
     {
-        public long Id { get; set; }
+        public long OrderId { get; set; }
+        public long EventId { get; set; }
         public string Name { get; set; } = string.Empty;
         public DateTimeOffset StartDate { get; set; }
         public string Location { get; set; } = string.Empty;

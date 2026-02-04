@@ -44,5 +44,10 @@ namespace Odasoft.XBOL.Business.Services
                 TotalPages = (int)Math.Ceiling(totalCount / (double)filters.PageSize)
             };
         }
+
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId)
+        {
+            return await _eventRepository.GetEventDetailAsync(eventId);
+        }
     }
 }
