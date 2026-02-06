@@ -34,5 +34,14 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("{eventId}")]
+        [EndpointName("GetEventDetailAsync")]
+        public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync([FromRoute] long eventId)
+        {
+            var result = await _eventService.GetEventDetailAsync(eventId);
+
+            return Ok(result);
+        }
     }
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.ClientAPI.Configs;
+using Odasoft.XBOL.Commons.Settings;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
 using Odasoft.XBOL.Models;
@@ -10,6 +11,7 @@ using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
+CorsSettings corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>();
 var connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<XBOLDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -17,6 +19,15 @@ builder.Services.AddDbContext<XBOLDbContext>(options =>
 #region AppSettings
 Authentication authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>()!;
 #endregion
+
+builder.Services.AddCors(o => o.AddPolicy(corsSettings.PolicyName, builder =>
+{
+    builder
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .WithOrigins(corsSettings.AcceptedOrigins)
+    .AllowCredentials();
+}));
 
 // Identity + EF Core store
 builder.Services.AddDataProtection();
@@ -113,6 +124,7 @@ if (
 }
 
 app.UseRequestLocalization();
+app.UseCors(corsSettings.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
