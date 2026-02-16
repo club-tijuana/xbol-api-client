@@ -34,6 +34,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 {
                     OrderId = x.Order.Id,
                     EventId = x.Event.Id,
+                    EventImage = x.Event.PosterImageUrl,
                     Name = x.Event.Name,
                     StartDate = x.Event.Schedules
                         .OrderBy(s => s.StartDateTime)
@@ -66,6 +67,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 {
                     OrderId = g.Key.OrderId,
                     EventId = g.Key.EventId,
+                    EventImage = g.First().EventSchedule.Event.PosterImageUrl,
                     Folio = g.First().OriginalOrder!.Reference,
                     Name = g.First().EventSchedule.Event.Name,
                     Date = g.First().EventSchedule.Event.Schedules
@@ -82,7 +84,8 @@ namespace Odasoft.XBOL.Data.Repositories
                             Section = $"{gTicket.Key} x{gTicket.Count()}",
                             Seats = string.Join(", ", gTicket.Select(x => x.SeatLabelSnapshot))
                         })
-                        .ToList()
+                        .ToList(),
+                    SelectedSeats = g.Select(seat => seat.EventSeat.ExternalSeatObjectKey).ToList()
                 });
 
             return await query.SingleOrDefaultAsync();
@@ -106,7 +109,12 @@ namespace Odasoft.XBOL.Data.Repositories
                     Id = t.Id,
                     Name = t.EventSchedule.Event.Name,
                     Location = t.EventSchedule.Event.VenueMap.Name,
-                    StartDate = t.EventSchedule.StartDateTime
+                    StartDate = t.EventSchedule.StartDateTime,
+                    EventImage = t.EventSchedule.Event.PosterImageUrl,
+                    Code = t.TicketCode,
+                    Section = t.EventSection.BaseSection.Name,
+                    Row = t.EventSeat.BaseSeat.BaseRow.RowLabel,
+                    Seat = t.EventSeat.BaseSeat.SeatNumber
                 })
                 .ToListAsync();
 

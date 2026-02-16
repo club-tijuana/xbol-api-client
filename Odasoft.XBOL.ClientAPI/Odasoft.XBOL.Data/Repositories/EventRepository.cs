@@ -13,8 +13,14 @@ namespace Odasoft.XBOL.Data.Repositories
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
             List<EventItemDTO> mainEvents = await DbContext.Set<Models.Event>()
-                .Where(e => e.Schedules != null && e.Schedules.All(es => es.StartDateTime > now))
-                .OrderByDescending(e => e.Id)
+                .Where(e =>
+                    e.Schedules != null
+                    && e.Schedules.All(es => es.StartDateTime > now)
+                )
+                .OrderByDescending(e => e.Schedules
+                    .Where(s => s.StartDateTime > now)
+                    .Min(s => s.StartDateTime)
+                )
                 .Take(2)
                 .Select(e => new EventItemDTO
                 {
@@ -83,6 +89,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Select(e => new EventDetailDTO
                 {
                     Id = e.Id,
+                    Image = e.PosterImageUrl,
                     Gallery = new List<string> { e.BannerImageUrl, e.PosterImageUrl },
                     Name = e.Name,
                     LongDescription = e.LongDescription,

@@ -19,7 +19,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpPost("my-events")]
         [EndpointName("GetMyEventsAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyEventsAsync([FromBody] TicketsFilters filters)
+        public async Task<ActionResult<PagedResponse<MyEventDTO>>> GetMyEventsAsync([FromBody] TicketsFilters filters)
         {
             long idClient = 1;
 
@@ -30,7 +30,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("my-event/{eventId}")]
         [EndpointName("GetMyEventDetailAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyEventDetailAsync(long eventId)
+        public async Task<ActionResult<MyEventDetailDTO>> GetMyEventDetailAsync(long eventId)
         {
             long idClient = 1;
             var result = await _clientService.GetMyEventDetailAsync(idClient, eventId);
@@ -45,7 +45,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpPost("my-event-tickets")]
         [EndpointName("GetMyTicketsByOrderAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMyTicketsByOrderAsync([FromBody] TicketsFilters filters)
+        public async Task<ActionResult<PagedResponse<MyTicketDTO>>> GetMyTicketsByOrderAsync([FromBody] TicketsFilters filters)
         {
             var result = await _clientService.GetMyTicketsByOrderAsync(filters);
 
