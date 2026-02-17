@@ -114,7 +114,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     Code = t.TicketCode,
                     Section = t.EventSection.BaseSection.Name,
                     Row = t.EventSeat.BaseSeat.BaseRow.RowLabel,
-                    Seat = t.EventSeat.BaseSeat.SeatNumber
+                    Seat = t.EventSeat.BaseSeat.SeatNumber,
+                    QR = "https://dev.zorbek.software/XBOL/images/QR/QR.png"
                 })
                 .ToListAsync();
 

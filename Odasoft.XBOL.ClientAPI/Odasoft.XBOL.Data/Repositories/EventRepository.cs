@@ -100,7 +100,8 @@ namespace Odasoft.XBOL.Data.Repositories
                             Id = s.Id,
                             Date = s.StartDateTime,
                             Location = s.Event.VenueMap.Name
-                        }).ToList()
+                        }).ToList(),
+                    Category = e.Category
                 })
                 .FirstOrDefaultAsync();
 

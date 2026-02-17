@@ -11,5 +11,6 @@
         public string Section { get; set; } = string.Empty;
         public string Row { get; set; } = string.Empty;
         public string Seat { get; set; } = string.Empty;
+        public string QR { get; set; } = string.Empty;
     }
 }
