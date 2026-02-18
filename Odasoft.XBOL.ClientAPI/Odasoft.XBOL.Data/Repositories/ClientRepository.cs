@@ -67,6 +67,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 {
                     OrderId = g.Key.OrderId,
                     EventId = g.Key.EventId,
+                    EventKey = g.First().EventSchedule.ExternalEventKey,
                     EventImage = g.First().EventSchedule.Event.PosterImageUrl,
                     Folio = g.First().OriginalOrder!.Reference,
                     Name = g.First().EventSchedule.Event.Name,
@@ -85,7 +86,8 @@ namespace Odasoft.XBOL.Data.Repositories
                             Seats = string.Join(", ", gTicket.Select(x => x.SeatLabelSnapshot))
                         })
                         .ToList(),
-                    SelectedSeats = g.Select(seat => seat.EventSeat.ExternalSeatObjectKey).ToList()
+                    SelectedSeats = g.Select(seat => seat.EventSeat.ExternalSeatObjectKey).ToList(),
+                    Currency = "MXN"
                 });
 
             return await query.SingleOrDefaultAsync();
