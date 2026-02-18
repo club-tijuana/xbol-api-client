@@ -98,6 +98,7 @@ namespace Odasoft.XBOL.Data.Repositories
             var query = DbContext.Set<Order>()
                 .Where(o => o.Id == filters.OrderId)
                 .SelectMany(o => o.Tickets)
+                .Where(t => t.EventSchedule.EventId == filters.EventId)
                 .OrderByDescending(t => t.EventSchedule.StartDateTime);
 
             int totalCount = await query.CountAsync();

@@ -6,5 +6,6 @@ namespace Odasoft.XBOL.Commons.Requests.Filters
     {
         public OrderType? OrderType { get; set; }
         public long? OrderId { get; set; }
+        public long? EventId { get; set; }
     }
 }
