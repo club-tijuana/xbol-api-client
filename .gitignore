@@ -52,3 +52,26 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# VisualStudio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.sln.docstates
+
+# VS Installer files
+*.vsix
+
+# User secrets
+secrets.json
+
+# Logs
+*.log
+logs/
+*.nlog
+
+# Publish output
+/publish/
+/dist/
