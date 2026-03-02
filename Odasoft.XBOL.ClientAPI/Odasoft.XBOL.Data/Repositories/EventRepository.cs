@@ -51,8 +51,8 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 query = query.
                     Where(e =>
-                        e.Name.Contains(filters.TextFilter)
-                        || e.VenueMap.Venue.Name.Contains(filters.TextFilter)
+                        e.Name.ToLower().Contains(filters.TextFilter.ToLower())
+                        || e.VenueMap.Venue.Name.ToLower().Contains(filters.TextFilter.ToLower())
                     );
             }
 
@@ -107,5 +107,82 @@ namespace Odasoft.XBOL.Data.Repositories
 
             return eventDetail;
         }
+
+        public async Task<List<ZoneDTO>> GetZonesByEventIdAsync(long scheduleId)
+        {
+            return await DbContext.Set<EventSection>()
+                .Where(es => es.EventSchedule.Id == scheduleId)
+                .Select(es => new ZoneDTO
+                {
+                    Id = es.BaseSection.BaseZoneId,
+                    Name = es.BaseSection.BaseZone.Name
+                })
+                .Distinct()
+                .ToListAsync();
+        }
+
+        public async Task<List<SectionDTO>> GetSeatAvailabilityAsync(ReservationFilters filters)
+        {
+            var query = DbContext.Set<EventSection>()
+                .Where(es => es.EventScheduleId == filters.ScheduleId);
+
+            if (filters.PriceRange != null)
+            {
+                decimal min = filters.PriceRange.Min == null ? 0 : filters.PriceRange.Min.Value;
+                decimal? max = filters.PriceRange.Max;
+
+                query = query.Where(es =>
+                    es.Price >= min
+                    && es.Price <= (max == null ? es.Price : max.Value)
+                );
+            }
+
+            if (filters.ZoneId != null)
+            {
+                query = query.Where(es => es.BaseSection.BaseZoneId == filters.ZoneId);
+            }
+
+            return await query.Select(es => new SectionDTO
+            {
+                Id = es.Id,
+                Name = es.BaseSection.Name,
+                DisplayName = es.DisplayName,
+                Price = es.Price
+            })
+            .ToListAsync();
+        }
+
+        public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
+        {
+            EventItemDTO eventItem = await DbContext.Set<EventSchedule>()
+                .Where(es => es.Id == scheduleId)
+                .Select(e => new EventItemDTO
+                {
+                    Id = e.Id,
+                    BannerImageUrl = e.Event.BannerImageUrl,
+                    PosterImageUrl = e.Event.PosterImageUrl,
+                    Name = e.Event.Name,
+                    StartDate = e.StartDateTime,
+                    Location = e.Event.VenueMap.Name,
+                    Category = e.Event.Category,
+                    EventKey = e.ExternalEventKey
+                })
+                .FirstAsync();
+
+            return eventItem;
+        }
+
+        //public async Task<List<EventZoneAvailabilityDTO>> GetSeatsByScheduleIdAsync(ReservationFilters filters)
+        //{
+        //    return await DbContext.Set<EventSeat>()
+        //        .Where(es => es.)
+        //        .Select(es => new EventZoneAvailabilityDTO
+        //        {
+        //            ZoneId = es.BaseSection.BaseZoneId,
+        //            ZoneName = es.BaseSection.BaseZone.Name
+        //        })
+        //        .Distinct()
+        //        .ToListAsync();
+        //}
     }
 }
