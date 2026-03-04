@@ -34,7 +34,7 @@ namespace Odasoft.XBOL.Data.Repositories
                                 EventId = t.EventSchedule.Event.Id,
                                 EventName = t.EventSchedule.Event.Name,
                                 t.EventSchedule.Event.PosterImageUrl,
-                                EventCategory = t.EventSchedule.Event.Category,
+                                EventCategories = t.EventSchedule.Event.Categories,
                                 VenueName = t.EventSchedule.Event.VenueMap.Name
                             }
                         }
@@ -56,7 +56,14 @@ namespace Odasoft.XBOL.Data.Repositories
                     Name = g.First().EventSchedule.Event.EventName,
                     StartDate = g.First().EventSchedule.StartDateTime,
                     Location = g.First().EventSchedule.Event.VenueName,
-                    EventCategory = g.First().EventSchedule.Event.EventCategory,
+                    EventCategories = g.First().EventSchedule.Event.EventCategories
+                        .Select(ec => new EventCategoryDTO
+                        {
+                            Id = ec.Id,
+                            Name = ec.Name,
+                            DisplayName = ec.DisplayName,
+                        })
+                        .ToList(),
                     Seats = g
                         .GroupBy(t => t.Name)
                         .Select(sg => new MyEventSeatDTO

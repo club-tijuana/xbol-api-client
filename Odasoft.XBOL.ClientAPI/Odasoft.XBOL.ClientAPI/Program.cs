@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.ClientAPI.Configs;
 using Odasoft.XBOL.Commons.Settings;
@@ -18,6 +19,7 @@ builder.Services.AddDbContext<XBOLDbContext>(options =>
 
 #region AppSettings
 Authentication authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>()!;
+SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings").Get<SearchSettings>()!;
 #endregion
 
 builder.Services.AddCors(o => o.AddPolicy(corsSettings.PolicyName, builder =>
@@ -85,6 +87,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddSingleton(authenticationConfig);
+builder.Services.AddSingleton(searchSettings);
 
 var app = builder.Build();
 

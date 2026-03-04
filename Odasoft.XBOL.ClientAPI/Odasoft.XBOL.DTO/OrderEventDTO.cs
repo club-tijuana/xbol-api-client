@@ -1,6 +1,4 @@
-﻿using Odasoft.XBOL.Commons.Enums;
-
-namespace Odasoft.XBOL.DTO
+﻿namespace Odasoft.XBOL.DTO
 {
     public class OrderEventDTO
     {
@@ -10,7 +8,7 @@ namespace Odasoft.XBOL.DTO
         public string Name { get; set; } = string.Empty;
         public DateTimeOffset StartDate { get; set; }
         public string Location { get; set; } = string.Empty;
-        public EventCategory EventCategory { get; set; }
+        public List<EventCategoryDTO>? EventCategories { get; set; }
         public required List<MyEventSeatDTO> Seats { get; set; }
     }
 }

@@ -35,11 +35,29 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+        [HttpPost("filtered-events")]
+        [EndpointName("GetFilteredEventsAsync")]
+        public async Task<ActionResult<FilteredEventsResponse<PerformerDTO, EventItemDTO>>> GetFilteredEventsAsync([FromBody] EventsFilters filters)
+        {
+            var result = await _eventService.GetFilteredEventsAsync(filters);
+
+            return Ok(result);
+        }
+
         [HttpGet("{eventId}")]
         [EndpointName("GetEventDetailAsync")]
         public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync([FromRoute] long eventId)
         {
             var result = await _eventService.GetEventDetailAsync(eventId);
+
+            return Ok(result);
+        }
+
+        [HttpGet("categories")]
+        [EndpointName("GetEventCategoriesAsync")]
+        public async Task<ActionResult<EventCategoryDTO>> GetEventCategoriesAsync()
+        {
+            var result = await _eventService.GetEventCategories();
 
             return Ok(result);
         }

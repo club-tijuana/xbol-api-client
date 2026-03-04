@@ -14,7 +14,6 @@ namespace Odasoft.XBOL.Models
 
         public string Name { get; set; } = null!;
         public string Subtitle { get; set; } = null!;
-        public EventCategory Category { get; set; }
 
         public string ShortDescription { get; set; } = null!;
         public string LongDescription { get; set; } = null!;
@@ -26,6 +25,7 @@ namespace Odasoft.XBOL.Models
         public EventStatus Status { get; set; }
 
         public IList<EventSchedule> Schedules { get; set; } = [];
+        public IList<EventCategory> Categories { get; set; } = new List<EventCategory>();
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public Guid CreatedBy { get; set; }

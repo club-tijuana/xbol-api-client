@@ -1,6 +1,4 @@
-﻿using Odasoft.XBOL.Commons.Enums;
-
-namespace Odasoft.XBOL.DTO
+﻿namespace Odasoft.XBOL.DTO
 {
     public class EventDetailDTO
     {
@@ -11,6 +9,6 @@ namespace Odasoft.XBOL.DTO
         public string Image { get; set; } = string.Empty;
         public List<string> Gallery { get; set; } = new List<string>();
         public List<EventScheduleDTO> Schedules { get; set; } = new List<EventScheduleDTO>();
-        public EventCategory Category { get; set; }
+        public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
     }
 }

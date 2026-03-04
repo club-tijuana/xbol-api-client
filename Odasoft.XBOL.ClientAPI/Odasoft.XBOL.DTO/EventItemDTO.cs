@@ -1,4 +1,4 @@
-﻿using Odasoft.XBOL.Commons.Enums;
+﻿
 
 namespace Odasoft.XBOL.DTO
 {
@@ -10,7 +10,7 @@ namespace Odasoft.XBOL.DTO
         public string Name { get; set; } = string.Empty;
         public DateTimeOffset StartDate { get; set; }
         public string Location { get; set; } = string.Empty;
-        public EventCategory Category { get; set; }
         public string? EventKey { get; set; }
+        public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
     }
 }
