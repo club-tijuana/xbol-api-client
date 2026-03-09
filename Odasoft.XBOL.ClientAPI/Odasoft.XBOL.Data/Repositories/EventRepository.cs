@@ -98,20 +98,23 @@ namespace Odasoft.XBOL.Data.Repositories
             return (events, totalCount);
         }
 
-        public async Task<(List<EventItemDTO> Items, List<PerformerDTO> performers, int TotalCount)> GetFilteredEventsAsync(EventsFilters filters, long matchRatio)
+        public async Task<(List<ScheduleItemDTO> Items, List<PerformerDTO> performers, int TotalCount)> GetFilteredEventsAsync(EventsFilters filters, long matchRatio)
         {
-            var query = DbContext.Set<Models.Event>().AsQueryable();
+            var query = DbContext.Set<Models.EventSchedule>()
+                .Include(es => es.Event)
+                .Where(es => es.StartDateTime >= DateTimeOffset.UtcNow)
+                .AsQueryable();
 
             if (filters.PerformerId != null)
             {
                 query = query
-                    .Where(e => e.PerformerId == filters.PerformerId);
+                    .Where(es => es.Event.PerformerId == filters.PerformerId);
             }
 
             if (filters.EventCategoryIds != null && filters.EventCategoryIds.Any())
             {
                 query = query
-                    .Where(e => e.Categories
+                    .Where(es => es.Event.Categories
                         .Any(c => filters.EventCategoryIds.Contains(c.Id))
                     );
             }
@@ -120,37 +123,61 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 var text = filters.TextFilter.ToLower();
 
-                query = query.Where(e =>
-                        e.Name.ToLower().Contains(text)
-                        || e.VenueMap.Venue.Name.ToLower().Contains(text)
+                query = query
+                    .Where(es =>
+                        es.Event.Name.ToLower().Contains(text)
+                        || es.Event.VenueMap.Venue.Name.ToLower().Contains(text)
                     );
+            }
+
+            if (filters.RangeDateFrom != null)
+            {
+                DateTime from = filters.RangeDateFrom.Value.Date;
+                query = query
+                    .Where(es => es.StartDateTime.Date >= from);
+            }
+
+            if (filters.RangeDateTo != null)
+            {
+                DateTime to = filters.RangeDateTo.Value.Date.AddDays(1);
+                query = query
+                    .Where(es => es.StartDateTime.Date < to);
+            }
+
+            if (filters.TrendingEvents != null && filters.TrendingEvents == true)
+            {
+                query = query
+                    .Where(es => es.Event.ViewCount > 0)
+                    .OrderByDescending(es => es.Event.ViewCount);
             }
 
             int totalCount = await query.CountAsync();
             var skip = (filters.Page - 1) * filters.PageSize;
 
-            List<EventItemDTO> events = await query
+            List<ScheduleItemDTO> events = await query
             .Skip(skip)
             .Take(filters.PageSize)
-            .Select(e => new EventItemDTO
+            .Select(es => new ScheduleItemDTO
             {
-                Id = e.Id,
-                BannerImageUrl = e.BannerImageUrl,
-                PosterImageUrl = e.PosterImageUrl,
-                Name = e.Name,
-                StartDate = e.Schedules
-                    .OrderBy(s => s.StartDateTime)
-                    .Select(s => s.StartDateTime)
-                    .FirstOrDefault(),
-                Location = e.VenueMap.Venue.Name,
-                Categories = e.Categories
+                Id = es.Id,
+                StartDate = es.StartDateTime,
+                Event = new EventItemDTO
+                {
+                    Id = es.EventId,
+                    BannerImageUrl = es.Event.BannerImageUrl,
+                    PosterImageUrl = es.Event.PosterImageUrl,
+                    Name = es.Event.Name,
+                    StartDate = es.StartDateTime,
+                    Location = es.Event.VenueMap.Venue.Name,
+                    Categories = es.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
                             Id = ec.Id,
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         })
-                        .ToList(),
+                        .ToList()
+                }
             })
             .ToListAsync();
 
@@ -311,18 +338,5 @@ namespace Odasoft.XBOL.Data.Repositories
 
             return categories;
         }
-
-        //public async Task<List<EventZoneAvailabilityDTO>> GetSeatsByScheduleIdAsync(ReservationFilters filters)
-        //{
-        //    return await DbContext.Set<EventSeat>()
-        //        .Where(es => es.)
-        //        .Select(es => new EventZoneAvailabilityDTO
-        //        {
-        //            ZoneId = es.BaseSection.BaseZoneId,
-        //            ZoneName = es.BaseSection.BaseZone.Name
-        //        })
-        //        .Distinct()
-        //        .ToListAsync();
-        //}
     }
 }

@@ -12,6 +12,9 @@ using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add MemoryCache
+builder.Services.AddMemoryCache();
+
 CorsSettings corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>();
 var connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<XBOLDbContext>(options =>
@@ -20,6 +23,7 @@ builder.Services.AddDbContext<XBOLDbContext>(options =>
 #region AppSettings
 Authentication authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>()!;
 SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings").Get<SearchSettings>()!;
+EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
 #endregion
 
 builder.Services.AddCors(o => o.AddPolicy(corsSettings.PolicyName, builder =>
@@ -88,6 +92,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddSingleton(authenticationConfig);
 builder.Services.AddSingleton(searchSettings);
+builder.Services.AddSingleton(eventsTrackingSettings);
 
 var app = builder.Build();
 

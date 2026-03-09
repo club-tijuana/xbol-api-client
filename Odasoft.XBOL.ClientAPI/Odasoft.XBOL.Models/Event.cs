@@ -33,5 +33,6 @@ namespace Odasoft.XBOL.Models
 
         public long? PerformerId { get; set; }
         public Performer? Performer { get; set; }
+        public long ViewCount { get; set; }
     }
 }
