@@ -6,26 +6,29 @@ namespace Odasoft.XBOL.Business.Services
 {
     public class BookingService
     {
-        private readonly EventRepository _eventRepository;
+        private readonly EventSectionRepository _eventSectionRepository;
+        private readonly EventScheduleRepository _eventScheduleRepository;
 
-        public BookingService(EventRepository eventRepository)
+        public BookingService(EventSectionRepository eventSectionRepository,
+            EventScheduleRepository eventScheduleRepository)
         {
-            _eventRepository = eventRepository;
+            _eventSectionRepository = eventSectionRepository;
+            _eventScheduleRepository = eventScheduleRepository;
         }
 
-        public async Task<List<ZoneDTO>> GetZonesByEventIdAsync(long scheduleId)
+        public async Task<IList<ZoneDTO>> GetZonesByEventIdAsync(long scheduleId)
         {
-            return await _eventRepository.GetZonesByEventIdAsync(scheduleId);
+            return await _eventSectionRepository.GetZonesByEventIdAsync(scheduleId);
         }
 
-        public async Task<List<SectionDTO>> GetSeatAvailabilityAsync(ReservationFilters filters)
+        public async Task<IList<SectionDTO>> GetSeatAvailabilityAsync(ReservationFilters filters)
         {
-            return await _eventRepository.GetSeatAvailabilityAsync(filters);
+            return await _eventSectionRepository.GetSeatAvailabilityAsync(filters);
         }
 
         public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
         {
-            return await _eventRepository.GetEventItemByScheduleIdAsync(scheduleId);
+            return await _eventScheduleRepository.GetEventItemByScheduleIdAsync(scheduleId);
         }
     }
 }

@@ -4,11 +4,11 @@ namespace Odasoft.XBOL.Models
 {
     public class Venue : BaseModel
     {
-        public string Name { get; set; } = null!;
-        public string AddressLine { get; set; } = null!;
-        public string City { get; set; } = null!;
-        public string State { get; set; } = null!;
-        public string Country { get; set; } = null!;
+        public string Name { get; set; } = string.Empty;
+        public string AddressLine { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
         public string? ZipCode { get; set; }
 
         public decimal Latitude { get; set; }
@@ -16,12 +16,12 @@ namespace Odasoft.XBOL.Models
 
         public VenueCategory Category { get; set; }
 
-        public string ShortDescription { get; set; } = null!;
-        public string LongDescription { get; set; } = null!;
+        public string ShortDescription { get; set; } = string.Empty;
+        public string LongDescription { get; set; } = string.Empty;
 
-        public string LogoImageUrl { get; set; } = null!;
-        public string BannerImageUrl { get; set; } = null!;
-        public string LandingUrl { get; set; } = null!;
+        public string LogoImageUrl { get; set; } = string.Empty;
+        public string BannerImageUrl { get; set; } = string.Empty;
+        public string LandingUrl { get; set; } = string.Empty;
 
         public string? ContactEmail { get; set; }
         public string? ContactPhone { get; set; }

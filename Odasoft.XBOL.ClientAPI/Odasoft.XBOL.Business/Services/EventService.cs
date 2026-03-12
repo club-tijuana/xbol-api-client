@@ -1,6 +1,5 @@
 ﻿using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Commons.Requests;
-using Odasoft.XBOL.Commons.Requests.Filters;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
@@ -10,18 +9,29 @@ namespace Odasoft.XBOL.Business.Services
     public class EventService
     {
         private readonly EventRepository _eventRepository;
+        private readonly EventCategoryRepository _eventCategoryRepository;
+        private readonly EventScheduleRepository _eventScheduleRepository;
         private readonly EventViewRepository _eventViewRepository;
         private readonly SearchSettings _searchSettings;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
 
+        private const int MIN_PAGE = 1;
+        private const int MAX_PAGE = 50;
+        private const int MAIN_PAGE_SIZE = 2;
+        private const int MAIN_CURRENT_PAGE = 1;
+
         public EventService(
             EventRepository eventRepository,
+            EventCategoryRepository eventCategoryRepository,
+            EventScheduleRepository eventScheduleRepository,
             EventViewRepository eventViewRepository,
             SearchSettings searchSettings,
             EventsTrackingSettings eventsTrackingSettings
         )
         {
             _eventRepository = eventRepository;
+            _eventCategoryRepository = eventCategoryRepository;
+            _eventScheduleRepository = eventScheduleRepository;
             _eventViewRepository = eventViewRepository;
             _searchSettings = searchSettings;
             _eventsTrackingSettings = eventsTrackingSettings;
@@ -29,71 +39,48 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync()
         {
-            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync();
+            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE);
 
             return new PagedResponse<EventItemDTO>
             {
                 Items = result,
-                CurrentPage = 1,
-                PageSize = 1,
-                TotalItems = totalCount,
-                TotalPages = 1
+                Page = MAIN_CURRENT_PAGE,
+                PageSize = MAIN_PAGE_SIZE,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)MAIN_PAGE_SIZE)
             };
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(EventsFilters filters)
+        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize)
         {
-            filters.Page = Math.Max(filters.Page, 1);
-            filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
-
-            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetTrendingEventsAsync(filters);
-
-            return new PagedResponse<EventItemDTO>
-            {
-                Items = result,
-                CurrentPage = filters.Page,
-                PageSize = filters.PageSize,
-                TotalItems = totalCount,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)filters.PageSize)
-            };
+            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(EventsFilters filters)
+        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm)
         {
-            filters.Page = Math.Max(filters.Page, 1);
-            filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
-
-            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetEventsAsync(filters);
-
-            return new PagedResponse<EventItemDTO>
-            {
-                Items = result,
-                CurrentPage = filters.Page,
-                PageSize = filters.PageSize,
-                TotalItems = totalCount,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)filters.PageSize)
-            };
+            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm);
         }
 
-        public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(SearchEventsFilters filters)
+        public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(
+            int? page,
+            int? pageSize,
+            DateTimeOffset? rangeDateFrom,
+            DateTimeOffset? rangeDateTo,
+            string? searchTerm,
+            long? performerId,
+            List<long>? eventCategoryIds,
+            bool? trendingEvents)
         {
-            filters.Page = Math.Max(filters.Page, 1);
-            filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
-
-            (List<ScheduleItemDTO> result, List<PerformerDTO> performers, int totalCount) = await _eventRepository.GetFilteredEventsAsync(filters, _searchSettings.MatchRatio);
-
-            return new FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>
-            {
-                Performers = performers,
-                PagedEvents = new PagedResponse<ScheduleItemDTO>
-                {
-                    Items = result,
-                    CurrentPage = filters.Page,
-                    PageSize = filters.PageSize,
-                    TotalItems = totalCount,
-                    TotalPages = (int)Math.Ceiling(totalCount / (double)filters.PageSize)
-                }
-            };
+            return await _eventScheduleRepository.GetFilteredEventsAsync(
+                page ?? MIN_PAGE,
+                pageSize ?? MAX_PAGE,
+                rangeDateFrom,
+                rangeDateTo,
+                searchTerm,
+                performerId,
+                eventCategoryIds,
+                trendingEvents,
+                _searchSettings.MatchRatio);
         }
 
         public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId)
@@ -103,7 +90,7 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<List<EventCategoryDTO>> GetEventCategories()
         {
-            return await _eventRepository.GetEventCategories();
+            return await _eventCategoryRepository.GetEventCategories();
         }
 
         public async Task RegisterView(EventViewRequest eventView)

@@ -11,6 +11,10 @@ namespace Odasoft.XBOL.Data.Extensions
             services.AddScoped<ClientRepository>();
             services.AddScoped<OrderRepository>();
             services.AddScoped<EventViewRepository>();
+            services.AddScoped<EventCategoryRepository>();
+            services.AddScoped<EventScheduleRepository>();
+            services.AddScoped<EventSectionRepository>();
+            services.AddScoped<TicketRepository>();
 
             return services;
         }

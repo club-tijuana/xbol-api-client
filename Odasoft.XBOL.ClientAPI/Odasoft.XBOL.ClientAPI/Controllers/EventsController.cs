@@ -3,7 +3,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Services;
 using Odasoft.XBOL.Commons.Requests;
-using Odasoft.XBOL.Commons.Requests.Filters;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
 
@@ -24,7 +23,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             _eventsTrackingSettings = eventsTrackingSettings;
         }
 
-        [HttpGet]
+        [HttpGet("main")]
         [EndpointName("GetMainEventsAsync")]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync()
         {
@@ -33,29 +32,64 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
-        [HttpPost("trending-events")]
+        /// <summary>
+        /// Retrieves a paginated list of trending events.
+        /// </summary>
+        /// <param name="page">
+        /// The page number to retrieve. If not specified, the first page is returned.
+        /// </param>
+        /// <param name="pageSize">
+        /// The number of events per page. If not specified, the default page size is used.
+        /// </param>
+        /// <returns>A paginated response containing trending events.</returns>
+        [HttpGet("trending-events")]
         [EndpointName("GetTrendingEventsAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetTrendingEventsAsync([FromBody] EventsFilters filters)
+        [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetTrendingEventsAsync(
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize)
         {
-            var result = await _eventService.GetTrendingEventsAsync(filters);
+            var result = await _eventService.GetTrendingEventsAsync(page, pageSize);
 
             return Ok(result);
         }
 
-        [HttpPost]
+        [HttpGet]
         [EndpointName("GetEventsAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetEventsAsync([FromBody] EventsFilters filters)
+        [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetEventsAsync(
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
+            [FromQuery] long? eventCategoryId,
+            [FromQuery] string? searchTerm)
         {
-            var result = await _eventService.GetEventsAsync(filters);
+            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm);
 
             return Ok(result);
         }
 
-        [HttpPost("filtered-events")]
+        [HttpGet("filtered-events")]
         [EndpointName("GetFilteredEventsAsync")]
-        public async Task<ActionResult<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>>> GetFilteredEventsAsync([FromBody] SearchEventsFilters filters)
+        [ProducesResponseType(typeof(FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>>> GetFilteredEventsAsync(
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
+            [FromQuery] DateTimeOffset? rangeDateFrom,
+            [FromQuery] DateTimeOffset? rangeDateTo,
+            [FromQuery] string? searchTerm,
+            [FromQuery] long? performerId,
+            [FromQuery] List<long>? eventCategoryIds,
+            [FromQuery] bool? trendingEvents)
         {
-            var result = await _eventService.GetFilteredEventsAsync(filters);
+            var result = await _eventService.GetFilteredEventsAsync(
+                page,
+                pageSize,
+                rangeDateFrom,
+                rangeDateTo,
+                searchTerm,
+                performerId,
+                eventCategoryIds,
+                trendingEvents);
 
             return Ok(result);
         }
