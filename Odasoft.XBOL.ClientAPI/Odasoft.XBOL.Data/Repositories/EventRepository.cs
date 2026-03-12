@@ -47,15 +47,57 @@ namespace Odasoft.XBOL.Data.Repositories
             return (mainEvents, mainEvents.Count);
         }
 
+        public async Task<(List<EventItemDTO> Items, int TotalCount)> GetTrendingEventsAsync(EventsFilters filters)
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var query = DbContext.Set<Models.Event>()
+                .Where(e =>
+                    e.Schedules != null
+                    && e.Schedules.All(es => es.StartDateTime > now)
+                    && e.ViewCount > 0
+                )
+                .OrderByDescending(e => e.ViewCount)
+                .AsQueryable();
+
+            int totalCount = await query.CountAsync();
+            var skip = (filters.Page - 1) * filters.PageSize;
+
+            List<EventItemDTO> events = await query
+                .Take(filters.PageSize)
+                .Select(e => new EventItemDTO
+                {
+                    Id = e.Id,
+                    BannerImageUrl = e.BannerImageUrl,
+                    PosterImageUrl = e.PosterImageUrl,
+                    Name = e.Name,
+                    StartDate = e.Schedules
+                        .OrderBy(s => s.StartDateTime)
+                        .Select(s => s.StartDateTime)
+                        .FirstOrDefault(),
+                    Location = e.VenueMap.Name,
+                    Categories = e.Categories
+                        .Select(ec => new EventCategoryDTO
+                        {
+                            Id = ec.Id,
+                            Name = ec.Name,
+                            DisplayName = ec.DisplayName
+                        }).ToList(),
+                })
+                .ToListAsync();
+
+            return (events, totalCount);
+        }
+
         public async Task<(List<EventItemDTO> Items, int TotalCount)> GetEventsAsync(EventsFilters filters)
         {
             var query = DbContext.Set<Models.Event>().AsQueryable();
 
-            if (filters.EventCategoryIds != null && filters.EventCategoryIds.Any())
+            if (filters.EventCategoryId != null)
             {
                 query = query
                     .Where(e => e.Categories
-                        .Any(c => filters.EventCategoryIds.Contains(c.Id))
+                        .Any(ec => ec.Id == filters.EventCategoryId)
                     );
             }
 
@@ -98,7 +140,7 @@ namespace Odasoft.XBOL.Data.Repositories
             return (events, totalCount);
         }
 
-        public async Task<(List<ScheduleItemDTO> Items, List<PerformerDTO> performers, int TotalCount)> GetFilteredEventsAsync(EventsFilters filters, long matchRatio)
+        public async Task<(List<ScheduleItemDTO> Items, List<PerformerDTO> performers, int TotalCount)> GetFilteredEventsAsync(SearchEventsFilters filters, long matchRatio)
         {
             var query = DbContext.Set<Models.EventSchedule>()
                 .Include(es => es.Event)
@@ -225,31 +267,60 @@ namespace Odasoft.XBOL.Data.Repositories
             var query = DbContext.Set<Models.Event>()
                 .Where(e => e.Id == eventId);
 
-            EventDetailDTO? eventDetail = await query
-                .Select(e => new EventDetailDTO
-                {
-                    Id = e.Id,
-                    Image = e.PosterImageUrl,
-                    Gallery = new List<string> { e.BannerImageUrl, e.PosterImageUrl },
-                    Name = e.Name,
-                    LongDescription = e.LongDescription,
-                    ShortDescription = e.ShortDescription,
-                    Schedules = e.Schedules.OrderBy(s => s.StartDateTime)
+            var eventEntity = await query
+                .Include(e => e.VenueMap)
+                    .ThenInclude(vm => vm.Venue)
+                .Include(e => e.Schedules)
+                    .ThenInclude(s => s.Sections)
+                        .ThenInclude(sec => sec.BaseSection)
+                .Include(e => e.Categories)
+                .FirstOrDefaultAsync();
+
+            if (eventEntity == null)
+            {
+                return null;
+            }
+
+            EventDetailDTO? eventDetail = new EventDetailDTO
+            {
+                Id = eventEntity.Id,
+                Image = eventEntity.PosterImageUrl,
+                Gallery = new List<string> { eventEntity.BannerImageUrl, eventEntity.PosterImageUrl },
+                Name = eventEntity.Name,
+                LongDescription = eventEntity.LongDescription,
+                ShortDescription = eventEntity.ShortDescription,
+                AddressLine = eventEntity.VenueMap.Venue.AddressLine,
+                City = eventEntity.VenueMap.Venue.City,
+                State = eventEntity.VenueMap.Venue.State,
+                Country = eventEntity.VenueMap.Venue.Country,
+                ZipCode = eventEntity.VenueMap.Venue.ZipCode,
+                FullAddress = GetFullAddress(eventEntity.VenueMap.Venue),
+                Latitude = eventEntity.VenueMap.Venue.Latitude,
+                Longitude = eventEntity.VenueMap.Venue.Longitude,
+                Schedules = eventEntity.Schedules.OrderBy(s => s.StartDateTime)
                         .Select(s => new EventScheduleDTO
                         {
                             Id = s.Id,
                             Date = s.StartDateTime,
-                            Location = s.Event.VenueMap.Name
+                            Location = s.Event.VenueMap.Name,
+                            SectionPrices = s.Sections // TODO: Mapper
+                                .GroupBy(es => es.Price)
+                                .Select(g => new EventScheduleSectionPricesDTO
+                                {
+                                    Price = g.Key,
+                                    Objects = g.Select(es => es.BaseSection.Name).ToList(),
+                                    Currency = "MXN", // TODO: Add currency support for totals
+                                })
+                                .ToList()
                         }).ToList(),
-                    Categories = e.Categories
+                Categories = eventEntity.Categories
                         .Select(ec => new EventCategoryDTO
                         {
                             Id = ec.Id,
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                })
-                .FirstOrDefaultAsync();
+            };
 
             return eventDetail;
         }
@@ -337,6 +408,19 @@ namespace Odasoft.XBOL.Data.Repositories
                 .ToListAsync();
 
             return categories;
+        }
+
+        private static string GetFullAddress(Venue venue)
+        {
+            return string.Join(", ", new[]
+            {
+                venue.Name,
+                venue.AddressLine,
+                venue.ZipCode,
+                venue.City,
+                venue.State,
+                venue.Country
+            }.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }
 }

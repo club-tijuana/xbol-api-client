@@ -33,6 +33,15 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+        [HttpPost("trending-events")]
+        [EndpointName("GetTrendingEventsAsync")]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetTrendingEventsAsync([FromBody] EventsFilters filters)
+        {
+            var result = await _eventService.GetTrendingEventsAsync(filters);
+
+            return Ok(result);
+        }
+
         [HttpPost]
         [EndpointName("GetEventsAsync")]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetEventsAsync([FromBody] EventsFilters filters)
@@ -44,7 +53,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpPost("filtered-events")]
         [EndpointName("GetFilteredEventsAsync")]
-        public async Task<ActionResult<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>>> GetFilteredEventsAsync([FromBody] EventsFilters filters)
+        public async Task<ActionResult<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>>> GetFilteredEventsAsync([FromBody] SearchEventsFilters filters)
         {
             var result = await _eventService.GetFilteredEventsAsync(filters);
 

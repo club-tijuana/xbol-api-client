@@ -33,6 +33,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             {
                 return Ok(new User
                 {
+                    UserId = new Guid("019c29aa-cd4b-7407-9b65-d5d49891eb04"),
                     FirstName = "User",
                     LastName = "Test",
                     Username = model.Username,

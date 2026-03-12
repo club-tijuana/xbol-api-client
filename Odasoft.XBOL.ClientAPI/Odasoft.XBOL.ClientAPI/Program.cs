@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Odasoft.XBOL.Business;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
+using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.ClientAPI.Configs;
 using Odasoft.XBOL.Commons.Settings;
 using Odasoft.XBOL.Data;
@@ -90,9 +92,21 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
+builder.Host.UseWolverine(opts =>
+{
+    opts.Discovery.IncludeAssembly(typeof(CreateEventBookingCommand).Assembly);
+});
+
 builder.Services.AddSingleton(authenticationConfig);
 builder.Services.AddSingleton(searchSettings);
 builder.Services.AddSingleton(eventsTrackingSettings);
+
+// Add Http Clients
+builder.Services.AddHttpClient<TicketingClient>(
+    (provider, client) =>
+    {
+        client.BaseAddress = new Uri(builder.Configuration.GetValue("TicketingClientBaseAddress", "https://localhost:7021/"));
+    });
 
 var app = builder.Build();
 

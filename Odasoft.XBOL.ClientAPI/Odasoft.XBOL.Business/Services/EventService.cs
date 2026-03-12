@@ -41,6 +41,23 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
+        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(EventsFilters filters)
+        {
+            filters.Page = Math.Max(filters.Page, 1);
+            filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
+
+            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetTrendingEventsAsync(filters);
+
+            return new PagedResponse<EventItemDTO>
+            {
+                Items = result,
+                CurrentPage = filters.Page,
+                PageSize = filters.PageSize,
+                TotalItems = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)filters.PageSize)
+            };
+        }
+
         public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(EventsFilters filters)
         {
             filters.Page = Math.Max(filters.Page, 1);
@@ -58,7 +75,7 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(EventsFilters filters)
+        public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(SearchEventsFilters filters)
         {
             filters.Page = Math.Max(filters.Page, 1);
             filters.PageSize = Math.Clamp(filters.PageSize, 1, 50);
