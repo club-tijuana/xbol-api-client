@@ -1,0 +1,162 @@
+name: Build and Push API Admin to GCP (DEV)
+
+on:
+  pull_request:
+    branches:
+      - dev
+env:
+  IMAGE_VERSION: '0.0.0001'
+  IMAGE_NAME: dev-xbol-api-client
+  IMAGE_BASE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/club-tijuana-docker-repo/
+
+jobs:
+  build-and-push:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    environment: GCP_DEV
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set semantic version
+        id: version
+        env:
+          INFRA_REPO_TOKEN: ${{ secrets.INFRA_CLOUD_REPO_TOKEN }}
+        run: |
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v4.35.1/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
+          if [ -n "$INFRA_REPO_TOKEN" ]; then
+            git clone --depth 1 "https://x-access-token:${INFRA_REPO_TOKEN}@github.com/club-tijuana/infra-cloud.git" infra-cloud-version 2>/dev/null || true
+
+            DEPLOY_FILE="infra-cloud-version/workloads/boletera/dev/xbol-api-client/deployment.yaml"
+            if [ -f "$DEPLOY_FILE" ]; then
+              CURRENT_IMAGE_GET_VERSION=$(yq e '.spec.template.spec.containers[0].image' "$DEPLOY_FILE" 2>/dev/null || true)
+              if [ -n "$CURRENT_IMAGE_GET_VERSION" ]; then
+                CURRENT=$(echo "$CURRENT_IMAGE_GET_VERSION" | sed 's/.*://')
+                if [[ "$CURRENT" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+                  PATCH=$((BASH_REMATCH[3] + 1))
+                  IMAGE_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${PATCH}"
+                fi
+              fi
+            fi
+          fi
+          echo "IMAGE_VERSION=${IMAGE_VERSION}" >> $GITHUB_ENV
+          echo "✅ Versión para esta ejecución: ${IMAGE_VERSION}"
+      - name: Debug Secret Check
+        run: |
+          if [ -z "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ]; then
+            echo "❌ El secreto PROVIDER está vacío"
+            exit 1
+          else
+            echo "✅ El secreto PROVIDER tiene contenido"
+          fi
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+
+      - name: Configure Docker for GCP
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_TAG="${IMAGE_BASE}${IMAGE_NAME}:${IMAGE_VERSION}"
+          echo $IMAGE_VERSION
+          echo $IMAGE_TAG
+          docker build \
+            --build-arg DOCKER_IMAGE_VERSION="${IMAGE_VERSION}" \
+            --build-arg ASPNETCORE_HTTP_PORTS="8080" \
+            --build-arg ASPNETCORE_URLS="http://+:8080" \
+            --build-arg ASPNETCORE_ENVIRONMENT="Production" \
+            -t "${IMAGE_TAG}" \
+            -f Odasoft.XBOL.ClientAPI/Dockerfile \
+            Odasoft.XBOL.ClientAPI
+          docker push "${IMAGE_TAG}"
+      - name: Update image version in infra-cloud deployment
+        env:
+          INFRA_REPO_TOKEN: ${{ secrets.INFRA_CLOUD_REPO_TOKEN }}
+        run: |
+          if [ -z "$INFRA_REPO_TOKEN" ]; then
+            echo "⚠️ INFRA_CLOUD_REPO_TOKEN no configurado, se omite actualización"
+            exit 0
+          fi
+          DEPLOY_FILE="workloads/boletera/dev/xbol-api-client/deployment.yaml"
+          git clone --depth 1 "https://x-access-token:${INFRA_REPO_TOKEN}@github.com/club-tijuana/infra-cloud.git" infra-cloud
+          cd infra-cloud
+          if [ ! -f "$DEPLOY_FILE" ]; then
+            echo "❌ No existe $DEPLOY_FILE"
+            exit 1
+          fi
+          export IMAGE_VERSION
+          # Actualiza version imagen del Init container de AdminAPI
+          CURRENT_IMAGE_NET_INIT=$(yq e '.spec.template.spec.initContainers[0].image' "$DEPLOY_FILE")
+          IMAGE_BASE=$(echo "$CURRENT_IMAGE_NET_INIT" | sed 's/:[^:]*$//')
+          NEW_IMAGE="${IMAGE_BASE}:${IMAGE_VERSION}"
+          yq e -i ".spec.template.spec.initContainers[0].image = \"${NEW_IMAGE}\"" "$DEPLOY_FILE"
+          echo "✅ Update adminAPI init container image (${NEW_IMAGE}) version: ${IMAGE_VERSION}"
+          # Actualiza version imagen AdminAPI
+          CURRENT_IMAGE_NET=$(yq e '.spec.template.spec.containers[0].image' "$DEPLOY_FILE")
+          IMAGE_BASE=$(echo "$CURRENT_IMAGE_NET" | sed 's/:[^:]*$//')
+          NEW_IMAGE="${IMAGE_BASE}:${IMAGE_VERSION}"
+          yq e -i ".spec.template.spec.containers[0].image = \"${NEW_IMAGE}\"" "$DEPLOY_FILE"
+          echo "✅ Update adminAPI image (${NEW_IMAGE}) version: ${IMAGE_VERSION}"
+          # Commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$DEPLOY_FILE"
+          git diff --staged --quiet && echo "Sin cambios" || git commit -m "chore(dev-xbol-api-client): actualizar imagen a ${IMAGE_VERSION}"
+          git push
+          echo "✅ Image version updated."
+  deploy-gke:
+    needs: build-and-push
+    runs-on: self-hosted-boletera-qa
+    environment: GCP_DEV
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+      - name: Deploy to GKE
+        env:
+          INFRA_REPO_TOKEN: ${{ secrets.INFRA_CLOUD_REPO_TOKEN }}
+        run: |
+          if [ -z "${{ secrets.GKE_CLUSTER_NAME }}" ]; then
+            echo "⚠️ GKE_CLUSTER_NAME no configurado, se omite despliegue"
+            exit 0
+          fi
+          GET_CRED_ARGS="--project ${{ secrets.GCP_PROJECT_ID }}"
+          if [ -n "${{ secrets.GKE_REGION }}" ]; then
+            GET_CRED_ARGS="$GET_CRED_ARGS --region ${{ secrets.GKE_REGION }}"
+          elif [ -n "${{ secrets.GKE_ZONE }}" ]; then
+            GET_CRED_ARGS="$GET_CRED_ARGS --zone ${{ secrets.GKE_ZONE }}"
+          else
+            echo "⚠️ Configura GKE_ZONE o GKE_REGION"
+            exit 0
+          fi
+          gcloud container clusters get-credentials "${{ secrets.GKE_CLUSTER_NAME }}" $GET_CRED_ARGS
+          git clone --depth 1 "https://x-access-token:${INFRA_REPO_TOKEN}@github.com/club-tijuana/infra-cloud.git" infra-cloud-deploy
+          DEPLOY_FILE="infra-cloud-deploy/workloads/boletera/dev/xbol-api-client/deployment.yaml"
+          if [ ! -f "$DEPLOY_FILE" ]; then
+            echo "❌ No existe $DEPLOY_FILE"
+            exit 1
+          fi
+          kubectl apply -f "$DEPLOY_FILE" --validate=false
+          echo "✅ Despliegue en GKE completado"
+      - name: Limpiar espacio de trabajo
+        if: always()
+        run: rm -rf ${GITHUB_WORKSPACE}/*
