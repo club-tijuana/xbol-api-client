@@ -17,7 +17,11 @@ builder.Services.AddDbContext<XBOLDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 #region AppSettings
-Authentication authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>()!;
+Authentication? authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>();
+if (authenticationConfig is null)
+    throw new InvalidOperationException(
+        "Missing or invalid 'Authentication' configuration. " +
+        "Ensure the 'Authentication' section exists (e.g. in appsettings.Production.json or via ConfigMap/Env in GKE) with at least 'AllowedUsers'.");
 #endregion
 
 builder.Services.AddCors(o => o.AddPolicy(corsSettings.PolicyName, builder =>
@@ -131,6 +135,19 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Map health check endpoint for container health monitoring
-app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var dockerImageVersion = Environment.GetEnvironmentVariable("DOCKER_IMAGE_VERSION") ?? "unknown";
+        var response = new
+        {
+            status = report.Status.ToString(),
+            dockerImageVersion
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
 
 app.Run();
