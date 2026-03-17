@@ -140,9 +140,13 @@ app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthCheck
     ResponseWriter = async (context, report) =>
     {
         context.Response.ContentType = "application/json";
+        var appName = app.Environment.ApplicationName ?? "unknown";
+        var environment = app.Environment.EnvironmentName ?? "unknown";
         var dockerImageVersion = Environment.GetEnvironmentVariable("DOCKER_IMAGE_VERSION") ?? "unknown";
         var response = new
         {
+            appName,
+            environment,
             status = report.Status.ToString(),
             dockerImageVersion
         };
