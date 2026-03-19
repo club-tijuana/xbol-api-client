@@ -62,8 +62,7 @@ namespace Odasoft.XBOL.Data
             modelBuilder.Entity<Client>()
                 .HasOne(c => c.User)
                 .WithOne(u => u.Client)
-                .HasForeignKey<User>(u => u.ClientId)
-                .IsRequired();
+                .HasForeignKey<Client>(c => c.UserId);
 
             modelBuilder.Entity<SeasonPassEventTicket>()
                 .Property(spet => spet.Id)

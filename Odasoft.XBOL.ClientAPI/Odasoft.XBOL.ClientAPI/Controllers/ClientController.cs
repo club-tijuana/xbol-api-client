@@ -32,26 +32,47 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? pageSize,
             [FromQuery] OrderType orderType)
         {
-            long idClient = 1;
+            // TODO: Remove temp token
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                long idClient = token == "TEST-TOKEN" ? 1 : 2;
 
-            var result = await _clientService.GetMyEventsAsync(page, pageSize, orderType, idClient);
+                var result = await _clientService.GetMyEventsAsync(page, pageSize, orderType, idClient);
 
-            return Ok(result);
+                return Ok(result);
+            }
+            else
+            {
+                return Unauthorized();
+            }
         }
 
         [HttpGet("my-event/{eventId}")]
         [EndpointName("GetMyEventDetailAsync")]
         public async Task<ActionResult<MyEventDetailDTO>> GetMyEventDetailAsync(long eventId)
         {
-            long idClient = 1;
-            var result = await _clientService.GetMyEventDetailAsync(idClient, eventId);
-
-            if (result == null)
+            // TODO: Remove temp token
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
             {
-                return NotFound();
-            }
+                var token = authHeader.Substring("Bearer ".Length);
+                long idClient = token == "TEST-TOKEN" ? 1 : 2;
 
-            return Ok(result);
+                var result = await _clientService.GetMyEventDetailAsync(idClient, eventId);
+
+                if (result == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(result);
+            }
+            else
+            {
+                return Unauthorized();
+            }
         }
 
         /// <summary>
@@ -77,11 +98,24 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? page,
             [FromQuery] int? pageSize,
             [FromQuery] long eventId,
-            [FromQuery] long orderId)
+            [FromQuery] long orderId
+        )
         {
-            var result = await _clientService.GetMyTicketsByOrderAsync(page, pageSize, eventId, orderId);
+            // TODO: Remove temp token
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                long idClient = token == "TEST-TOKEN" ? 1 : 2;
 
-            return Ok(result);
+                var result = await _clientService.GetMyTicketsByOrderAsync(page, pageSize, eventId, orderId, idClient);
+
+                return Ok(result);
+            }
+            else
+            {
+                return Unauthorized();
+            }
         }
     }
 }

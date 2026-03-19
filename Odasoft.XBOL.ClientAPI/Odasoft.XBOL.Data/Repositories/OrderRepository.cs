@@ -20,38 +20,64 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Order>()
                 .Where(o =>
-                    o.ClientId == idClient
+                    o.Tickets.Any()
+                    && o.Tickets.Any(t =>
+                        t.OriginalClientId == idClient
+                        || t.CurrentClientId == idClient
+                    )
                     && o.OrderType == orderType
-                    && o.Tickets.Any()
                 );
 
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
 
-            List<MyEventDTO> events = await query
+            var orders = await query
                 .OrderBy(o => o.Id)
                 .Skip(skip)
                 .Take(pageSize)
                 .Select(o => new
                 {
-                    Order = o,
-                    Event = o.Tickets.Select(t => t.EventSchedule.Event).FirstOrDefault()
-                })
-                .Select(x => new MyEventDTO
-                {
-                    OrderId = x.Order.Id,
-                    EventId = x.Event.Id,
-                    EventImage = x.Event.PosterImageUrl,
-                    Name = x.Event.Name,
-                    StartDate = x.Event.Schedules
-                        .OrderBy(s => s.StartDateTime)
-                        .Select(s => s.StartDateTime)
-                        .First(),
-                    Location = x.Event.VenueMap.Name,
-                    isSeasonPass = x.Order.Tickets.Any(t => t.TicketType.ToUpper().Trim() == SEASONPASS),
-                    isPastEvent = x.Event.Schedules.All(s => s.StartDateTime < now)
+                    o.Id,
+                    Tickets = o.Tickets
+                        .Where(t =>
+                            t.OriginalClientId == idClient ||
+                            t.CurrentClientId == idClient
+                        )
+                        .Select(t => new
+                        {
+                            t.EventScheduleId,
+                            t.EventSchedule.StartDateTime,
+                            EventId = t.EventSchedule.EventId,
+                            EventName = t.EventSchedule.Event.Name,
+                            EventImage = t.EventSchedule.Event.PosterImageUrl,
+                            Location = t.EventSchedule.Event.VenueMap.Name,
+                            TicketType = t.TicketType
+                        })
+                        .ToList()
                 })
                 .ToListAsync();
+
+            var events = orders.Select(o =>
+            {
+                var currentSchedule = o.Tickets
+                    .GroupBy(t => t.EventScheduleId)
+                    .Select(g => g.First())
+                    .OrderBy(t => t.StartDateTime < now)
+                    .ThenByDescending(t => t.StartDateTime)
+                    .First();
+
+                return new MyEventDTO
+                {
+                    OrderId = o.Id,
+                    EventId = currentSchedule.EventId,
+                    EventImage = currentSchedule.EventImage,
+                    Name = currentSchedule.EventName,
+                    StartDate = currentSchedule.StartDateTime,
+                    Location = currentSchedule.Location,
+                    isSeasonPass = o.Tickets.Any(t => t.TicketType.ToUpper().Trim() == SEASONPASS),
+                    isPastEvent = currentSchedule.StartDateTime < now
+                };
+            }).ToList();
 
             return new PagedResponse<MyEventDTO>
             {
@@ -66,11 +92,12 @@ namespace Odasoft.XBOL.Data.Repositories
         public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId)
         {
             var query = DbContext.Set<Order>()
-                .Where(o => o.ClientId == clientId)
+                .Where(o => o.Tickets.Any(t => t.CurrentClientId == clientId))
                 .SelectMany(o => o.Tickets)
                 .Where(t =>
                     t.EventSchedule.EventId == eventId &&
-                    t.OriginalOrder != null
+                    t.OriginalOrder != null &&
+                    t.CurrentClientId == clientId
                 )
                 .GroupBy(t => new
                 {
@@ -111,12 +138,19 @@ namespace Odasoft.XBOL.Data.Repositories
             int page,
             int pageSize,
             long eventId,
-            long orderId)
+            long orderId,
+            long clientId)
         {
             var query = DbContext.Set<Order>()
                 .Where(o => o.Id == orderId)
                 .SelectMany(o => o.Tickets)
-                .Where(t => t.EventSchedule.EventId == eventId)
+                .Where(t =>
+                    t.EventSchedule.EventId == eventId
+                    && (
+                        t.OriginalClientId == clientId
+                        || t.CurrentClientId == clientId
+                    )
+                )
                 .OrderByDescending(t => t.EventSchedule.StartDateTime);
 
             int totalCount = await query.CountAsync();
@@ -128,6 +162,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Select(t => new MyTicketDTO
                 {
                     Id = t.Id,
+                    OrderType = t.OriginalOrder != null ? t.OriginalOrder.OrderType : OrderType.Ticket,
                     Name = t.EventSchedule.Event.Name,
                     Location = t.EventSchedule.Event.VenueMap.Name,
                     StartDate = t.EventSchedule.StartDateTime,
@@ -135,7 +170,15 @@ namespace Odasoft.XBOL.Data.Repositories
                     Code = t.TicketCode,
                     Section = t.EventSection.BaseSection.Name,
                     Row = t.EventSeat.BaseSeat.BaseRow.RowLabel,
-                    Seat = t.EventSeat.BaseSeat.SeatNumber
+                    Seat = t.EventSeat.BaseSeat.SeatNumber,
+                    CanShare = (
+                        t.OriginalClientId == clientId
+                        && t.CurrentClientId == clientId
+                    ),
+                    IsOwner = t.OriginalClientId == clientId,
+                    IsShared = (
+                        t.OriginalClientId != t.CurrentClientId
+                    )
                 })
                 .ToListAsync();
 

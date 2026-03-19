@@ -19,10 +19,21 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetOrderAsync")]
         public async Task<ActionResult<OrderDTO>> GetOrderAsync([FromRoute] long orderId)
         {
-            // TODO: Get clientId from claims
-            var result = await _orderService.GetOrderAsync(1, orderId);
+            // TODO: Remove temp token
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                long idClient = token == "TEST-TOKEN" ? 1 : 2;
 
-            return Ok(result);
+                var result = await _orderService.GetOrderAsync(idClient, orderId);
+
+                return Ok(result);
+            }
+            else
+            {
+                return Unauthorized();
+            }
         }
     }
 }
