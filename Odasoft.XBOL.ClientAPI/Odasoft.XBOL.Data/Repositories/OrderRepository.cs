@@ -95,9 +95,12 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Where(o => o.Tickets.Any(t => t.CurrentClientId == clientId))
                 .SelectMany(o => o.Tickets)
                 .Where(t =>
-                    t.EventSchedule.EventId == eventId &&
-                    t.OriginalOrder != null &&
-                    t.CurrentClientId == clientId
+                    t.EventSchedule.EventId == eventId
+                    && t.OriginalOrder != null
+                    && (
+                        t.OriginalClientId == clientId
+                        || t.CurrentClientId == clientId
+                    )
                 )
                 .GroupBy(t => new
                 {
