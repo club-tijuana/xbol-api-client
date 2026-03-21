@@ -11,8 +11,23 @@ using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
-CorsSettings corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>();
+CorsSettings? corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>();
+if (corsSettings is null)
+    throw new InvalidOperationException(
+        "Missing 'Cors' configuration. Add a Cors section (appsettings or env in GKE), e.g. " +
+        "Cors__PolicyName and Cors__AcceptedOrigins__0, Cors__AcceptedOrigins__1, ...");
+if (string.IsNullOrWhiteSpace(corsSettings.PolicyName))
+    throw new InvalidOperationException(
+        "Cors:PolicyName is required (e.g. env Cors__PolicyName=XBOLPolicy).");
+corsSettings.AcceptedOrigins ??= Array.Empty<string>();
+if (corsSettings.AcceptedOrigins.Length == 0)
+    throw new InvalidOperationException(
+        "Cors:AcceptedOrigins must include at least one origin (e.g. Cors__AcceptedOrigins__0=https://your-app.example).");
+
 var connectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "Connection string 'Default' is missing. Set ConnectionStrings__Default (e.g. from External Secrets).");
 builder.Services.AddDbContext<XBOLDbContext>(options =>
     options.UseNpgsql(connectionString));
 
