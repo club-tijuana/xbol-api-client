@@ -26,6 +26,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<InventoryBatch> InventoryBatches { get; set; }
         public DbSet<Performer> Performers { get; set; }
         public DbSet<EventViews> EventViews { get; set; }
+        public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
 
         public XBOLDbContext() : base()
         {
