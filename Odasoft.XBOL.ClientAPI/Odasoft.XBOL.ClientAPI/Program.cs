@@ -24,9 +24,25 @@ builder.Services.AddDbContext<XBOLDbContext>(options =>
 
 #region AppSettings
 Authentication authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>()!;
+HttpClientsConfigs httpClientsConfigs = builder.Configuration.GetSection("HttpClients").Get<HttpClientsConfigs>()!;
 SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings").Get<SearchSettings>()!;
 EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
 #endregion
+
+// Identity + EF Core store
+builder.Services.AddDataProtection();
+
+builder.Services
+    .AddIdentityCore<User>(options =>
+    {
+        options.Password.RequireDigit = true;
+        options.Password.RequiredLength = 8;
+        options.User.RequireUniqueEmail = true;
+    })
+    .AddRoles<Role>()
+    .AddEntityFrameworkStores<XBOLDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
 
 builder.Services.AddCors(o => o.AddPolicy(corsSettings.PolicyName, builder =>
 {
@@ -105,7 +121,7 @@ builder.Services.AddSingleton(eventsTrackingSettings);
 builder.Services.AddHttpClient<TicketingClient>(
     (provider, client) =>
     {
-        client.BaseAddress = new Uri(builder.Configuration.GetValue("TicketingClientBaseAddress", "https://localhost:7021/"));
+        client.BaseAddress = new Uri(builder.Configuration.GetValue("TicketingClientBaseAddress", httpClientsConfigs.TicketingClientBaseAddress));
     });
 
 var app = builder.Build();

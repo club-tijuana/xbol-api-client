@@ -845,6 +845,10 @@
           "eventKey": {
             "type": "string"
           },
+          "scheduleId": {
+            "type": "integer",
+            "format": "int64"
+          },
           "seats": {
             "type": "object",
             "additionalProperties": {
@@ -1121,7 +1125,7 @@
             "nullable": true
           }
         },
-        "additionalProperties": { }
+        "additionalProperties": {}
       },
       "SeasonBookingRequest": {
         "required": [
@@ -1138,6 +1142,10 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          },
+          "scheduleId": {
+            "type": "integer",
+            "format": "int64"
           },
           "seats": {
             "type": "object",
