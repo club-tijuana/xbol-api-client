@@ -12,6 +12,11 @@ namespace Odasoft.XBOL.DTO
         public decimal TotalTaxes { get; set; }
         public decimal Total { get; set; }
         public string Currency { get; set; } = string.Empty;
-        public required List<OrderEventDTO> Events { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public string ItemLocation { get; set; } = string.Empty;
+        public string ItemKey { get; set; } = string.Empty;
+        public List<MyEventSeatDTO> ItemSeats { get; set; } = new List<MyEventSeatDTO>();
+        public string ItemPosterImageUrl { get; set; } = string.Empty;
+        public DateTimeOffset ItemStartDate { get; set; }
     }
 }

@@ -112,7 +112,7 @@ namespace Odasoft.XBOL.Business.Services
             }
         }
 
-        public async Task CreateSeasonOrderAsync(SeasonBookingRequest request)
+        public async Task<long> CreateSeasonOrderAsync(SeasonBookingRequest request)
         {
             IDbContextTransaction transaction = await _orderRepository.BeginTransactionAsync();
 
@@ -122,23 +122,21 @@ namespace Odasoft.XBOL.Business.Services
                                     .Include(x => x.Season)
                                     .FirstAsync();
 
+                string emailRequest = request.ClientContact.Email.ToUpper();
+                var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
 
-                Client client;
-
-                if (request.ClientContact.Id.HasValue)
-                {
-                    client = await _clientRepository
-                                    .Get()
-                                    .AsNoTracking()
-                                    .FirstAsync(x => x.Id == request.ClientContact.Id.Value);
-                }
-                else
+                if (client == null)
                 {
                     client = await CreateClientAsync(request.ClientContact);
-                    request.ClientContact.Id = client.Id;
                 }
 
+                request.ClientContact.Id = client.Id;
+
+                // TODO: Temporarily create tickets for season passes to support ticket sharing.
+                // Season passes should eventually handle sharing natively without relying on ticket entities.
+                // Remove this workaround once sharing is implemented for season passes.
                 List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats, season.Id, client);
+                List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats, season.Id, client);
 
                 var newOrder = new Order
                 {
@@ -169,7 +167,16 @@ namespace Odasoft.XBOL.Business.Services
                 await _orderRepository.InsertAsync(newOrder);
                 await _orderRepository.CommitAsync();
 
+                foreach (var ticket in tickets)
+                {
+                    ticket.OriginalOrderId = newOrder.Id;
+                }
+
+                await _ticketRepository.UpdateRangeAsync(tickets);
+
                 await transaction.CommitAsync();
+
+                return newOrder.Id;
             }
             catch (Exception ex)
             {
@@ -223,6 +230,56 @@ namespace Odasoft.XBOL.Business.Services
             var now = DateTimeOffset.UtcNow;
 
             foreach (var seat in eventSeats)
+            {
+                var ticket = new Ticket
+                {
+                    EventScheduleId = seat.EventSection.EventScheduleId,
+                    EventSectionId = seat.EventSectionId,
+                    EventSeatId = seat.Id,
+                    OriginalClientId = client.Id,
+                    CurrentClientId = client.Id,
+                    TicketCode = seat.ExternalSeatObjectKey,
+                    TicketType = "General Admission", // TODO: Define how to manage different ticket types
+                    PrivateToken = Guid.NewGuid().ToString("N"), // TODO: Define the logic for the private token
+                    PricePaid = seats[seat.ExternalSeatObjectKey],
+                    Status = TicketStatus.Issued,
+                    SeatLabelSnapshot = seat.ExternalSeatObjectKey,
+                    SectionLabelSnapshot = seat.EventSection.DisplayName,
+                    CreatedAt = now,
+                    CreatedBy = Guid.Empty,
+                    UpdatedAt = now,
+                    UpdatedBy = Guid.Empty
+                };
+
+                await _ticketRepository.InsertAsync(ticket);
+                tickets.Add(ticket);
+            }
+
+            await _ticketRepository.CommitAsync();
+            return tickets;
+        }
+
+        private async Task<List<Ticket>> CreateSeasonTicketsAsync(IDictionary<string, decimal> seats, long seasonId, Client client)
+        {
+            List<Ticket> tickets = new List<Ticket>();
+
+            var seatKeys = seats.Keys.ToList();
+            var seatKeysSet = seatKeys.ToHashSet();
+
+            var seasonSeats = await _eventSeatRepository
+                                    .Get()
+                                    .Include(x => x.EventSection)
+                                        .ThenInclude(x => x.EventSchedule)
+                                    .AsNoTracking()
+                                    .Where(x =>
+                                        x.EventSection.EventSchedule.Event.SeasonId == seasonId &&
+                                        seatKeysSet.Contains(x.ExternalSeatObjectKey)
+                                    )
+                                    .ToListAsync();
+
+            var now = DateTimeOffset.UtcNow;
+
+            foreach (var seat in seasonSeats)
             {
                 var ticket = new Ticket
                 {

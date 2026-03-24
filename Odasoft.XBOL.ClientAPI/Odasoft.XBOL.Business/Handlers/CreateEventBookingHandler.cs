@@ -22,5 +22,13 @@ namespace Odasoft.XBOL.Business.Handlers
 
             return (new BookingResult { Message = "Booking created successfully", Tickets = tickets, OrderId = orderId });
         }
+
+        public async Task<BookingResult> Handle(CreateSeasonBookingCommand command)
+        {
+            var orderId = await _orderService.CreateSeasonOrderAsync(command.Request);
+            var tickets = await _ticketingClient.BookSeasonSeatsAsync(command.Request);
+
+            return (new BookingResult { Message = "Booking created successfully", Tickets = tickets, OrderId = orderId });
+        }
     }
 }

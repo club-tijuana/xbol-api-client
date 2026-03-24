@@ -17,7 +17,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet]
         [EndpointName("GetSeasonBannerAsync")]
-        public async Task<ActionResult<SeasonItemDTO>> GetSeasonBannerAsync()
+        public async Task<ActionResult<SeasonItemDTO?>> GetSeasonBannerAsync()
         {
             var result = await _seasonService.GetSeasonBannerAsync();
             return Ok(result);

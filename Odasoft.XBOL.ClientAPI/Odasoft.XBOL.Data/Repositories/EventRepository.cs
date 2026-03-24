@@ -16,6 +16,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Where(e =>
                     e.Schedules != null
                     && e.Schedules.All(es => es.StartDateTime > now)
+                    && e.Categories.Any(ec => ec.Id == 2 || ec.Id == 3)
                 )
                 .OrderByDescending(e => e.Schedules
                     .Where(s => s.StartDateTime > now)

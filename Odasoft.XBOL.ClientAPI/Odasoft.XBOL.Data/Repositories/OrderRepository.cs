@@ -132,9 +132,10 @@ namespace Odasoft.XBOL.Data.Repositories
                         .ToList(),
                     SelectedSeats = g.Select(seat => seat.EventSeat.ExternalSeatObjectKey).ToList(),
                     Currency = "MXN" // TODO: Add currency support for totals
-                });
+                })
+                .FirstOrDefaultAsync();
 
-            return await query.SingleOrDefaultAsync();
+            return await query;
         }
 
         public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByOrderAsync(
@@ -210,8 +211,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     o.Total,
                     Tickets = o.Tickets.Select(t => new
                     {
-                        t.EventSeat.EventSection.BaseSection.Name,
-                        t.EventSeat.BaseSeat.SeatNumber,
+                        SectionName = t.EventSeat.EventSection.BaseSection.Name,
+                        SeatNumber = t.EventSeat.BaseSeat.SeatNumber,
                         t.EventScheduleId,
                         EventSchedule = new
                         {
@@ -223,59 +224,109 @@ namespace Odasoft.XBOL.Data.Repositories
                                 EventId = t.EventSchedule.Event.Id,
                                 EventName = t.EventSchedule.Event.Name,
                                 t.EventSchedule.Event.PosterImageUrl,
-                                EventCategories = t.EventSchedule.Event.Categories,
-                                VenueName = t.EventSchedule.Event.VenueMap.Name
+                                VenueName = t.EventSchedule.Event.VenueMap.Name,
+
+                                Season = t.EventSchedule.Event.Season == null ? null : new
+                                {
+                                    t.EventSchedule.Event.Season.Id,
+                                    t.EventSchedule.Event.Season.Name,
+                                    t.EventSchedule.Event.Season.ExternalSeasonKey,
+                                    t.EventSchedule.Event.Season.PosterImageUrl,
+                                    t.EventSchedule.Event.Season.StartDate
+                                }
                             }
                         }
-                    })
-                    .ToList()
+                    }).ToList()
                 })
                 .FirstOrDefaultAsync();
 
-            if (orderData == null)
+            if (orderData == null || !orderData.Tickets.Any())
                 return null;
 
-            var eventsGrouped = orderData.Tickets
-                .GroupBy(t => t.EventScheduleId)
-                .Select(g => new OrderEventDTO
+            var seats = orderData.Tickets
+                .Select(t => new
                 {
-                    Id = g.First().EventSchedule.Event.EventId,
-                    EventKey = g.First().EventSchedule.ExternalEventKey,
-                    PosterImageUrl = g.First().EventSchedule.Event.PosterImageUrl,
-                    Name = g.First().EventSchedule.Event.EventName,
-                    StartDate = g.First().EventSchedule.StartDateTime,
-                    Location = g.First().EventSchedule.Event.VenueName,
-                    EventCategories = g.First().EventSchedule.Event.EventCategories
-                        .Select(ec => new EventCategoryDTO
-                        {
-                            Id = ec.Id,
-                            Name = ec.Name,
-                            DisplayName = ec.DisplayName,
-                        })
-                        .ToList(),
-                    Seats = g
-                        .GroupBy(t => t.Name)
-                        .Select(sg => new MyEventSeatDTO
-                        {
-                            Section = $"{sg.Key} x{sg.Count()}",
-                            Seats = string.Join(", ", sg.Select(t => t.SeatNumber).OrderBy(n => n))
-                        })
-                        .ToList()
+                    t.SectionName,
+                    t.SeatNumber
+                })
+                .Distinct()
+                .GroupBy(x => x.SectionName)
+                .Select(g => new MyEventSeatDTO
+                {
+                    Section = $"{g.Key} x{g.Count()}",
+                    Seats = string.Join(", ", g.Select(x => x.SeatNumber).OrderBy(n => n))
                 })
                 .ToList();
 
-            return new OrderDTO
+            if (orderData.OrderType == OrderType.Ticket)
             {
-                Id = orderData.Id,
-                Folio = orderData.Reference,
-                OrderType = orderData.OrderType,
-                SubTotal = orderData.SubTotal,
-                TotalFees = orderData.TotalFees,
-                TotalTaxes = orderData.TotalTaxes,
-                Total = orderData.Total,
-                Currency = "MXN", // TODO: Add currency support for totals
-                Events = eventsGrouped
-            };
+                var first = orderData.Tickets.First();
+
+                return new OrderDTO
+                {
+                    Id = orderData.Id,
+                    Folio = orderData.Reference,
+                    OrderType = orderData.OrderType,
+                    SubTotal = orderData.SubTotal,
+                    TotalFees = orderData.TotalFees,
+                    TotalTaxes = orderData.TotalTaxes,
+                    Total = orderData.Total,
+                    Currency = "MXN",
+
+                    ItemName = first.EventSchedule.Event.EventName,
+                    ItemLocation = first.EventSchedule.Event.VenueName,
+                    ItemKey = first.EventSchedule.ExternalEventKey,
+                    ItemPosterImageUrl = first.EventSchedule.Event.PosterImageUrl,
+                    ItemStartDate = first.EventSchedule.StartDateTime,
+
+                    ItemSeats = seats
+                };
+            }
+            else if (orderData.OrderType == OrderType.SeasonPass)
+            {
+                var seasons = orderData.Tickets
+                    .Select(t => t.EventSchedule.Event.Season)
+                    .Where(s => s != null)
+                    .DistinctBy(s => s!.Id)
+                    .ToList();
+
+                if (seasons.Count != 1)
+                    throw new Exception("Invalid season order: múltiples seasons detectadas.");
+
+                var venues = orderData.Tickets
+                    .Select(t => t.EventSchedule.Event.VenueName)
+                    .Distinct()
+                    .ToList();
+
+                if (venues.Count != 1)
+                    throw new Exception("Invalid season order: múltiples venues detectados.");
+
+                var season = seasons.First()!;
+
+                return new OrderDTO
+                {
+                    Id = orderData.Id,
+                    Folio = orderData.Reference,
+                    OrderType = orderData.OrderType,
+                    SubTotal = orderData.SubTotal,
+                    TotalFees = orderData.TotalFees,
+                    TotalTaxes = orderData.TotalTaxes,
+                    Total = orderData.Total,
+                    Currency = "MXN",
+
+                    ItemName = season.Name,
+                    ItemLocation = venues.First(),
+                    ItemKey = season.ExternalSeasonKey,
+                    ItemPosterImageUrl = season.PosterImageUrl,
+                    ItemStartDate = season.StartDate,
+
+                    ItemSeats = seats
+                };
+            }
+            else
+            {
+                throw new NotSupportedException($"OrderType {orderData.OrderType} no soportado.");
+            }
         }
     }
 }

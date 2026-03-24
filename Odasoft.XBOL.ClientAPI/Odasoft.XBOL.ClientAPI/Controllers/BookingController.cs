@@ -50,6 +50,22 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+        [HttpGet("season-by-id/{seasonId}")]
+        [EndpointName("GetSeasonByScheduleIdAsync")]
+        public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync([FromRoute] long seasonId)
+        {
+            var result = await _bookingService.GetSeasonByIdAsync(seasonId);
+
+            if (result != null)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return NotFound();
+            }
+        }
+
         /// <summary>
         /// Books seats for an event based on the provided booking request.
         /// </summary>
