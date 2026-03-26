@@ -289,7 +289,7 @@ namespace Odasoft.XBOL.Business.Services
                     OriginalClientId = client.Id,
                     CurrentClientId = client.Id,
                     TicketCode = seat.ExternalSeatObjectKey,
-                    TicketType = "General Admission", // TODO: Define how to manage different ticket types
+                    TicketType = "SeasonPass", // TODO: Define how to manage different ticket types
                     PrivateToken = Guid.NewGuid().ToString("N"), // TODO: Define the logic for the private token
                     PricePaid = seats[seat.ExternalSeatObjectKey],
                     Status = TicketStatus.Issued,

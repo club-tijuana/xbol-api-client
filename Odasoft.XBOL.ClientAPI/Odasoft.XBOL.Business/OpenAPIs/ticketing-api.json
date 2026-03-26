@@ -597,6 +597,109 @@
         }
       }
     },
+    "/api/hold-seats/client": {
+      "post": {
+        "tags": [
+          "Hold"
+        ],
+        "operationId": "ClientHoldSeatsAsync",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hold-seats/season": {
+      "post": {
+        "tags": [
+          "Hold"
+        ],
+        "summary": "Asynchronously holds the specified seats for a season and returns a token representing the hold.",
+        "description": "This method reserves the requested seats for a limited time, allowing further actions\r\n            such as purchase or release. If the event is not found or the seat information is invalid, the operation may\r\n            fail. Exception handling should be implemented to manage such cases appropriately.",
+        "operationId": "HoldSeasonSeatsAsync",
+        "requestBody": {
+          "description": "The request containing the event identifier and the collection of seat identifiers to be held. The season\r\n            identifier must correspond to an existing season, and the seat identifiers must be valid for that season.",
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tests": {
       "get": {
         "tags": [
@@ -958,14 +1061,34 @@
         },
         "additionalProperties": false
       },
-      "HoldSeatsRequest": {
+      "HoldSeasonSeatsRequest": {
         "required": [
-          "eventId",
+          "seasonId",
           "seats"
         ],
         "type": "object",
         "properties": {
-          "eventId": {
+          "seasonId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "HoldSeatsRequest": {
+        "required": [
+          "eventScheduleId",
+          "seats"
+        ],
+        "type": "object",
+        "properties": {
+          "eventScheduleId": {
             "type": "integer",
             "format": "int64"
           },
