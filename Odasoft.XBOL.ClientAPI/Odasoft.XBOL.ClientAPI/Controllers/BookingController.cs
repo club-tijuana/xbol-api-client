@@ -127,5 +127,32 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             return Ok(result);
         }
+
+        [HttpPost("season/renovate-season")]
+        [EndpointName("RenovateSeasonSeatsAsync")]
+        [ProducesResponseType(typeof(BookingResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ModelStateDictionary), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status422UnprocessableEntity)]
+        public async Task<ActionResult<List<string>>> RenovateSeasonSeatsAsync([FromBody] SeasonBookingRequest request)
+        {
+            if (ModelState.IsValid == false)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (request.RefereceOrderId == null)
+            {
+                return BadRequest("Renovation must contain a previous order to reference.");
+            }
+
+            var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request));
+
+            if (result is null)
+            {
+                return UnprocessableEntity("Renovation failed. Please check the request details and try again.");
+            }
+
+            return Ok(result);
+        }
     }
 }

@@ -18,6 +18,15 @@ namespace Odasoft.XBOL.Data.Repositories
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
+            var renewableSeasonIds = await DbContext.Set<Season>()
+                .Where(s =>
+                    s.PreviousSeasonId != null &&
+                    s.StartDate > now &&
+                    !DbContext.Set<Season>().Any(s2 => s2.PreviousSeasonId == s.Id)
+                )
+                .Select(s => s.PreviousSeasonId!.Value)
+                .ToHashSetAsync();
+
             var query = DbContext.Set<Models.Order>()
                 .Where(o =>
                     o.Tickets.Any()
@@ -47,11 +56,13 @@ namespace Odasoft.XBOL.Data.Repositories
                         {
                             t.EventScheduleId,
                             t.EventSchedule.StartDateTime,
+                            t.EventSchedule.EndDateTime,
                             EventId = t.EventSchedule.EventId,
                             EventName = t.EventSchedule.Event.Name,
                             EventImage = t.EventSchedule.Event.PosterImageUrl,
                             Location = t.EventSchedule.Event.VenueMap.Name,
-                            TicketType = t.TicketType
+                            TicketType = t.TicketType,
+                            SeasonId = t.EventSchedule.Event.SeasonId
                         })
                         .ToList()
                 })
@@ -59,12 +70,31 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var events = orders.Select(o =>
             {
+                bool isSeason = o.Tickets.Any(t => t.TicketType.ToUpper().Trim() == SEASONPASS);
+
                 var currentSchedule = o.Tickets
                     .GroupBy(t => t.EventScheduleId)
                     .Select(g => g.First())
                     .OrderBy(t => t.StartDateTime < now)
                     .ThenByDescending(t => t.StartDateTime)
                     .First();
+
+                bool isPastEvent = false;
+
+                if (isSeason)
+                {
+                    isPastEvent = o.Tickets.All(t => t.EndDateTime < now);
+                }
+                else
+                {
+                    isPastEvent = currentSchedule.StartDateTime < now;
+                }
+
+                bool canRenovateSeasonPass =
+                    isSeason &&
+                    isPastEvent &&
+                    currentSchedule.SeasonId.HasValue &&
+                    renewableSeasonIds.Contains(currentSchedule.SeasonId.Value);
 
                 return new MyEventDTO
                 {
@@ -74,8 +104,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     Name = currentSchedule.EventName,
                     StartDate = currentSchedule.StartDateTime,
                     Location = currentSchedule.Location,
-                    isSeasonPass = o.Tickets.Any(t => t.TicketType.ToUpper().Trim() == SEASONPASS),
-                    isPastEvent = currentSchedule.StartDateTime < now
+                    IsSeasonPass = isSeason,
+                    IsPastEvent = isPastEvent,
+                    CanRenovateSeasonPass = canRenovateSeasonPass
                 };
             }).ToList();
 
@@ -327,6 +358,13 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 throw new NotSupportedException($"OrderType {orderData.OrderType} no soportado.");
             }
+        }
+
+        public async Task<Order?> GetOrderWithItems(long orderId)
+        {
+            return await DbContext.Set<Order>()
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
         }
     }
 }

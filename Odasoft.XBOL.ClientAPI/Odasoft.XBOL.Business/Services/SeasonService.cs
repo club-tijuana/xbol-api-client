@@ -19,6 +19,7 @@ namespace Odasoft.XBOL.Business.Services
 
             return await _seasonRepository.Get(
                     filter: season => season.OnSaleDate <= now
+                    && season.StartDate >= now
                 )
                 .Select(s => new SeasonItemDTO
                 {

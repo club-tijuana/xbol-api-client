@@ -10,6 +10,7 @@ namespace Odasoft.XBOL.Data
     {
         public DbSet<Season> Seasons => Set<Season>();
         public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<SeasonPass> SeasonPasses => Set<SeasonPass>();
@@ -67,6 +68,11 @@ namespace Odasoft.XBOL.Data
             modelBuilder.Entity<SeasonPassEventTicket>()
                 .Property(spet => spet.Id)
                 .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Order>()
+                .HasMany(o => o.Items)
+                .WithOne(i => i.Order)
+                .HasForeignKey(i => i.OrderId);
 
             modelBuilder.RemovePluralizingTableNameConvention();
 

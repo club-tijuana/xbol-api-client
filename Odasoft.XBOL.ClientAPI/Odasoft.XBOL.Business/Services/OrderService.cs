@@ -16,6 +16,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly EventSeatRepository _eventSeatRepository;
         private readonly TicketRepository _ticketRepository;
         private readonly SeasonPassRepository _seasonPassRepository;
+        private readonly SeasonRepository _seasonRepository;
         private readonly UserManager<User> _userManager;
 
         public OrderService(
@@ -25,6 +26,7 @@ namespace Odasoft.XBOL.Business.Services
             EventSeatRepository eventSeatRepository,
             TicketRepository ticketRepository,
             SeasonPassRepository seasonPassRepository,
+            SeasonRepository seasonRepository,
             UserManager<User> userManager
         )
         {
@@ -34,6 +36,7 @@ namespace Odasoft.XBOL.Business.Services
             _eventSeatRepository = eventSeatRepository;
             _ticketRepository = ticketRepository;
             _seasonPassRepository = seasonPassRepository;
+            _seasonRepository = seasonRepository;
             _userManager = userManager;
         }
 
@@ -118,9 +121,11 @@ namespace Odasoft.XBOL.Business.Services
 
             try
             {
-                var season = await _seasonPassRepository.Get(x => x.Season.ExternalSeasonKey == request.SeasonKey)
-                                    .Include(x => x.Season)
-                                    .FirstAsync();
+                //var season = await _seasonPassRepository.Get(x => x.Season.ExternalSeasonKey == request.SeasonKey)
+                //                    .Include(x => x.Season)
+                //                    .FirstAsync();
+                var season = await _seasonRepository.Get(x => x.ExternalSeasonKey == request.SeasonKey)
+                    .FirstOrDefaultAsync();
 
                 string emailRequest = request.ClientContact.Email.ToUpper();
                 var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
@@ -161,7 +166,8 @@ namespace Odasoft.XBOL.Business.Services
                         ItemType = Commons.Enums.ItemType.SeasonPass,
                         ItemReferenceId = x.Id,
                         Price = x.Price,
-                    })]
+                    })],
+                    RelatedOrderId = request.RefereceOrderId
                 };
 
                 await _orderRepository.InsertAsync(newOrder);
@@ -313,13 +319,26 @@ namespace Odasoft.XBOL.Business.Services
         {
             List<SeasonPass> seasonPasses = new List<SeasonPass>();
             var seatKeys = seats.Keys.ToList();
+            //var seasonSeats = await _eventSeatRepository
+            //                        .Get()
+            //                        .AsNoTracking()
+            //                        .Include(x => x.EventSection)
+            //                        .Where(x => x.EventSection.EventScheduleId == seasonId
+            //                            && seatKeys.Contains(x.ExternalSeatObjectKey))
+            //                        .ToListAsync();
+
             var seasonSeats = await _eventSeatRepository
-                                    .Get()
-                                    .AsNoTracking()
-                                    .Include(x => x.EventSection)
-                                    .Where(x => x.EventSection.EventScheduleId == seasonId
-                                        && seatKeys.Contains(x.ExternalSeatObjectKey))
-                                    .ToListAsync();
+                    .Get()
+                    .AsNoTracking()
+                    .Include(x => x.EventSection)
+                        .ThenInclude(x => x.EventSchedule)
+                        .ThenInclude(x => x.Event)
+                        .ThenInclude(x => x.Season)
+                    .Where(x =>
+                        x.EventSection.EventSchedule.Event.SeasonId == seasonId
+                        && seatKeys.Contains(x.ExternalSeatObjectKey)
+                    )
+                    .ToListAsync();
 
             var now = DateTimeOffset.UtcNow;
 
@@ -330,7 +349,7 @@ namespace Odasoft.XBOL.Business.Services
                     ClientId = client.Id,
                     UserId = client.UserId,
                     SeasonId = seasonId,
-                    BaseSeatId = seat.Id,
+                    BaseSeatId = seat.BaseSeatId,
                     Price = seats[seat.ExternalSeatObjectKey],
                     PurchasedAt = now,
                     SeasonPassType = SeasonPassType.Full,
@@ -349,6 +368,92 @@ namespace Odasoft.XBOL.Business.Services
 
             await _seasonPassRepository.CommitAsync();
             return seasonPasses;
+        }
+
+        public async Task<SeasonToRenovateDTO> GetOrderToRenovate(long orderId, long clientId)
+        {
+            var now = DateTimeOffset.UtcNow;
+            Order? order = await _orderRepository.GetOrderWithItems(orderId);
+
+            if (order == null)
+            {
+                throw new Exception(""); // Throw order not found
+            }
+
+            if (order.ClientId != clientId)
+            {
+                throw new Exception(""); // The order is not of this user
+            }
+
+            OrderItem? item = order.Items.FirstOrDefault();
+
+            if (item == null)
+            {
+                throw new Exception(""); // Throw order item not found
+            }
+
+            //SeasonPass? seasonPass = await _seasonPassRepository.GetByIdAsync(item.ItemReferenceId);
+            SeasonPass? seasonPass = await _seasonPassRepository.Get(
+                    filter: sp => sp.Id == item.ItemReferenceId,
+                    includedProperties: ["Season"]
+                )
+                .FirstOrDefaultAsync();
+
+            if (seasonPass == null)
+            {
+                throw new Exception(""); // Throw season pass not found
+            }
+
+            if (seasonPass.Season.EndDate > now)
+            {
+                throw new Exception(""); // Throw season not finished yet
+            }
+
+            Season? season = await _seasonRepository.Get(
+                    filter: season =>
+                        season.PreviousSeasonId == seasonPass.SeasonId
+                ).FirstOrDefaultAsync();
+
+            if (season == null)
+            {
+                throw new Exception(""); // Throw season not found
+            }
+
+            if (season.EndDate < now)
+            {
+                throw new Exception(""); // Throw new season already finished
+            }
+
+            List<Ticket> tickets = await _ticketRepository.Get(
+                    filter: ticket =>
+                        ticket.OriginalOrderId == order.Id
+                ).ToListAsync();
+
+            if (!tickets.Any())
+            {
+                throw new Exception(""); // Throw Tickets not found
+            }
+
+            return new SeasonToRenovateDTO
+            {
+                SeasonId = season.Id,
+                PreviousSeasonId = seasonPass.SeasonId,
+                RelatedOrderId = order.Id,
+                PreviousSeats = tickets
+                    .Select(t => new
+                    {
+                        sectionLabel = t.SectionLabelSnapshot,
+                        seatLabel = t.SeatLabelSnapshot
+                    })
+                    .Distinct()
+                    .GroupBy(g => g.sectionLabel)
+                    .Select(gs => new MyEventSeatDTO
+                    {
+                        Section = gs.Key,
+                        Seats = string.Join(", ", gs.Select(s => s.seatLabel))
+                    })
+                    .ToList()
+            };
         }
     }
 }
