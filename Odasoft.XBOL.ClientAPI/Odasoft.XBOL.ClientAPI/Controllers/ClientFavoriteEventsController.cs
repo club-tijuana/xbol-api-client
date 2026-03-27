@@ -44,8 +44,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(response);
         }
 
-        [HttpGet("trending-events")]
-        [EndpointName("GetTrendingEventsAsync")]
+        [HttpGet("get-list-by-clientid")]
+        [EndpointName("GetFavoritesByClientIdAsync")]
         [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetFavoritesByClientIdAsync(
             [FromQuery] int? page,
