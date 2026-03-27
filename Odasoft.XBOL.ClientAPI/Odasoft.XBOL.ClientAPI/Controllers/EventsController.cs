@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
+using Newtonsoft.Json.Linq;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
@@ -27,7 +30,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetMainEventsAsync")]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync()
         {
-            var result = await _eventService.GetMainEventsAsync();
+            // TODO: Remove temp token
+            long? clientId = null;
+
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                clientId = token == "TEST-TOKEN" ? 1 : 2;
+
+            }
+
+            var result = await _eventService.GetMainEventsAsync(clientId);
 
             return Ok(result);
         }
@@ -49,7 +63,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? page,
             [FromQuery] int? pageSize)
         {
-            var result = await _eventService.GetTrendingEventsAsync(page, pageSize);
+            // TODO: Remove temp token
+            long? clientId = null;
+
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                clientId = token == "TEST-TOKEN" ? 1 : 2;
+
+            }
+
+            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, clientId);
 
             return Ok(result);
         }
@@ -98,7 +123,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetEventDetailAsync")]
         public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync([FromRoute] long eventId)
         {
-            var result = await _eventService.GetEventDetailAsync(eventId);
+            // TODO: Remove temp token
+            long? idClient = null;
+
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                idClient = token == "TEST-TOKEN" ? 1 : 2;
+
+            }
+
+            var result = await _eventService.GetEventDetailAsync(eventId, idClient);
 
             return Ok(result);
         }

@@ -8,9 +8,15 @@ namespace Odasoft.XBOL.Data.Repositories
 {
     public class EventRepository(XBOLDbContext dbContext) : BaseRepository<Event>(dbContext)
     {
-        public async Task<(List<EventItemDTO> Items, int TotalCount)> GetMainEventsAsync(int pageSize)
+        public async Task<(List<EventItemDTO> Items, int TotalCount)> GetMainEventsAsync(int pageSize, long? clientId)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var favoriteEventIds = clientId != null
+                ? await DbContext.Set<Models.ClientFavoriteEvent>()
+                    .Where(f => f.ClientId == clientId)
+                    .Select(f => f.EventId)
+                    .ToListAsync() : new List<long>();
 
             List<EventItemDTO> mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
@@ -40,6 +46,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
+                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Id)
                 })
                 .ToListAsync();
 
@@ -48,9 +55,15 @@ namespace Odasoft.XBOL.Data.Repositories
 
         public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(
             int page,
-            int pageSize)
+            int pageSize, long? clientId)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var favoriteEventIds = clientId != null
+               ? await DbContext.Set<Models.ClientFavoriteEvent>()
+                   .Where(f => f.ClientId == clientId)
+                   .Select(f => f.EventId)
+                   .ToListAsync() : new List<long>();
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
@@ -84,6 +97,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
+                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Id)
                 })
                 .ToListAsync();
 
@@ -159,8 +173,10 @@ namespace Odasoft.XBOL.Data.Repositories
             };
         }
 
-        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId)
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? clientId)
         {
+            bool isFavorite = false;
+
             var query = DbContext.Set<Models.Event>()
                 .Where(e => e.Id == eventId);
 
@@ -176,6 +192,11 @@ namespace Odasoft.XBOL.Data.Repositories
             if (eventEntity == null)
             {
                 return null;
+            }
+            if (clientId != null)
+            {
+                isFavorite = await DbContext.Set<Models.ClientFavoriteEvent>()
+                    .AnyAsync(c => c.ClientId == clientId && c.EventId == eventId);
             }
 
             EventDetailDTO? eventDetail = new EventDetailDTO
@@ -217,6 +238,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
+                IsFavorite = isFavorite
             };
 
             return eventDetail;

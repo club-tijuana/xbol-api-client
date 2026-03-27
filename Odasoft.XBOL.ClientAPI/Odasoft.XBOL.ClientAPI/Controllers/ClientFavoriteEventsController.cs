@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.Commons.Responses;
+using Odasoft.XBOL.DTO;
 
 namespace Odasoft.XBOL.ClientAPI.Controllers
 {
@@ -17,33 +19,57 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpPost("{eventId}/toggle")]
         [EndpointName("ToggleFavoriteAsync")]
-        public async Task<IActionResult> Toggle([FromRoute] long eventId)
+        [ProducesResponseType(typeof(ToggleFavoriteResponse), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ToggleFavoriteResponse>> ToggleFavoriteAsync([FromRoute] long eventId)
+        {
+
+            // TODO: Remove temp clientId
+            long clientId = 1;
+
+            ToggleFavoriteResponse response = await _clientFavoriteEventService.ToggleAsync(clientId, eventId);
+
+            return Ok(response);
+        }
+
+        [HttpPost("sync")]
+        [EndpointName("SyncFavoritesAsync")]
+        [ProducesResponseType(typeof(SyncFavoritesResponse), StatusCodes.Status200OK)]
+        public async Task<ActionResult<SyncFavoritesResponse>> SyncFavoritesAsync([FromBody] List<long> eventIds)
+        {
+            // TODO: Remove temp clientId
+            long clientId = 1;
+
+            SyncFavoritesResponse response = await _clientFavoriteEventService.SyncFavoritesAsync(clientId, eventIds);
+
+            return Ok(response);
+        }
+
+        [HttpGet("trending-events")]
+        [EndpointName("GetTrendingEventsAsync")]
+        [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetFavoritesByClientIdAsync(
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize)
         {
             // TODO: Remove temp token
-            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            long? clientId = null;
 
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
             {
-                return Unauthorized("Token no válido");
+                var token = authHeader.Substring("Bearer ".Length);
+                clientId = token == "TEST-TOKEN" ? 1 : 2;
+
+            }
+            else
+            {
+                clientId = 1;
             }
 
-            var token = authHeader.Replace("Bearer ", "").Trim();
+            var result = await _clientFavoriteEventService.GetFavoritesByClientIdAsync(page, pageSize, clientId.Value);
 
-            long clientId = token switch
-            {
-                "TEST-TOKEN" => 1,
-                _ => 2
-            };
-
-            bool isFavorite = await _clientFavoriteEventService.Toggle(clientId, eventId);
-
-            return Ok(new
-            {
-                isFavorite,
-                message = isFavorite
-                    ? "Evento guardado en tus favoritos"
-                    : "Evento eliminado de tus favoritos"
-            });
+            return Ok(result);
         }
+
     }
 }
