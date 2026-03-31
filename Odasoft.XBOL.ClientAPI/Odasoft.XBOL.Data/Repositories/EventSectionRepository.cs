@@ -20,35 +20,102 @@ namespace Odasoft.XBOL.Data.Repositories
                 .ToListAsync();
         }
 
-        public async Task<IList<SectionDTO>> GetSeatAvailabilityAsync(ReservationFilters filters)
-        {
-            var query = DbContext.Set<EventSection>()
-                .Where(es => es.EventScheduleId == filters.ScheduleId);
-
-            if (filters.PriceRange != null)
+        public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
+        { // TODO: Merge the logic
+            if (filters.SeasonId != null)
             {
-                decimal min = filters.PriceRange.Min == null ? 0 : filters.PriceRange.Min.Value;
-                decimal? max = filters.PriceRange.Max;
+                var query = DbContext.Set<SeasonSection>()
+                    .Where(ss => ss.SeasonId == filters.SeasonId);
 
-                query = query.Where(es =>
-                    es.Price >= min
-                    && es.Price <= (max == null ? es.Price : max.Value)
-                );
+                if (filters.ZoneId != null)
+                {
+                    query = query.Where(ss => ss.BaseSection.BaseZoneId == filters.ZoneId);
+                }
+
+                decimal min = filters.PriceRange?.Min ?? 0;
+                decimal? max = filters.PriceRange?.Max;
+
+                var sections = await query
+                    .Select(ss => new SectionDTO
+                    {
+                        Id = ss.Id,
+                        Name = ss.BaseSection.Name,
+                        DisplayName = ss.DisplayName,
+                        Price =
+                            (ss.Price >= min && (max == null || ss.Price <= max.Value))
+                                ? ss.Price
+                                : null
+                    })
+                    .ToListAsync();
+
+                var seatOverrides = await query
+                    .SelectMany(ss => ss.SeasonSeats)
+                    .Where(seat =>
+                        seat.PriceOverride != null &&
+                        seat.PriceOverride >= min &&
+                        (max == null || seat.PriceOverride <= max.Value)
+                    )
+                    .Select(seat => new SeatDTO
+                    {
+                        Id = seat.Id,
+                        ExternalSeatObjectKey = seat.ExternalSeatObjectKey,
+                        PriceOverride = seat.PriceOverride
+                    })
+                    .ToListAsync();
+
+                return new SeatAvailabilityDTO
+                {
+                    Sections = sections,
+                    SeatOverrides = seatOverrides
+                };
             }
-
-            if (filters.ZoneId != null)
+            else if (filters.ScheduleId != null)
             {
-                query = query.Where(es => es.BaseSection.BaseZoneId == filters.ZoneId);
+                var query = DbContext.Set<EventSection>()
+                    .Where(es => es.EventScheduleId == filters.ScheduleId);
+
+                if (filters.ZoneId != null)
+                {
+                    query = query.Where(es => es.BaseSection.BaseZoneId == filters.ZoneId);
+                }
+
+                decimal min = filters.PriceRange?.Min ?? 0;
+                decimal? max = filters.PriceRange?.Max;
+
+                var sections = await query
+                    .Select(es => new SectionDTO
+                    {
+                        Id = es.Id,
+                        Name = es.BaseSection.Name,
+                        DisplayName = es.DisplayName,
+                        Price =
+                            (es.Price >= min && (max == null || es.Price <= max.Value))
+                                ? es.Price
+                                : null
+                    })
+                    .ToListAsync();
+
+                var seatOverrides = await query
+                    .SelectMany(es => es.EventSeats)
+                    .Where(seat => seat.PriceOverride != null)
+                    .Select(seat => new SeatDTO
+                    {
+                        Id = seat.Id,
+                        ExternalSeatObjectKey = seat.ExternalSeatObjectKey,
+                        PriceOverride = seat.PriceOverride
+                    })
+                    .ToListAsync();
+
+                return new SeatAvailabilityDTO
+                {
+                    Sections = sections,
+                    SeatOverrides = seatOverrides
+                };
             }
-
-            return await query.Select(es => new SectionDTO
+            else
             {
-                Id = es.Id,
-                Name = es.BaseSection.Name,
-                DisplayName = es.DisplayName,
-                Price = es.Price
-            })
-            .ToListAsync();
+                return new SeatAvailabilityDTO();
+            }
         }
     }
 }

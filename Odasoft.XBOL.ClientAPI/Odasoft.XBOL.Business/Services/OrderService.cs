@@ -197,10 +197,9 @@ namespace Odasoft.XBOL.Business.Services
             // TODO: Better use the client service to create the client
             var client = new Client
             {
-                Email = clientInfo.Email,
-                PhoneNumber = clientInfo.PhoneNumber,
-                FirstName = clientInfo.FirstName,
-                LastName = clientInfo.LastName,
+                Email = clientInfo.Email ?? "",
+                PhoneNumber = clientInfo.PhoneNumber ?? "",
+                FullName = $"{clientInfo.FirstName} {clientInfo.LastName}",
                 BusinessName = clientInfo.FullName,
                 ClientType = ClientType.Individual,
                 CreatedAt = DateTime.UtcNow,

@@ -2,7 +2,8 @@
 {
     public class ReservationFilters
     {
-        public long ScheduleId { get; set; }
+        public long? SeasonId { get; set; }
+        public long? ScheduleId { get; set; }
         public long? SectionId { get; set; }
         public long? ZoneId { get; set; }
         public PriceRange? PriceRange { get; set; }

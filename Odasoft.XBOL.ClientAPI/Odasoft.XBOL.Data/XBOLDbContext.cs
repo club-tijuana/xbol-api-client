@@ -15,6 +15,8 @@ namespace Odasoft.XBOL.Data
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<SeasonPass> SeasonPasses => Set<SeasonPass>();
         public DbSet<SeasonPassEventTicket> SeasonPassEventTickets => Set<SeasonPassEventTicket>();
+        public DbSet<SeasonSection> SeasonSections => Set<SeasonSection>();
+        public DbSet<SeasonSeat> SeasonSeats => Set<SeasonSeat>();
         public DbSet<BaseSeat> BaseSeats => Set<BaseSeat>();
         public DbSet<BaseRow> BaseRows => Set<BaseRow>();
         public DbSet<BaseSection> BaseSections => Set<BaseSection>();

@@ -34,7 +34,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpPost("seats-availability")]
         [EndpointName("GetSeatAvailabilityAsync")]
-        public async Task<ActionResult<List<SectionDTO>>> GetSeatAvailabilityAsync([FromBody] ReservationFilters filters)
+        public async Task<ActionResult<SeatAvailabilityDTO>> GetSeatAvailabilityAsync([FromBody] ReservationFilters filters)
         {
             var result = await _bookingService.GetSeatAvailabilityAsync(filters);
 

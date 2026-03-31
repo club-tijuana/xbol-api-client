@@ -25,7 +25,7 @@ namespace Odasoft.XBOL.Business.Services
             return await _eventSectionRepository.GetZonesByEventIdAsync(scheduleId);
         }
 
-        public async Task<IList<SectionDTO>> GetSeatAvailabilityAsync(ReservationFilters filters)
+        public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
         {
             return await _eventSectionRepository.GetSeatAvailabilityAsync(filters);
         }

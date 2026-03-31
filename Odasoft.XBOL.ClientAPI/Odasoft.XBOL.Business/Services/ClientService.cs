@@ -29,10 +29,8 @@ namespace Odasoft.XBOL.Business.Services
 
             var client = await _clientRepository.Get(
                     filter: client => client.User != null
-                    && client.User.CountryPhoneISO != null
                     && client.User.PhoneNumber != null
                     && client.Email.ToUpper().Equals(upperEmail)
-                    && client.User.CountryPhoneISO.Equals(request.PhoneCode)
                     && client.User.PhoneNumber.Equals(request.Phone),
                     includedProperties: [
                         "User"
@@ -42,12 +40,11 @@ namespace Odasoft.XBOL.Business.Services
                 {
                     Id = client.Id,
                     UserId = client.UserId != null ? client.UserId.Value.ToString() : string.Empty,
-                    FirstName = client.FirstName,
-                    LastName = client.LastName,
+                    FullName = client.FullName ?? "",
                     BusinessName = client.BusinessName,
                     Email = client.Email,
                     PhoneNumber = client.PhoneNumber,
-                    PhoneCode = client.User.CountryPhoneISO != null ? client.User.CountryPhoneISO : ""
+                    PhoneCode = client.PhoneRegionCode != null ? client.PhoneRegionCode.DialCode : string.Empty
                 })
                 .FirstOrDefaultAsync();
 
