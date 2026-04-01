@@ -11,6 +11,7 @@ namespace Odasoft.XBOL.DTO
         public DateTimeOffset StartDate { get; set; }
         public string Location { get; set; } = string.Empty;
         public string? EventKey { get; set; }
+        public bool IsFavorite { get; set; } = false;
         public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
     }
 }

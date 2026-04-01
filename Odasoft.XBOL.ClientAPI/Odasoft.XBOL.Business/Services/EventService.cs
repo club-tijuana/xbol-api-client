@@ -3,6 +3,7 @@ using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
+using Odasoft.XBOL.Models;
 
 namespace Odasoft.XBOL.Business.Services
 {
@@ -37,9 +38,9 @@ namespace Odasoft.XBOL.Business.Services
             _eventsTrackingSettings = eventsTrackingSettings;
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync()
+        public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(long? clientId)
         {
-            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE);
+            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE, clientId);
 
             return new PagedResponse<EventItemDTO>
             {
@@ -51,9 +52,9 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize)
+        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize, long? clientId)
         {
-            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE);
+            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId);
         }
 
         public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm)
@@ -83,9 +84,9 @@ namespace Odasoft.XBOL.Business.Services
                 _searchSettings.MatchRatio);
         }
 
-        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId)
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient)
         {
-            return await _eventRepository.GetEventDetailAsync(eventId);
+            return await _eventRepository.GetEventDetailAsync(eventId, idClient);
         }
 
         public async Task<List<EventCategoryDTO>> GetEventCategories()

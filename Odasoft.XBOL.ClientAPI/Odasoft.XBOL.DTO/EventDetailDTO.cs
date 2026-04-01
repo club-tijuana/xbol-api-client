@@ -15,6 +15,7 @@
         public string FullAddress { get; set; } = string.Empty;
         public decimal Latitude { get; set; }
         public decimal Longitude { get; set; }
+        public bool IsFavorite { get; set; } = false;
         public List<string> Gallery { get; set; } = new List<string>();
         public List<EventScheduleDTO> Schedules { get; set; } = new List<EventScheduleDTO>();
         public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
