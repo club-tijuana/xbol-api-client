@@ -19,6 +19,7 @@ namespace Odasoft.XBOL.Data.Extensions
             services.AddScoped<SeasonPassRepository>();
             services.AddScoped<SeasonRepository>();
             services.AddScoped<ClientFavoriteEventRepository>();
+            services.AddScoped<SeasonSeatRepository>();
 
             return services;
         }

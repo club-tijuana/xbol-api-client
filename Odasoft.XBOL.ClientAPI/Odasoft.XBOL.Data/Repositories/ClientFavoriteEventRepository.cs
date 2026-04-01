@@ -21,8 +21,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Select(f => f.Event)
                 .Where(e =>
                     e.Schedules != null
-                    && e.Schedules.All(es => es.StartDateTime > now)
-                    && e.ViewCount > 0
+                //&& e.Schedules.All(es => es.StartDateTime > now) // TODO: Commented for testing purposes
                 )
                 .OrderByDescending(e => e.ViewCount)
                 .AsQueryable();

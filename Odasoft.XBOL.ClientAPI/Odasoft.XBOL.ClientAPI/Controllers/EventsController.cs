@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
-using Newtonsoft.Json.Linq;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Services;
-using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
@@ -88,7 +85,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] long? eventCategoryId,
             [FromQuery] string? searchTerm)
         {
-            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm);
+            // TODO: Remove temp token
+            long? clientId = null;
+
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                clientId = token == "TEST-TOKEN" ? 1 : 2;
+
+            }
+
+            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, clientId);
 
             return Ok(result);
         }

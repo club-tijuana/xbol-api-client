@@ -3,7 +3,6 @@ using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
-using Odasoft.XBOL.Models;
 
 namespace Odasoft.XBOL.Business.Services
 {
@@ -57,9 +56,9 @@ namespace Odasoft.XBOL.Business.Services
             return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm)
+        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm, long? clientId = null)
         {
-            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm);
+            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, clientId);
         }
 
         public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(

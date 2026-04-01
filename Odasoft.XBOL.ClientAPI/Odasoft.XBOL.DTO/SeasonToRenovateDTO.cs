@@ -6,5 +6,6 @@
         public long PreviousSeasonId { get; set; }
         public long SeasonId { get; set; }
         public List<MyEventSeatDTO> PreviousSeats { get; set; } = new List<MyEventSeatDTO>();
+        public List<SeatDTO>? PreviousSeatPrices { get; set; }
     }
 }

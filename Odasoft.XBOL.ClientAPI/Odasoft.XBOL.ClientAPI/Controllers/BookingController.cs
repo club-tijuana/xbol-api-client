@@ -135,24 +135,42 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [ProducesResponseType(typeof(string), StatusCodes.Status422UnprocessableEntity)]
         public async Task<ActionResult<List<string>>> RenovateSeasonSeatsAsync([FromBody] SeasonBookingRequest request)
         {
-            if (ModelState.IsValid == false)
+            try
             {
-                return BadRequest(ModelState);
-            }
+                if (ModelState.IsValid == false)
+                {
+                    return BadRequest(ModelState);
+                }
 
-            if (request.RefereceOrderId == null)
+                if (request.RefereceOrderId == null)
+                {
+                    return BadRequest("Renovation must contain a previous order to reference.");
+                }
+
+                var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request));
+
+                if (result is null)
+                {
+                    return UnprocessableEntity("Renovation failed. Please check the request details and try again.");
+                }
+
+                return Ok(result);
+            }
+            catch (ApiException ex)
             {
-                return BadRequest("Renovation must contain a previous order to reference.");
+                if (ex.Response != null)
+                {
+                    return BadRequest(ex.Response);
+                }
+                else
+                {
+                    return BadRequest(ex);
+                }
             }
-
-            var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request));
-
-            if (result is null)
+            catch (Exception ex)
             {
-                return UnprocessableEntity("Renovation failed. Please check the request details and try again.");
+                return BadRequest(ex);
             }
-
-            return Ok(result);
         }
     }
 }

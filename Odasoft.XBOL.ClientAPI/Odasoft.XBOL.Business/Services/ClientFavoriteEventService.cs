@@ -1,11 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Odasoft.XBOL.Commons.Enums;
-using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
-using System.Linq.Expressions;
 
 namespace Odasoft.XBOL.Business.Services
 {
@@ -98,6 +95,17 @@ namespace Odasoft.XBOL.Business.Services
         public async Task<PagedResponse<EventItemDTO>> GetFavoritesByClientIdAsync(int? page, int? pageSize, long clientId)
         {
             return await _clientFavoriteEventRepository.GetFavoritesByClientIdAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId);
+        }
+
+        public async Task<List<long>> GetFavoritesIdsByClientIdAsync(long clientId)
+        {
+            var eventIds = await _clientFavoriteEventRepository.Get(
+                    filter: f => f.ClientId == clientId
+                )
+                .Select(f => f.EventId)
+                .ToListAsync();
+
+            return eventIds;
         }
     }
 }

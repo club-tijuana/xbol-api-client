@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business.Services;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
@@ -71,5 +70,25 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+        [HttpGet("get-client-favorites-ids")]
+        [EndpointName("GetFavoritesIdsByClientIdAsync")]
+        [ProducesResponseType(typeof(List<long>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<List<long>>> GetFavoritesIdsByClientIdAsync()
+        {
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                long idClient = token == "TEST-TOKEN" ? 1 : 2;
+
+                var result = await _clientFavoriteEventService.GetFavoritesIdsByClientIdAsync(idClient);
+
+                return Ok(result);
+            }
+            else
+            {
+                return Unauthorized();
+            }
+        }
     }
 }

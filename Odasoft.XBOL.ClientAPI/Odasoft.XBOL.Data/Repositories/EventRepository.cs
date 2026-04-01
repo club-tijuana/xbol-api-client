@@ -116,8 +116,18 @@ namespace Odasoft.XBOL.Data.Repositories
             int page,
             int pageSize,
             long? eventCategoryId,
-            string? searchTerm)
+            string? searchTerm,
+            long? clientId)
         {
+            List<long> favouriteEventIds = new List<long>();
+            if (clientId != null)
+            {
+                favouriteEventIds = await DbContext.Set<ClientFavoriteEvent>().AsQueryable()
+                    .Where(c => c.ClientId == clientId)
+                    .Select(c => c.EventId)
+                    .ToListAsync();
+            }
+
             var query = DbContext.Set<Models.Event>().AsQueryable();
 
             if (eventCategoryId != null)
@@ -161,6 +171,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
+                IsFavorite = favouriteEventIds.Contains(e.Id)
             })
             .ToListAsync();
 

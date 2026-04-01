@@ -17,6 +17,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly TicketRepository _ticketRepository;
         private readonly SeasonPassRepository _seasonPassRepository;
         private readonly SeasonRepository _seasonRepository;
+        private readonly SeasonSeatRepository _seasonSeatRepository;
         private readonly UserManager<User> _userManager;
 
         public OrderService(
@@ -27,6 +28,7 @@ namespace Odasoft.XBOL.Business.Services
             TicketRepository ticketRepository,
             SeasonPassRepository seasonPassRepository,
             SeasonRepository seasonRepository,
+            SeasonSeatRepository seasonSeatRepository,
             UserManager<User> userManager
         )
         {
@@ -37,6 +39,7 @@ namespace Odasoft.XBOL.Business.Services
             _ticketRepository = ticketRepository;
             _seasonPassRepository = seasonPassRepository;
             _seasonRepository = seasonRepository;
+            _seasonSeatRepository = seasonSeatRepository;
             _userManager = userManager;
         }
 
@@ -433,6 +436,13 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(""); // Throw Tickets not found
             }
 
+            List<SeatDTO>? prevSeatPrices = null;
+            var seatLabels = tickets.Select(t => t.SeatLabelSnapshot);
+            if (seatLabels != null)
+            {
+                prevSeatPrices = await _seasonSeatRepository.GetSeasonSeatPricesAsync(season.Id, seatLabels.ToList());
+            }
+
             return new SeasonToRenovateDTO
             {
                 SeasonId = season.Id,
@@ -451,7 +461,8 @@ namespace Odasoft.XBOL.Business.Services
                         Section = gs.Key,
                         Seats = string.Join(", ", gs.Select(s => s.seatLabel))
                     })
-                    .ToList()
+                    .ToList(),
+                PreviousSeatPrices = prevSeatPrices
             };
         }
     }
