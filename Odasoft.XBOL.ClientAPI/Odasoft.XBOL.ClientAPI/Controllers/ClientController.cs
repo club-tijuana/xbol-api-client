@@ -49,9 +49,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
         }
 
-        [HttpGet("my-event/{eventId}")]
+        [HttpGet("my-event/{eventId}/{orderId}")]
         [EndpointName("GetMyEventDetailAsync")]
-        public async Task<ActionResult<MyEventDetailDTO>> GetMyEventDetailAsync(long eventId)
+        public async Task<ActionResult<MyEventDetailDTO>> GetMyEventDetailAsync(long eventId, long orderId)
         {
             // TODO: Remove temp token
             var authHeader = Request.Headers["Authorization"].ToString();
@@ -60,7 +60,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 var token = authHeader.Substring("Bearer ".Length);
                 long idClient = token == "TEST-TOKEN" ? 1 : 2;
 
-                var result = await _clientService.GetMyEventDetailAsync(idClient, eventId);
+                var result = await _clientService.GetMyEventDetailAsync(idClient, eventId, orderId);
 
                 if (result == null)
                 {

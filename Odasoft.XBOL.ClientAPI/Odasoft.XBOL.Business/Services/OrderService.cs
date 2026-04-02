@@ -71,20 +71,19 @@ namespace Odasoft.XBOL.Business.Services
 
                 List<Ticket> tickets = await CreateTicketsAsync(request.Seats, schedule.EventId, client);
 
+                var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
+                                ? 0
+                                : request.Seats.Sum(x => x.Value);
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
                     UserId = client.UserId,
                     Reference = request.HoldToken,
                     Status = OrderStatus.Paid,
-                    SubTotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
-                                ? 0
-                                : request.Seats.Sum(x => x.Value),
+                    SubTotal = subtotal,
                     TotalFees = 0,
                     TotalTaxes = 0,
-                    Total = (request.PaymentInfoRequest.IsCourtesy ?? false)
-                                ? 0
-                                : request.Seats.Sum(x => x.Value),
+                    Total = subtotal,
                     OrderType = OrderType.Ticket,
                     PayformType = PayformType.BoxOffice,
                     CreatedAt = DateTime.UtcNow,
@@ -149,18 +148,19 @@ namespace Odasoft.XBOL.Business.Services
                 List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats, season.Id, client);
                 List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats, season.Id, client);
 
+                var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
+                                ? 0
+                                : request.Seats.Sum(x => x.Value);
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
                     UserId = client.UserId,
                     Reference = request.HoldToken,
                     Status = OrderStatus.Paid,
-                    SubTotal = 0,
+                    SubTotal = subtotal,
                     TotalFees = 0,
                     TotalTaxes = 0,
-                    Total = (request.PaymentInfoRequest.IsCourtesy ?? false)
-                                ? 0
-                                : request.Seats.Sum(x => x.Value),
+                    Total = subtotal,
                     OrderType = OrderType.SeasonPass,
                     PayformType = PayformType.BoxOffice,
                     CreatedAt = DateTime.UtcNow,

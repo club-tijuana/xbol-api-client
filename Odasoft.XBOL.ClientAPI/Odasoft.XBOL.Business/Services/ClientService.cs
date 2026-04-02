@@ -64,9 +64,9 @@ namespace Odasoft.XBOL.Business.Services
                 idClient);
         }
 
-        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId)
+        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId, long orderId)
         {
-            return await _orderRepository.GetMyEventDetailAsync(clientId, eventId);
+            return await _orderRepository.GetMyEventDetailAsync(clientId, eventId, orderId);
         }
 
         public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByOrderAsync(

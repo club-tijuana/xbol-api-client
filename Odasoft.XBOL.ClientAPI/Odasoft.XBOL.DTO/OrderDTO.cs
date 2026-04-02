@@ -16,6 +16,7 @@ namespace Odasoft.XBOL.DTO
         public string ItemLocation { get; set; } = string.Empty;
         public string ItemKey { get; set; } = string.Empty;
         public List<MyEventSeatDTO> ItemSeats { get; set; } = new List<MyEventSeatDTO>();
+        public List<SeatDTO> ItemSeatsLabels { get; set; } = new List<SeatDTO>();
         public string ItemPosterImageUrl { get; set; } = string.Empty;
         public DateTimeOffset ItemStartDate { get; set; }
     }

@@ -140,10 +140,16 @@ namespace Odasoft.XBOL.Data.Repositories
             };
         }
 
-        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId)
+        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId, long orderId)
         {
             var query = DbContext.Set<Order>()
-                .Where(o => o.Tickets.Any(t => t.CurrentClientId == clientId))
+                .Where(o =>
+                    o.Id == orderId &&
+                    o.Tickets.Any(t =>
+                        t.OriginalClientId == clientId
+                        || t.CurrentClientId == clientId
+                    )
+                )
                 .SelectMany(o => o.Tickets)
                 .Where(t =>
                     t.EventSchedule.EventId == eventId
@@ -264,6 +270,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     {
                         SectionName = t.EventSeat.EventSection.BaseSection.Name,
                         SeatNumber = t.EventSeat.BaseSeat.SeatNumber,
+                        EventSeatId = t.EventSeatId,
+                        SeatLabelSnapshot = t.SeatLabelSnapshot,
+                        SeatPricePaid = t.PricePaid,
                         t.EventScheduleId,
                         EventSchedule = new
                         {
@@ -309,6 +318,17 @@ namespace Odasoft.XBOL.Data.Repositories
                 })
                 .ToList();
 
+            var seatsLabels = orderData.Tickets
+                .Select(t => new SeatDTO
+                {
+                    Id = t.EventSeatId,
+                    ExternalSeatObjectKey = t.SeatLabelSnapshot,
+                    PriceOverride = t.SeatPricePaid
+                })
+                .GroupBy(s => new { s.ExternalSeatObjectKey, s.PriceOverride })
+                .Select(g => g.First())
+                .ToList();
+
             if (orderData.OrderType == OrderType.Ticket)
             {
                 var first = orderData.Tickets.First();
@@ -330,7 +350,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemPosterImageUrl = first.EventSchedule.Event.PosterImageUrl,
                     ItemStartDate = first.EventSchedule.StartDateTime,
 
-                    ItemSeats = seats
+                    ItemSeats = seats,
+                    ItemSeatsLabels = seatsLabels
                 };
             }
             else if (orderData.OrderType == OrderType.SeasonPass)
@@ -371,7 +392,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemPosterImageUrl = season.PosterImageUrl,
                     ItemStartDate = season.StartDate,
 
-                    ItemSeats = seats
+                    ItemSeats = seats,
+                    ItemSeatsLabels = seatsLabels
                 };
             }
             else
