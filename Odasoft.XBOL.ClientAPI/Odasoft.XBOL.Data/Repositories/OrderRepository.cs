@@ -62,11 +62,25 @@ namespace Odasoft.XBOL.Data.Repositories
                             EventImage = t.EventSchedule.Event.PosterImageUrl,
                             Location = t.EventSchedule.Event.VenueMap.Name,
                             TicketType = t.TicketType,
-                            SeasonId = t.EventSchedule.Event.SeasonId
+                            SeasonId = t.EventSchedule.Event.SeasonId,
+                            SeasonName = t.EventSchedule.Event.Season != null ? t.EventSchedule.Event.Season.Name : ""
                         })
                         .ToList()
                 })
                 .ToListAsync();
+
+            var clientSeasonIds = orders
+                .SelectMany(o => o.Tickets)
+                .Where(t => t.SeasonId.HasValue)
+                .Select(t => t.SeasonId!.Value)
+                .ToHashSet();
+
+            var nextSeasonMap = await DbContext.Set<Season>()
+                .Where(s => s.PreviousSeasonId != null)
+                .ToDictionaryAsync(
+                    s => s.PreviousSeasonId!.Value,
+                    s => s.Id
+                );
 
             var events = orders.Select(o =>
             {
@@ -90,18 +104,24 @@ namespace Odasoft.XBOL.Data.Repositories
                     isPastEvent = currentSchedule.StartDateTime < now;
                 }
 
+                bool hasNextSeason =
+                    currentSchedule.SeasonId.HasValue &&
+                    nextSeasonMap.TryGetValue(currentSchedule.SeasonId.Value, out var nextSeasonId) &&
+                    clientSeasonIds.Contains(nextSeasonId);
+
                 bool canRenovateSeasonPass =
                     isSeason &&
                     isPastEvent &&
                     currentSchedule.SeasonId.HasValue &&
-                    renewableSeasonIds.Contains(currentSchedule.SeasonId.Value);
+                    renewableSeasonIds.Contains(currentSchedule.SeasonId.Value) &&
+                    !hasNextSeason;
 
                 return new MyEventDTO
                 {
                     OrderId = o.Id,
                     EventId = currentSchedule.EventId,
                     EventImage = currentSchedule.EventImage,
-                    Name = currentSchedule.EventName,
+                    Name = isSeason ? currentSchedule.SeasonName : currentSchedule.EventName,
                     StartDate = currentSchedule.StartDateTime,
                     Location = currentSchedule.Location,
                     IsSeasonPass = isSeason,

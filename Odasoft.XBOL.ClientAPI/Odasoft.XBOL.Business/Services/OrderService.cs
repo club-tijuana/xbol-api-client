@@ -18,6 +18,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonPassRepository _seasonPassRepository;
         private readonly SeasonRepository _seasonRepository;
         private readonly SeasonSeatRepository _seasonSeatRepository;
+        private readonly EventRepository _eventRepository;
         private readonly UserManager<User> _userManager;
 
         public OrderService(
@@ -29,6 +30,7 @@ namespace Odasoft.XBOL.Business.Services
             SeasonPassRepository seasonPassRepository,
             SeasonRepository seasonRepository,
             SeasonSeatRepository seasonSeatRepository,
+            EventRepository eventRepository,
             UserManager<User> userManager
         )
         {
@@ -40,6 +42,7 @@ namespace Odasoft.XBOL.Business.Services
             _seasonPassRepository = seasonPassRepository;
             _seasonRepository = seasonRepository;
             _seasonSeatRepository = seasonSeatRepository;
+            _eventRepository = eventRepository;
             _userManager = userManager;
         }
 
@@ -275,15 +278,16 @@ namespace Odasoft.XBOL.Business.Services
             var seatKeysSet = seatKeys.ToHashSet();
 
             var seasonSeats = await _eventSeatRepository
-                                    .Get()
-                                    .Include(x => x.EventSection)
-                                        .ThenInclude(x => x.EventSchedule)
-                                    .AsNoTracking()
-                                    .Where(x =>
-                                        x.EventSection.EventSchedule.Event.SeasonId == seasonId &&
-                                        seatKeysSet.Contains(x.ExternalSeatObjectKey)
-                                    )
-                                    .ToListAsync();
+                .Get()
+                .Include(x => x.EventSection)
+                    .ThenInclude(x => x.EventSchedule)
+                    .ThenInclude(x => x.Event)
+                .AsNoTracking()
+                .Where(x =>
+                    x.EventSection.EventSchedule.Event.SeasonId == seasonId &&
+                    seatKeysSet.Contains(x.ExternalSeatObjectKey)
+                )
+                .ToListAsync();
 
             var now = DateTimeOffset.UtcNow;
 
@@ -321,26 +325,17 @@ namespace Odasoft.XBOL.Business.Services
         {
             List<SeasonPass> seasonPasses = new List<SeasonPass>();
             var seatKeys = seats.Keys.ToList();
-            //var seasonSeats = await _eventSeatRepository
-            //                        .Get()
-            //                        .AsNoTracking()
-            //                        .Include(x => x.EventSection)
-            //                        .Where(x => x.EventSection.EventScheduleId == seasonId
-            //                            && seatKeys.Contains(x.ExternalSeatObjectKey))
-            //                        .ToListAsync();
 
-            var seasonSeats = await _eventSeatRepository
-                    .Get()
-                    .AsNoTracking()
-                    .Include(x => x.EventSection)
-                        .ThenInclude(x => x.EventSchedule)
-                        .ThenInclude(x => x.Event)
-                        .ThenInclude(x => x.Season)
-                    .Where(x =>
-                        x.EventSection.EventSchedule.Event.SeasonId == seasonId
-                        && seatKeys.Contains(x.ExternalSeatObjectKey)
-                    )
-                    .ToListAsync();
+            var seasonSeats = await _seasonSeatRepository
+                .Get()
+                .AsNoTracking()
+                .Include(ss => ss.SeasonSection)
+                    .ThenInclude(s => s.Season)
+                .Where(ss =>
+                    ss.SeasonSection.SeasonId == seasonId
+                    && seatKeys.Contains(ss.ExternalSeatObjectKey)
+                )
+                .ToListAsync();
 
             var now = DateTimeOffset.UtcNow;
 

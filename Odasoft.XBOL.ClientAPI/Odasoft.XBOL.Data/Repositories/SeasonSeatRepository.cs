@@ -18,7 +18,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 {
                     Id = seat.Id,
                     ExternalSeatObjectKey = seat.ExternalSeatObjectKey,
-                    PriceOverride = seat.PriceOverride ?? seat.SeasonSection.Price
+                    PriceOverride = (seat.PriceOverride != null && seat.PriceOverride > 0) ? seat.PriceOverride : seat.SeasonSection.Price
                 })
                 .ToListAsync();
 
