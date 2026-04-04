@@ -25,12 +25,16 @@ namespace Odasoft.XBOL.Models
         public DateTimeOffset StartDate { get; set; }
         public DateTimeOffset EndDate { get; set; }
 
-        public IList<SeasonPass> SeasonPasses { get; set; } = [];
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public Guid UpdatedBy { get; set; }
 
+        public DateTimeOffset? DeletedAt { get; set; }
+
+        public IList<SeasonPass> SeasonPasses { get; set; } = [];
+        public IList<SeasonSection> SeasonSections { get; set; } = [];
+        public IList<SeasonTag> SeasonTags { get; set; } = [];
         public string ExternalSeasonKey { get; set; } = null!;
 
         public long? PerformerId { get; set; }

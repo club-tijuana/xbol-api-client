@@ -1,16 +1,16 @@
-﻿using Odasoft.XBOL.Data.Repositories;
+﻿using Microsoft.EntityFrameworkCore;
+using Odasoft.XBOL.Data.Repositories;
+using Odasoft.XBOL.Models;
 
 namespace Odasoft.XBOL.Business.Services
 {
-    public class EventScheduleService
+    public class EventScheduleService(EventScheduleRepository repository)
     {
-        private readonly EventScheduleRepository _eventScheduleRepository;
-
-        public EventScheduleService(EventScheduleRepository eventScheduleRepository)
+        public async Task<long?> GetEventIdByExternalEventKeyAsync(string eventKey)
         {
-            _eventScheduleRepository = eventScheduleRepository;
+            EventSchedule? schedule = await repository.Get(x => x.ExternalEventKey == eventKey).FirstOrDefaultAsync();
+
+            return schedule?.EventId;
         }
-
-
     }
 }

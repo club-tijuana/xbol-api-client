@@ -87,7 +87,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var result = await _bus.InvokeAsync<BookingResult>(new CreateEventBookingCommand(request));
+            var result = await _bus.InvokeAsync<BookingResult?>(new CreateEventBookingCommand(request));
 
             if (result is null)
             {
@@ -118,7 +118,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request));
+            var result = await _bus.InvokeAsync<BookingResult?>(new CreateSeasonBookingCommand(request));
 
             if (result is null)
             {

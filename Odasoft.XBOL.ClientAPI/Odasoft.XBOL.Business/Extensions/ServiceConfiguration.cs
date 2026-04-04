@@ -15,6 +15,8 @@ namespace Odasoft.XBOL.Business.Extensions
             services.AddScoped<TicketService>();
             services.AddScoped<SeasonService>();
             services.AddScoped<ClientFavoriteEventService>();
+            services.AddScoped<SequenceTrackerService>();
+            services.AddScoped<EventScheduleService>();
 
             return services;
         }

@@ -11,7 +11,7 @@ namespace Odasoft.XBOL.Data.Repositories
             var prevSeasonSeats = await DbContext.Set<SeasonSeat>()
                 .Include(s => s.SeasonSection)
                 .Where(seat =>
-                    //seat.SeasonSection.SeasonId == seasonId && // TODO: Commented until the sections and seat data are completed in DB.
+                    seat.SeasonSection.SeasonId == seasonId &&
                     seats.Contains(seat.ExternalSeatObjectKey)
                 )
                 .Select(seat => new SeatDTO

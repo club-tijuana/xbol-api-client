@@ -30,6 +30,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<Performer> Performers { get; set; }
         public DbSet<EventViews> EventViews { get; set; }
         public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
+        public DbSet<SequenceTracker> SequenceTrackers { get; set; }
 
         public XBOLDbContext() : base()
         {

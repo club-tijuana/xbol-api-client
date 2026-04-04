@@ -20,6 +20,8 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonSeatRepository _seasonSeatRepository;
         private readonly EventRepository _eventRepository;
         private readonly UserManager<User> _userManager;
+        private readonly SeasonService _seasonService;
+        private readonly EventScheduleService _eventScheduleService;
 
         public OrderService(
             OrderRepository orderRepository,
@@ -31,7 +33,9 @@ namespace Odasoft.XBOL.Business.Services
             SeasonRepository seasonRepository,
             SeasonSeatRepository seasonSeatRepository,
             EventRepository eventRepository,
-            UserManager<User> userManager
+            UserManager<User> userManager,
+            SeasonService seasonService,
+            EventScheduleService eventScheduleService
         )
         {
             _orderRepository = orderRepository;
@@ -44,6 +48,8 @@ namespace Odasoft.XBOL.Business.Services
             _seasonSeatRepository = seasonSeatRepository;
             _eventRepository = eventRepository;
             _userManager = userManager;
+            _seasonService = seasonService;
+            _eventScheduleService = eventScheduleService;
         }
 
         public async Task<OrderDTO?> GetOrderAsync(long clientId, long orderId)
@@ -57,7 +63,7 @@ namespace Odasoft.XBOL.Business.Services
 
             try
             {
-                EventSchedule schedule = await _eventScheduleRepository.Get(x => x.Id == request.ScheduleId).FirstAsync();
+                EventSchedule schedule = await _eventScheduleRepository.Get(x => x.ExternalEventKey == request.EventKey).FirstAsync();
 
                 string emailRequest = request.ClientContact.Email.ToUpper();
                 var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
@@ -78,7 +84,7 @@ namespace Odasoft.XBOL.Business.Services
                 {
                     ClientId = client.Id,
                     UserId = client.UserId,
-                    Reference = request.HoldToken,
+                    Reference = request.Localizer,
                     Status = OrderStatus.Paid,
                     SubTotal = subtotal,
                     TotalFees = 0,
@@ -94,7 +100,8 @@ namespace Odasoft.XBOL.Business.Services
                     {
                         ItemType = Commons.Enums.ItemType.Ticket,
                         ItemReferenceId = x.Id,
-                        Price = x.PricePaid
+                        Price = x.PricePaid,
+                        IsCourtesy = request.PaymentInfoRequest.IsCourtesy ?? false
                     })]
                 };
 
@@ -126,11 +133,9 @@ namespace Odasoft.XBOL.Business.Services
 
             try
             {
-                //var season = await _seasonPassRepository.Get(x => x.Season.ExternalSeasonKey == request.SeasonKey)
-                //                    .Include(x => x.Season)
-                //                    .FirstAsync();
-                var season = await _seasonRepository.Get(x => x.ExternalSeasonKey == request.SeasonKey)
-                    .FirstOrDefaultAsync();
+                Season? season = await _seasonRepository
+                    .Get(x => x.ExternalSeasonKey == request.SeasonKey)
+                    .SingleOrDefaultAsync();
 
                 string emailRequest = request.ClientContact.Email.ToUpper();
                 var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
@@ -155,7 +160,7 @@ namespace Odasoft.XBOL.Business.Services
                 {
                     ClientId = client.Id,
                     UserId = client.UserId,
-                    Reference = request.HoldToken,
+                    Reference = request.Localizer,
                     Status = OrderStatus.Paid,
                     SubTotal = subtotal,
                     TotalFees = 0,
@@ -172,6 +177,7 @@ namespace Odasoft.XBOL.Business.Services
                         ItemType = Commons.Enums.ItemType.SeasonPass,
                         ItemReferenceId = x.Id,
                         Price = x.Price,
+                        IsCourtesy = request.PaymentInfoRequest.IsCourtesy ?? false
                     })],
                     RelatedOrderId = request.RefereceOrderId
                 };
@@ -382,6 +388,13 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(""); // The order is not of this user
             }
 
+            var canOrderBeRenew = await CanOrderBeRenewedAsync(order.Reference);
+
+            if (!canOrderBeRenew.CanRenew)
+            {
+                throw new Exception(""); // The order can not be renewed
+            }
+
             OrderItem? item = order.Items.FirstOrDefault();
 
             if (item == null)
@@ -459,6 +472,61 @@ namespace Odasoft.XBOL.Business.Services
                     .ToList(),
                 PreviousSeatPrices = prevSeatPrices
             };
+        }
+
+        public async Task<CanRenewOrderResponse> CanOrderBeRenewedAsync(string referenceId)
+        {
+            Order? order = await _orderRepository.Get()
+                                .Include(x => x.Items)
+                                .AsNoTracking()
+                                .Where(o => o.Reference == referenceId)
+                                .SingleOrDefaultAsync();
+
+            if (order == null)
+            {
+                return new() { OrderId = null, CanRenew = false, NewSeasonId = null, Reference = null };
+            }
+
+            CanRenewOrderResponse response = new() { OrderId = order.Id, CanRenew = false, NewSeasonId = null, Reference = order.Reference };
+
+            if (order.OrderType == OrderType.SeasonPass)
+            {
+                var passIds = order.Items.Select(oi => oi.ItemReferenceId).ToList();
+
+                var passData = await _seasonPassRepository.Get()
+                    .Where(sp => passIds.Contains(sp.Id))
+                    .Select(sp => new { sp.SeasonId, sp.TrackingCode })
+                    .ToListAsync();
+
+                if (!passData.Any())
+                {
+                    return response;
+                }
+
+                long originalSeasonId = passData.First().SeasonId;
+                var passTrackingCodes = passData.Select(p => p.TrackingCode).ToList();
+
+                Season? latestSeason = await _seasonService.GetLatestSeasonAsync(originalSeasonId);
+
+                if (latestSeason == null || originalSeasonId == latestSeason.Id)
+                {
+                    return response;
+                }
+
+                response.NewSeasonId = latestSeason.Id;
+
+                var soldCount = await _seasonPassRepository.Get()
+                    .Where(sp => sp.SeasonId == latestSeason.Id && passTrackingCodes.Contains(sp.TrackingCode))
+                    .CountAsync();
+
+                response.CanRenew = soldCount < passTrackingCodes.Count;
+
+                return response;
+            }
+            else
+            {
+                return new() { OrderId = order.Id, CanRenew = false, NewSeasonId = null, Reference = order.Reference };
+            }
         }
     }
 }
