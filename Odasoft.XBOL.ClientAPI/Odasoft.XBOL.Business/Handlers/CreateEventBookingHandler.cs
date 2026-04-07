@@ -80,6 +80,8 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 if (command.Request.RefereceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
                 {
+                    command.Request.HoldToken = null;
+
                     SetForSaleRequest setForSaleRequest = new SetForSaleRequest
                     {
                         EventKey = command.Request.SeasonKey,
