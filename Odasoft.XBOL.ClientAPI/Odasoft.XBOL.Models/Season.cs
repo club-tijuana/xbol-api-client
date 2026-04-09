@@ -13,6 +13,8 @@ namespace Odasoft.XBOL.Models
         public string LandingUrl { get; set; } = null!;
 
         public DateTimeOffset PublishedDate { get; set; }
+        public DateTimeOffset? RenewalStartDate { get; set; }
+        public DateTimeOffset? RenewalEndDate { get; set; }
         public DateTimeOffset OnSaleDate { get; set; }
         public DateTimeOffset PreSaleDate { get; set; }
         public DateTimeOffset OffSaleDate { get; set; }

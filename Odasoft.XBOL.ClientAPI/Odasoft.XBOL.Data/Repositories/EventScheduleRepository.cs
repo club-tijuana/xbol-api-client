@@ -8,10 +8,19 @@ namespace Odasoft.XBOL.Data.Repositories
 {
     public class EventScheduleRepository(XBOLDbContext dbContext) : BaseRepository<EventSchedule>(dbContext)
     {
-        public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
+        public async Task<EventItemDTO?> GetEventItemByScheduleIdAsync(long scheduleId)
         {
-            EventItemDTO eventItem = await DbContext.Set<EventSchedule>()
-                .Where(es => es.Id == scheduleId)
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var eventItem = await DbContext.Set<EventSchedule>()
+                .Where(es =>
+                    es.Id == scheduleId
+                    && es.OffSaleDate > now
+                    && (
+                        (es.PreSaleStartDate <= now && now < es.OnSaleDate)
+                        || (es.OnSaleDate <= now && now < es.OffSaleDate)
+                    )
+                )
                 .Select(e => new EventItemDTO
                 {
                     Id = e.Id,

@@ -32,6 +32,15 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+        [HttpGet("zones-by-season/{seasonId}")]
+        [EndpointName("GetZonesBySeasonIdAsync")]
+        public async Task<ActionResult<List<ZoneDTO>>> GetZonesBySeasonIdAsync([FromRoute] long seasonId)
+        {
+            var result = await _bookingService.GetZonesBySeasonIdAsync(seasonId);
+
+            return Ok(result);
+        }
+
         [HttpPost("seats-availability")]
         [EndpointName("GetSeatAvailabilityAsync")]
         public async Task<ActionResult<SeatAvailabilityDTO>> GetSeatAvailabilityAsync([FromBody] ReservationFilters filters)
@@ -45,24 +54,52 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetEventItemByScheduleIdAsync")]
         public async Task<ActionResult<EventItemDTO>> GetEventItemByScheduleIdAsync([FromRoute] long scheduleId)
         {
-            var result = await _bookingService.GetEventItemByScheduleIdAsync(scheduleId);
+            try
+            {
+                var result = await _bookingService.GetEventItemByScheduleIdAsync(scheduleId);
 
-            return Ok(result);
+                if (result == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("season-by-id/{seasonId}")]
         [EndpointName("GetSeasonByScheduleIdAsync")]
         public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync([FromRoute] long seasonId)
         {
-            var result = await _bookingService.GetSeasonByIdAsync(seasonId);
-
-            if (result != null)
+            // TODO: Remove temp token
+            long? idClient = null;
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
             {
-                return Ok(result);
+                var token = authHeader.Substring("Bearer ".Length);
+                idClient = token == "TEST-TOKEN" ? 1 : 2;
             }
-            else
+
+            try
             {
-                return NotFound();
+                var result = await _bookingService.GetSeasonByIdAsync(seasonId, idClient);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return NotFound();
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
 

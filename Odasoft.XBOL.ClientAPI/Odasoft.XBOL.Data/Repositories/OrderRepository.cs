@@ -21,8 +21,11 @@ namespace Odasoft.XBOL.Data.Repositories
             var renewableSeasonIds = await DbContext.Set<Season>()
                 .Where(s =>
                     s.PreviousSeasonId != null &&
-                    s.StartDate > now &&
-                    !DbContext.Set<Season>().Any(s2 => s2.PreviousSeasonId == s.Id)
+                    (
+                        s.RenewalStartDate <= now &&
+                        s.RenewalEndDate >= now
+                    )
+                && !DbContext.Set<Season>().Any(s2 => s2.PreviousSeasonId == s.Id)
                 )
                 .Select(s => s.PreviousSeasonId!.Value)
                 .ToHashSetAsync();

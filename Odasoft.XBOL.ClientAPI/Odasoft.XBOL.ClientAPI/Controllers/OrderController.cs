@@ -40,20 +40,27 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetOrderToRenovate")]
         public async Task<ActionResult<SeasonToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
         {
-            // TODO: Remove temp token
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
+            try
             {
-                var token = authHeader.Substring("Bearer ".Length);
-                long idClient = token == "TEST-TOKEN" ? 1 : 2;
+                // TODO: Remove temp token
+                var authHeader = Request.Headers["Authorization"].ToString();
+                if (authHeader.StartsWith("Bearer "))
+                {
+                    var token = authHeader.Substring("Bearer ".Length);
+                    long idClient = token == "TEST-TOKEN" ? 1 : 2;
 
-                var result = await _orderService.GetOrderToRenovate(orderId, idClient);
+                    var result = await _orderService.GetOrderToRenovate(orderId, idClient);
 
-                return Ok(result);
+                    return Ok(result);
+                }
+                else
+                {
+                    return Unauthorized();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return Unauthorized();
+                return BadRequest(ex.Message);
             }
         }
 

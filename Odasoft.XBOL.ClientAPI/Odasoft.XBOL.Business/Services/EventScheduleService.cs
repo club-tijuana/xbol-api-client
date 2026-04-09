@@ -12,5 +12,11 @@ namespace Odasoft.XBOL.Business.Services
 
             return schedule?.EventId;
         }
+
+        public async Task<EventSchedule?> GetEventScheduleByExternalEventKeyAsync(string eventKey)
+        {
+            EventSchedule? schedule = await repository.Get(x => x.ExternalEventKey == eventKey).FirstOrDefaultAsync();
+            return schedule;
+        }
     }
 }

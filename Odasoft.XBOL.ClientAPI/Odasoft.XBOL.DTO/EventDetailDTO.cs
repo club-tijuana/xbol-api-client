@@ -7,7 +7,6 @@
         public string? ShortDescription { get; set; }
         public string? LongDescription { get; set; }
         public string Image { get; set; } = string.Empty;
-        public string AddressLine { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
         public string Country { get; set; } = string.Empty;

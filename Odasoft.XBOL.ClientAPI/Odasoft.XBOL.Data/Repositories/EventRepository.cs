@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Commons.Responses;
+using Odasoft.XBOL.Data.Extensions.Domain;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 using System.Data;
@@ -133,6 +134,7 @@ namespace Odasoft.XBOL.Data.Repositories
             if (eventCategoryId != null)
             {
                 query = query
+                    .Include(e => e.Categories)
                     .Where(e => e.Categories
                         .Any(ec => ec.Id == eventCategoryId)
                     );
@@ -219,12 +221,11 @@ namespace Odasoft.XBOL.Data.Repositories
                 Name = eventEntity.Name,
                 LongDescription = eventEntity.LongDescription,
                 ShortDescription = eventEntity.ShortDescription,
-                AddressLine = eventEntity.VenueMap.Venue.AddressLine,
                 City = eventEntity.VenueMap.Venue.City,
                 State = eventEntity.VenueMap.Venue.State,
                 Country = eventEntity.VenueMap.Venue.Country,
                 ZipCode = eventEntity.VenueMap.Venue.ZipCode,
-                FullAddress = GetFullAddress(eventEntity.VenueMap.Venue),
+                FullAddress = eventEntity.VenueMap.Venue.GetFullAddress(),
                 Latitude = eventEntity.VenueMap.Venue.Latitude,
                 Longitude = eventEntity.VenueMap.Venue.Longitude,
                 Schedules = eventEntity.Schedules.OrderBy(s => s.StartDateTime)
@@ -254,19 +255,6 @@ namespace Odasoft.XBOL.Data.Repositories
             };
 
             return eventDetail;
-        }
-
-        private static string GetFullAddress(Venue venue)
-        {
-            return string.Join(", ", new[]
-            {
-                venue.Name,
-                venue.AddressLine,
-                venue.ZipCode,
-                venue.City,
-                venue.State,
-                venue.Country
-            }.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }
 }

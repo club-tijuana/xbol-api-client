@@ -20,6 +20,19 @@ namespace Odasoft.XBOL.Data.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IList<ZoneDTO>> GetZonesBySeasonIdAsync(long seasonId)
+        {
+            return await DbContext.Set<SeasonSection>()
+                .Where(ss => ss.SeasonId == seasonId)
+                .Select(ss => new ZoneDTO
+                {
+                    Id = ss.BaseSection.BaseZoneId,
+                    Name = ss.BaseSection.BaseZone.Name
+                })
+                .Distinct()
+                .ToListAsync();
+        }
+
         public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
         { // TODO: Merge the logic
             if (filters.SeasonId != null)

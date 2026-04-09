@@ -352,7 +352,6 @@ namespace Odasoft.XBOL.Business.Services
                     ClientId = client.Id,
                     UserId = client.UserId,
                     SeasonId = seasonId,
-                    BaseSeatId = seat.BaseSeatId,
                     Price = seats[seat.ExternalSeatObjectKey],
                     PurchasedAt = now,
                     SeasonPassType = SeasonPassType.Full,
@@ -380,29 +379,28 @@ namespace Odasoft.XBOL.Business.Services
 
             if (order == null)
             {
-                throw new Exception(""); // Throw order not found
+                throw new Exception("Order not found");
             }
 
             if (order.ClientId != clientId)
             {
-                throw new Exception(""); // The order is not of this user
+                throw new Exception("This order does not belong to the user");
             }
 
             var canOrderBeRenew = await CanOrderBeRenewedAsync(order.Reference);
 
             if (!canOrderBeRenew.CanRenew)
             {
-                throw new Exception(""); // The order can not be renewed
+                throw new Exception("The order cannot be renewed");
             }
 
             OrderItem? item = order.Items.FirstOrDefault();
 
             if (item == null)
             {
-                throw new Exception(""); // Throw order item not found
+                throw new Exception("No tickets found for this order");
             }
 
-            //SeasonPass? seasonPass = await _seasonPassRepository.GetByIdAsync(item.ItemReferenceId);
             SeasonPass? seasonPass = await _seasonPassRepository.Get(
                     filter: sp => sp.Id == item.ItemReferenceId,
                     includedProperties: ["Season"]
@@ -411,12 +409,12 @@ namespace Odasoft.XBOL.Business.Services
 
             if (seasonPass == null)
             {
-                throw new Exception(""); // Throw season pass not found
+                throw new Exception("Season pass not found");
             }
 
             if (seasonPass.Season.EndDate > now)
             {
-                throw new Exception(""); // Throw season not finished yet
+                throw new Exception("The season has not ended yet");
             }
 
             Season? season = await _seasonRepository.Get(
@@ -426,12 +424,12 @@ namespace Odasoft.XBOL.Business.Services
 
             if (season == null)
             {
-                throw new Exception(""); // Throw season not found
+                throw new Exception("Season not found");
             }
 
             if (season.EndDate < now)
             {
-                throw new Exception(""); // Throw new season already finished
+                throw new Exception("The season is no longer available");
             }
 
             List<Ticket> tickets = await _ticketRepository.Get(
@@ -441,7 +439,7 @@ namespace Odasoft.XBOL.Business.Services
 
             if (!tickets.Any())
             {
-                throw new Exception(""); // Throw Tickets not found
+                throw new Exception("No tickets found for the specified order");
             }
 
             List<SeatDTO>? prevSeatPrices = null;
@@ -454,6 +452,7 @@ namespace Odasoft.XBOL.Business.Services
             return new SeasonToRenovateDTO
             {
                 SeasonId = season.Id,
+                SeasonKey = season.ExternalSeasonKey,
                 PreviousSeasonId = seasonPass.SeasonId,
                 RelatedOrderId = order.Id,
                 PreviousSeats = tickets

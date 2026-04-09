@@ -13,5 +13,14 @@ namespace Odasoft.XBOL.Data.Repositories
 
             return season?.Id;
         }
+
+        public async Task<Season?> GetSeasonByExternalSeasonKeyAsync(string seasonKey)
+        {
+            var season = await DbContext.Set<Season>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.ExternalSeasonKey == seasonKey);
+
+            return season;
+        }
     }
 }

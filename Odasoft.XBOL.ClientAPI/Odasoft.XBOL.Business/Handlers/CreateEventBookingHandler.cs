@@ -1,5 +1,6 @@
 ﻿using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.DTO.Results;
 
 namespace Odasoft.XBOL.Business.Handlers
@@ -11,6 +12,8 @@ namespace Odasoft.XBOL.Business.Handlers
         private readonly SequenceTrackerService _sequenceTrackerService;
         private readonly SeasonService _seasonService;
         private readonly OrderService _orderService;
+        private readonly BookingService _bookingService;
+        private readonly ClientService _clientService;
 
         private const string EVENT_ORDER_LOCALIZER_PREFIX = "ORD-E";
         private const string SEASON_ORDER_LOCALIZER_PREFIX = "ORD-S";
@@ -20,7 +23,9 @@ namespace Odasoft.XBOL.Business.Handlers
             EventScheduleService eventScheduleService,
             SequenceTrackerService sequenceTrackerService,
             SeasonService seasonService,
-            OrderService orderService
+            OrderService orderService,
+            BookingService bookingService,
+            ClientService clientService
         )
         {
             _ticketingClient = ticketingClient;
@@ -28,21 +33,29 @@ namespace Odasoft.XBOL.Business.Handlers
             _sequenceTrackerService = sequenceTrackerService;
             _seasonService = seasonService;
             _orderService = orderService;
+            _bookingService = bookingService;
+            _clientService = clientService;
         }
 
         public async Task<BookingResult?> Handle(CreateEventBookingCommand command)
         {
             try
             {
-                long? eventId = await _eventScheduleService.GetEventIdByExternalEventKeyAsync(command.Request.EventKey);
+                var schedule = await _eventScheduleService.GetEventScheduleByExternalEventKeyAsync(command.Request.EventKey);
 
-                if (eventId == null)
+                if (schedule == null)
                 {
                     Console.WriteLine($"Event with key {command.Request.EventKey} not found.");
                     return null;
                 }
 
-                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(EVENT_ORDER_LOCALIZER_PREFIX, eventId.Value);
+                var canReserveEvent = await _bookingService.CanReserveEventAsync(schedule);
+                if (!canReserveEvent.CanReserve)
+                {
+                    throw new Exception(canReserveEvent.Message);
+                }
+
+                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(EVENT_ORDER_LOCALIZER_PREFIX, schedule.EventId);
 
                 var tickets = await _ticketingClient.BookEventSeatsAsync(command.Request);
                 long orderId = await _orderService.CreateEventOrderAsync(command.Request);
@@ -68,15 +81,45 @@ namespace Odasoft.XBOL.Business.Handlers
         {
             try
             {
-                long? seasonId = await _seasonService.GetSeasonIdByExternalKeyAsync(command.Request.SeasonKey);
+                var season = await _seasonService.GetSeasonByExternalKeyAsync(command.Request.SeasonKey);
 
-                if (seasonId == null)
+                if (season == null)
                 {
                     Console.WriteLine($"Season with key {command.Request.SeasonKey} not found.");
                     return null;
                 }
 
-                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX, seasonId.Value);
+                long? clientId = command.Request.ClientContact.Id;
+                if (clientId == null)
+                {
+                    if (command.Request.ClientContact.Email == null || command.Request.ClientContact.PhoneNumber == null)
+                    {
+                        throw new Exception("Client information must be provided");
+                    }
+
+                    ClientContactRequest contact = new ClientContactRequest
+                    {
+                        Email = command.Request.ClientContact.Email,
+                        Phone = command.Request.ClientContact.PhoneNumber,
+                        PhoneCode = ""
+                    };
+                    var client = await _clientService.GetClientByContactAsync(contact);
+
+                    if (client == null)
+                    {
+                        throw new Exception("Client information must be provided");
+                    }
+
+                    clientId = client.Id;
+                }
+
+                var canReserveSeason = await _bookingService.CanReserveSeasonAsync(season, clientId);
+                if (!canReserveSeason.CanReserve)
+                {
+                    throw new Exception(canReserveSeason.Message);
+                }
+
+                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX, season.Id);
 
                 if (command.Request.RefereceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
                 {

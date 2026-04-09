@@ -19,7 +19,15 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetSeasonBannerAsync")]
         public async Task<ActionResult<SeasonItemDTO?>> GetSeasonBannerAsync()
         {
-            var result = await _seasonService.GetSeasonBannerAsync();
+            long? idClient = null;
+            var authHeader = Request.Headers["Authorization"].ToString();
+            if (authHeader.StartsWith("Bearer "))
+            {
+                var token = authHeader.Substring("Bearer ".Length);
+                idClient = token == "TEST-TOKEN" ? 1 : 2;
+            }
+
+            var result = await _seasonService.GetSeasonBannerAsync(idClient);
             return Ok(result);
         }
     }

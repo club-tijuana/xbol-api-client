@@ -31,6 +31,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<EventViews> EventViews { get; set; }
         public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
         public DbSet<SequenceTracker> SequenceTrackers { get; set; }
+        public DbSet<EventCategory> EventCategories => Set<EventCategory>();
 
         public XBOLDbContext() : base()
         {
@@ -82,6 +83,7 @@ namespace Odasoft.XBOL.Data
 
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
+            modelBuilder.ApplyConfiguration(new EventConfiguration());
         }
     }
 }
