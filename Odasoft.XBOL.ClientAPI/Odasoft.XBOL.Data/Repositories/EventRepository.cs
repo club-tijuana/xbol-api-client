@@ -22,7 +22,7 @@ namespace Odasoft.XBOL.Data.Repositories
             List<EventItemDTO> mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
                     e.Schedules != null
-                    && e.Schedules.All(es => es.StartDateTime > now)
+                    && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
                     && e.Categories.Any(ec => ec.Id == 2 || ec.Id == 3)
                 )
                 .OrderByDescending(e => e.Schedules
@@ -70,7 +70,7 @@ namespace Odasoft.XBOL.Data.Repositories
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
                     e.Schedules != null
-                    && e.Schedules.All(es => es.StartDateTime > now)
+                    && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
                     && e.ViewCount > 0
                 )
                 .OrderByDescending(e => e.ViewCount)
@@ -120,6 +120,8 @@ namespace Odasoft.XBOL.Data.Repositories
             string? searchTerm,
             long? clientId)
         {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
             List<long> favouriteEventIds = new List<long>();
             if (clientId != null)
             {
@@ -129,7 +131,14 @@ namespace Odasoft.XBOL.Data.Repositories
                     .ToListAsync();
             }
 
-            var query = DbContext.Set<Models.Event>().AsQueryable();
+            var query = DbContext.Set<Models.Event>()
+                .Where(e =>
+                    e.Schedules.Any(es =>
+                        es.OnSaleDate <= now
+                        && es.EndDateTime > now
+                    )
+                )
+                .AsQueryable();
 
             if (eventCategoryId != null)
             {
@@ -251,7 +260,9 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                IsFavorite = isFavorite
+                IsFavorite = isFavorite,
+                AgeRestriction = eventEntity.AgeRestriction,
+                SecurityPolicies = eventEntity.SecurityPolicies
             };
 
             return eventDetail;

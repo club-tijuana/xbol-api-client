@@ -1,4 +1,6 @@
-﻿namespace Odasoft.XBOL.DTO
+﻿using Odasoft.XBOL.Commons.Enums;
+
+namespace Odasoft.XBOL.DTO
 {
     public class EventDetailDTO
     {
@@ -14,6 +16,8 @@
         public string FullAddress { get; set; } = string.Empty;
         public decimal Latitude { get; set; }
         public decimal Longitude { get; set; }
+        public AgeRestriction? AgeRestriction { get; set; }
+        public string? SecurityPolicies { get; set; }
         public bool IsFavorite { get; set; } = false;
         public List<string> Gallery { get; set; } = new List<string>();
         public List<EventScheduleDTO> Schedules { get; set; } = new List<EventScheduleDTO>();
