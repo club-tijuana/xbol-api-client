@@ -121,7 +121,7 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX, season.Id);
 
-                if (command.Request.RefereceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
+                if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
                 {
                     command.Request.HoldToken = null;
 
@@ -151,7 +151,7 @@ namespace Odasoft.XBOL.Business.Handlers
                 }
                 catch
                 {
-                    if (command.Request.RefereceOrderId != null)
+                    if (command.Request.ReferenceOrderId != null)
                     {
                         SetForSaleRequest setForSaleRequest = new SetForSaleRequest
                         {

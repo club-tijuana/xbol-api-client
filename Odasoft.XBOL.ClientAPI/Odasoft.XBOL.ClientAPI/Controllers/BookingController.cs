@@ -179,7 +179,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                     return BadRequest(ModelState);
                 }
 
-                if (request.RefereceOrderId == null)
+                if (request.ReferenceOrderId == null)
                 {
                     return BadRequest("Renovation must contain a previous order to reference.");
                 }

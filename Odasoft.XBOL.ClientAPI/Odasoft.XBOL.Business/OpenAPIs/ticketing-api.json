@@ -113,7 +113,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/api/booking/season/book-seats": {
@@ -224,179 +225,138 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/api/categories/names": {
-      "get": {
+    "/api/booking/release-seats": {
+      "post": {
         "tags": [
-          "Categories"
+          "Booking"
         ],
-        "summary": "Retrieves a list of category names available in the system.",
-        "operationId": "GetCategoriesNames",
+        "summary": "Releases the specified seats for an event or season, making them available for booking.",
+        "operationId": "ReleaseBookedSeatsAsync",
+        "requestBody": {
+          "description": "The request containing the event or season key and the list of seat identifiers to release. The key cannot\r\n            be null or empty, and the list of seats must contain at least one item.",
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseBookedSeatsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseBookedSeatsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseBookedSeatsRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseBookedSeatsRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                  "$ref": "#/components/schemas/ChangeObjectStatusResult"
                 }
               },
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                  "$ref": "#/components/schemas/ChangeObjectStatusResult"
                 }
               },
               "text/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
+                  "$ref": "#/components/schemas/ChangeObjectStatusResult"
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/events": {
-      "get": {
-        "tags": [
-          "Events"
-        ],
-        "summary": "Retrieves a paginated list of events filtered by venue, category, date range, and search criteria.",
-        "operationId": "GetEventsAsync",
-        "parameters": [
-          {
-            "name": "venues",
-            "in": "query",
-            "description": "A comma-separated list of venue identifiers used to filter the events. If null or empty, events from all\r\n            venues are included.",
-            "schema": {
-              "type": "string"
-            }
           },
-          {
-            "name": "categories",
-            "in": "query",
-            "description": "A comma-separated list of event category names used to filter the events. If null or empty, events from all\r\n            categories are included.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "description": "The start date and time for filtering events. Only events occurring on or after this date are included. If\r\n            null, no lower date bound is applied.",
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "description": "The end date and time for filtering events. Only events occurring on or before this date are included. If\r\n            null, no upper date bound is applied.",
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "description": "A search term used to filter events by name or description. If null or empty, no search filtering is\r\n            applied.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sortBy",
-            "in": "query",
-            "description": "The field by which to sort the events. Defaults to \"dateTime\" if not specified.",
-            "schema": {
-              "type": "string",
-              "default": "dateTime"
-            }
-          },
-          {
-            "name": "descending",
-            "in": "query",
-            "description": "Indicates whether the results should be sorted in descending order. Set to true to sort\r\n            descending; otherwise, ascending.",
-            "schema": {
-              "type": "boolean",
-              "default": false
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "description": "The page number of results to retrieve. Must be greater than zero.",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 1
-            }
-          },
-          {
-            "name": "pageSize",
-            "in": "query",
-            "description": "The maximum number of events to include in a single page of results. Must be greater than zero.",
-            "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 10
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
+          "404": {
+            "description": "Not Found",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventListItemPagedResponse"
+                  "type": "string"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventListItemPagedResponse"
+                  "type": "string"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventListItemPagedResponse"
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/api/events/{eventId}": {
+    "/api/charts/{chartKey}": {
       "get": {
         "tags": [
-          "Events"
+          "Charts"
         ],
-        "summary": "Retrieves the details of the event specified by its unique identifier.",
-        "description": "This method performs an asynchronous operation to fetch event details from the event\r\n            service. If the event is not found, a 404 Not Found response is returned.",
-        "operationId": "GetEvenByIdAsync",
+        "summary": "Retreive a seats.io chart asynchronously.",
+        "operationId": "GetChartByKeyAsync",
         "parameters": [
           {
-            "name": "eventId",
+            "name": "chartKey",
             "in": "path",
-            "description": "The unique identifier of the event to retrieve. Must be a positive long value.",
+            "description": "The unique Id for the chart.",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int64"
+              "type": "string"
             }
           }
         ],
@@ -406,17 +366,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventListItem"
+                  "$ref": "#/components/schemas/Chart"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventListItem"
+                  "$ref": "#/components/schemas/Chart"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventListItem"
+                  "$ref": "#/components/schemas/Chart"
                 }
               }
             }
@@ -437,6 +397,46 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/charts": {
+      "get": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "Retrieves a list of seats.io charts asynchronously",
+        "operationId": "GetChartsAsync",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Chart"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Chart"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Chart"
+                  }
                 }
               }
             }
@@ -514,7 +514,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "get": {
         "tags": [
@@ -554,7 +555,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "delete": {
         "tags": [
@@ -594,7 +596,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/api/hold-seats/client": {
@@ -624,75 +627,144 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
-    "/api/hold-seats/season": {
-      "post": {
+    "/api/manage-seats": {
+      "get": {
         "tags": [
-          "Hold"
+          "ManageSeats"
         ],
-        "summary": "Asynchronously holds the specified seats for a season and returns a token representing the hold.",
-        "description": "This method reserves the requested seats for a limited time, allowing further actions\r\n            such as purchase or release. If the event is not found or the seat information is invalid, the operation may\r\n            fail. Exception handling should be implemented to manage such cases appropriately.",
-        "operationId": "HoldSeasonSeatsAsync",
-        "requestBody": {
-          "description": "The request containing the event identifier and the collection of seat identifiers to be held. The season\r\n            identifier must correspond to an existing season, and the seat identifiers must be valid for that season.",
-          "content": {
-            "application/json-patch+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
-                  }
-                ]
-              }
-            },
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/HoldSeasonSeatsRequest"
-                  }
-                ]
+        "summary": "Retrieves the current status, forSale flag, and extraData for the specified seats.",
+        "operationId": "GetSeatsInfoAsync",
+        "parameters": [
+          {
+            "name": "eventKey",
+            "in": "query",
+            "description": "The Seats.io event key.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "seatKeys",
+            "in": "query",
+            "description": "One or more seat object labels to query.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
               }
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HoldToken"
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/EventObjectInfo"
+                  }
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HoldToken"
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/EventObjectInfo"
+                  }
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HoldToken"
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/EventObjectInfo"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
                 }
               }
             }
@@ -835,6 +907,1275 @@
         }
       }
     },
+    "/api/manage-seats/extra-data": {
+      "put": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Updates the extra data (reason, color) for the specified seats in a Seats.io event.\r\nSend an empty object to clear extra data.",
+        "operationId": "UpdateSeatExtraDataAsync",
+        "requestBody": {
+          "description": "The event key, seat keys, and extra data to set on each seat.",
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSeatExtraDataRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSeatExtraDataRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSeatExtraDataRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSeatExtraDataRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage-seats/release": {
+      "post": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Releases the specified seats, resetting their status to free.",
+        "operationId": "ReleaseSeatsActionAsync",
+        "requestBody": {
+          "description": "The event key and seat labels to release.",
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseSeatsByKeyRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseSeatsByKeyRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseSeatsByKeyRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseSeatsByKeyRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage-seats/hold/{holdToken}": {
+      "get": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Retrieves the hold token details for the specified token string.",
+        "operationId": "GetHoldTokenActionAsync",
+        "parameters": [
+          {
+            "name": "holdToken",
+            "in": "path",
+            "description": "The hold token string to look up.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Expires the specified hold token, releasing all seats held by it.",
+        "operationId": "ExpireHoldTokenActionAsync",
+        "parameters": [
+          {
+            "name": "holdToken",
+            "in": "path",
+            "description": "The hold token to expire.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage-seats/hold": {
+      "post": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Holds the specified seats by creating a temporary hold token.",
+        "operationId": "HoldSeatsActionAsync",
+        "requestBody": {
+          "description": "The event key and seat labels to hold.",
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeatsActionRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeatsActionRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeatsActionRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/HoldSeatsActionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldToken"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage-seats/book": {
+      "post": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Books the specified seats, optionally consuming a hold token.",
+        "operationId": "BookSeatsActionAsync",
+        "requestBody": {
+          "description": "The event key, seats with prices, hold token, and booking details.",
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BookSeatsActionRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BookSeatsActionRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BookSeatsActionRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BookSeatsActionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage-seats/events/{eventKey}/status-changes": {
+      "get": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Lists status changes for a Seats.io event, with cursor-based pagination.",
+        "operationId": "GetStatusChangesAsync",
+        "parameters": [
+          {
+            "name": "eventKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "afterId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusChangeCursorPagedResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusChangeCursorPagedResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusChangeCursorPagedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/manage-seats/events/{eventKey}/objects/{objectLabel}/status-changes": {
+      "get": {
+        "tags": [
+          "ManageSeats"
+        ],
+        "summary": "Lists status change history for a specific object within a Seats.io event.",
+        "operationId": "GetStatusChangesForObjectAsync",
+        "parameters": [
+          {
+            "name": "eventKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "objectLabel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "afterId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusChangeCursorPagedResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusChangeCursorPagedResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusChangeCursorPagedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{key}/summary/by-section": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Retrieves a summary report of seat availability, grouped by section.",
+        "operationId": "GetSectionSummaryAsync",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/SectionSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{key}/summary/by-zone": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Retrieves a summary report of seat availability, grouped by zone.",
+        "operationId": "GetZoneSummaryAsync",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/ZoneSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{key}/summary/by-availability": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Retrieves a summary report of seat availability, grouped by availability (available vs not_available).",
+        "operationId": "GetAvailabilitySummaryAsync",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/AvailabilitySummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/{key}/summary/by-availability-reason": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Retrieves a summary report of seat availability, grouped by availability reason\r\n(available, booked, reservedByToken, not_for_sale, and any custom statuses).",
+        "operationId": "GetAvailabilityReasonSummaryAsync",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/AvailabilityReasonSummaryDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tests": {
       "get": {
         "tags": [
@@ -890,156 +2231,316 @@
           }
         }
       }
-    },
-    "/api/venue-maps": {
-      "get": {
-        "tags": [
-          "VenueMaps"
-        ],
-        "summary": "Retrieves a collection of venue maps available in the system.",
-        "description": "This method is intended for use in a web API context and asynchronously calls the\r\n            underlying venue map service to obtain the data. The response will contain an empty list if no venue maps\r\n            are available.",
-        "operationId": "GetVenueMapsAsync",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VenueMapListItem"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VenueMapListItem"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VenueMapListItem"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/venue-maps/{venueMapId}": {
-      "get": {
-        "tags": [
-          "VenueMaps"
-        ],
-        "summary": "Retrieves the venue map associated with the specified identifier.",
-        "description": "This method asynchronously fetches the venue map from the service. If no venue map is\r\n            found for the given identifier, a 404 Not Found response is returned.",
-        "operationId": "GetVenueMapByIdAsync",
-        "parameters": [
-          {
-            "name": "venueMapId",
-            "in": "path",
-            "description": "The unique identifier of the venue map to retrieve. Must be a positive long value.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/VenueMapListItem"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VenueMapListItem"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VenueMapListItem"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/venues": {
-      "get": {
-        "tags": [
-          "Venues"
-        ],
-        "summary": "Retrieves a list of available venues asynchronously.",
-        "description": "This method is intended for scenarios where venue data is required. It performs a\r\n            non-blocking operation by leveraging the underlying venue service to fetch venue information\r\n            asynchronously.",
-        "operationId": "GetVenuesAsync",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VenueListItem"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VenueListItem"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VenueListItem"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
     "schemas": {
+      "AvailabilityReasonSummaryDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byAvailability": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryLabel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryKey": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byChannel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AvailabilitySummaryDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byAvailability": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryLabel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryKey": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byChannel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookSeatsActionRequest": {
+        "required": [
+          "clientContact",
+          "eventKey",
+          "paymentInfoRequest",
+          "seats",
+          "ticketType"
+        ],
+        "type": "object",
+        "properties": {
+          "eventKey": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "decimal"
+            }
+          },
+          "holdToken": {
+            "type": "string"
+          },
+          "eventScheduleId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ItemType"
+              }
+            ]
+          },
+          "clientContact": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientInfoRequest"
+              }
+            ]
+          },
+          "paymentInfoRequest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentInfoRequest"
+              }
+            ]
+          },
+          "localizer": {
+            "type": "string",
+            "nullable": true
+          },
+          "referenceOrderId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessible": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChangeObjectStatusResult": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EventObjectInfo"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Channel": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "index": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Chart": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "publishedVersionThumbnailUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "draftVersionThumbnailUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "nullable": true
+          },
+          "validation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChartValidationResult"
+              }
+            ],
+            "nullable": true
+          },
+          "venueType": {
+            "type": "string",
+            "nullable": true
+          },
+          "zones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Zone"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChartValidationResult": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClientGender": {
+        "enum": [
+          "Female",
+          "Male"
+        ],
+        "type": "string"
+      },
       "ClientInfoRequest": {
         "type": "object",
         "properties": {
@@ -1067,6 +2568,147 @@
           },
           "lastName": {
             "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "neighborhood": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientGender"
+              }
+            ],
+            "nullable": true
+          },
+          "birthday": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "chartKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "tableBookingConfig": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TableBookingConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "supportsBestAvailable": {
+            "type": "boolean"
+          },
+          "forSaleConfig": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ForSaleConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "createdOn": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedOn": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Channel"
+            },
+            "nullable": true
+          },
+          "objectCategories": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "nullable": true
+          },
+          "partialSeasonKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "nullable": true
+          },
+          "isSeason": {
+            "type": "boolean"
+          },
+          "isTopLevelSeason": {
+            "type": "boolean"
+          },
+          "isPartialSeason": {
+            "type": "boolean"
+          },
+          "isEventInSeason": {
+            "type": "boolean"
+          },
+          "topLevelSeasonKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "isInThePast": {
+            "type": "boolean"
+          },
+          "partialSeasonKeysForEvent": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "forSalePropagated": {
+            "type": "boolean",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1125,91 +2767,272 @@
         },
         "additionalProperties": false
       },
-      "EventListItem": {
-        "required": [
-          "availableSeats",
-          "id",
-          "name",
-          "scheduledStartDate",
-          "totalSeats",
-          "venueMapId"
-        ],
+      "EventObjectInfo": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "scheduledStartDate": {
+          "label": {
             "type": "string",
-            "format": "date-time"
+            "nullable": true
           },
-          "name": {
-            "type": "string"
+          "labels": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Labels"
+              }
+            ],
+            "nullable": true
           },
-          "category": {
-            "type": "string"
+          "iDs": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IDs"
+              }
+            ],
+            "nullable": true
           },
-          "venueMapId": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "categoryLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "categoryKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "ticketType": {
+            "type": "string",
+            "nullable": true
+          },
+          "objectType": {
+            "type": "string",
+            "nullable": true
+          },
+          "orderId": {
+            "type": "string",
+            "nullable": true
+          },
+          "forSale": {
+            "type": "boolean"
+          },
+          "holdToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "section": {
+            "type": "string",
+            "nullable": true
+          },
+          "entrance": {
+            "type": "string",
+            "nullable": true
+          },
+          "numBooked": {
             "type": "integer",
-            "format": "int64"
+            "format": "int32",
+            "nullable": true
           },
-          "venueName": {
-            "type": "string"
+          "numFree": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           },
-          "externalEventKey": {
-            "type": "string"
+          "numHeld": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           },
-          "availableSeats": {
+          "numNotForSale": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "bookAsAWhole": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "extraData": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "isAccessible": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "isCompanionSeat": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "hasLiftUpArmrests": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "isHearingImpaired": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "isSemiAmbulatorySeat": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "hasSignLanguageInterpretation": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "isPlusSize": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "hasRestrictedView": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "displayedObjectType": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentDisplayedObjectType": {
+            "type": "string",
+            "nullable": true
+          },
+          "leftNeighbour": {
+            "type": "string",
+            "nullable": true
+          },
+          "rightNeighbour": {
+            "type": "string",
+            "nullable": true
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "channel": {
+            "type": "string",
+            "nullable": true
+          },
+          "distanceToFocalPoint": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "holds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "numSeats": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "variableOccupancy": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "minOccupancy": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "maxOccupancy": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "seasonStatusOverriddenQuantity": {
             "type": "integer",
             "format": "int32"
           },
-          "totalSeats": {
-            "type": "integer",
-            "format": "int32"
+          "zone": {
+            "type": "string",
+            "nullable": true
+          },
+          "floor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Floor"
+              }
+            ],
+            "nullable": true
+          },
+          "resaleListingId": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "EventListItemPagedResponse": {
-        "required": [
-          "page",
-          "pageSize",
-          "totalCount"
-        ],
+      "Floor": {
         "type": "object",
         "properties": {
-          "items": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ForSaleConfig": {
+        "type": "object",
+        "properties": {
+          "forSale": {
+            "type": "boolean"
+          },
+          "objects": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/EventListItem"
-            }
+              "type": "string"
+            },
+            "nullable": true
           },
-          "totalCount": {
-            "type": "integer",
-            "format": "int32"
+          "areaPlaces": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
           },
-          "page": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "pageSize": {
-            "type": "integer",
-            "format": "int32"
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "HoldSeasonSeatsRequest": {
+      "HoldSeatsActionRequest": {
         "required": [
-          "seasonId",
+          "eventKey",
           "seats"
         ],
         "type": "object",
         "properties": {
-          "seasonId": {
-            "type": "integer",
-            "format": "int64"
+          "eventKey": {
+            "type": "string"
           },
           "seats": {
             "type": "array",
@@ -1222,12 +3045,13 @@
       },
       "HoldSeatsRequest": {
         "required": [
-          "eventScheduleId",
+          "eventId",
+          "saleType",
           "seats"
         ],
         "type": "object",
         "properties": {
-          "eventScheduleId": {
+          "eventId": {
             "type": "integer",
             "format": "int64"
           },
@@ -1236,6 +3060,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "saleType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SaleType"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -1262,12 +3093,70 @@
         },
         "additionalProperties": false
       },
+      "IDs": {
+        "type": "object",
+        "properties": {
+          "own": {
+            "type": "string",
+            "nullable": true
+          },
+          "parent": {
+            "type": "string",
+            "nullable": true
+          },
+          "section": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ItemType": {
         "enum": [
           "Ticket",
           "SeasonPass"
         ],
         "type": "string"
+      },
+      "LabelAndType": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Labels": {
+        "type": "object",
+        "properties": {
+          "own": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LabelAndType"
+              }
+            ],
+            "nullable": true
+          },
+          "parent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LabelAndType"
+              }
+            ],
+            "nullable": true
+          },
+          "section": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "ModelError": {
         "type": "object",
@@ -1389,6 +3278,67 @@
         },
         "additionalProperties": {}
       },
+      "ReleaseBookedSeatsRequest": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReleaseSeatsByKeyRequest": {
+        "required": [
+          "eventKey",
+          "seats"
+        ],
+        "type": "object",
+        "properties": {
+          "eventKey": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "holdToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "keepExtraData": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "ignoreChannels": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "channelKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SaleType": {
+        "enum": [
+          "Event",
+          "SeasonPass",
+          "EventGroup"
+        ],
+        "type": "string"
+      },
       "SeasonBookingRequest": {
         "required": [
           "clientContact",
@@ -1400,7 +3350,7 @@
           "seasonKey": {
             "type": "string"
           },
-          "refereceOrderId": {
+          "referenceOrderId": {
             "type": "integer",
             "format": "int64",
             "nullable": true
@@ -1475,6 +3425,51 @@
         },
         "additionalProperties": false
       },
+      "SectionSummaryDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byAvailability": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryLabel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryKey": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byChannel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "SetForSaleRequest": {
         "required": [
           "eventKey",
@@ -1498,6 +3493,111 @@
         },
         "additionalProperties": false
       },
+      "StatusChange": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "objectLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orderId": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "extraData": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "nullable": true
+          },
+          "origin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StatusChangeOrigin"
+              }
+            ],
+            "nullable": true
+          },
+          "isPresentOnChart": {
+            "type": "boolean"
+          },
+          "notPresentOnChartReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "holdToken": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StatusChangeCursorPagedResponse": {
+        "type": "object",
+        "properties": {
+          "next_page_starts_after": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatusChange"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "StatusChangeOrigin": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TableBookingConfig": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "nullable": true
+          },
+          "tables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "nullable": true
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "TestResultObject": {
         "required": [
           "result"
@@ -1510,42 +3610,85 @@
         },
         "additionalProperties": false
       },
-      "VenueListItem": {
+      "UpdateSeatExtraDataRequest": {
         "required": [
-          "id"
+          "eventKey",
+          "extraData",
+          "seatKeys"
         ],
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "name": {
+          "eventKey": {
             "type": "string"
+          },
+          "seatKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extraData": {
+            "type": "object",
+            "additionalProperties": {}
           }
         },
         "additionalProperties": false
       },
-      "VenueMapListItem": {
-        "required": [
-          "id",
-          "venueId"
-        ],
+      "Zone": {
         "type": "object",
         "properties": {
-          "id": {
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ZoneSummaryDto": {
+        "type": "object",
+        "properties": {
+          "count": {
             "type": "integer",
-            "format": "int64"
+            "format": "int32"
           },
-          "venueId": {
-            "type": "integer",
-            "format": "int64"
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
-          "name": {
-            "type": "string"
+          "byAvailability": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
-          "externalMapKey": {
-            "type": "string"
+          "byCategoryLabel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byCategoryKey": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "byChannel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         },
         "additionalProperties": false
@@ -1557,10 +3700,7 @@
       "name": "Booking"
     },
     {
-      "name": "Categories"
-    },
-    {
-      "name": "Events"
+      "name": "Charts"
     },
     {
       "name": "Hold"
@@ -1569,13 +3709,10 @@
       "name": "ManageSeats"
     },
     {
+      "name": "Reports"
+    },
+    {
       "name": "Test"
-    },
-    {
-      "name": "VenueMaps"
-    },
-    {
-      "name": "Venues"
     }
   ]
 }

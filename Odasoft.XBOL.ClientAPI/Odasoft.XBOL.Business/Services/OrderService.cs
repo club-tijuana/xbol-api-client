@@ -179,7 +179,7 @@ namespace Odasoft.XBOL.Business.Services
                         Price = x.Price,
                         IsCourtesy = request.PaymentInfoRequest.IsCourtesy ?? false
                     })],
-                    RelatedOrderId = request.RefereceOrderId
+                    RelatedOrderId = request.ReferenceOrderId
                 };
 
                 await _orderRepository.InsertAsync(newOrder);
