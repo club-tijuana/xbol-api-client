@@ -9,11 +9,17 @@ namespace Odasoft.XBOL.Business.Services
     {
         private readonly SeasonRepository _seasonRepository;
         private readonly OrderRepository _orderRepository;
+        private readonly SeasonPassRepository _seasonPassRepository;
 
-        public SeasonService(SeasonRepository seasonRepository, OrderRepository orderRepository)
+        public SeasonService(
+            SeasonRepository seasonRepository,
+            OrderRepository orderRepository,
+            SeasonPassRepository seasonPassRepository
+        )
         {
             _seasonRepository = seasonRepository;
             _orderRepository = orderRepository;
+            _seasonPassRepository = seasonPassRepository;
         }
 
         public async Task<SeasonItemDTO?> GetSeasonBannerAsync(long? clientId = null)
@@ -27,7 +33,7 @@ namespace Odasoft.XBOL.Business.Services
             var seasonStates = seasons.Select(s => new
             {
                 Season = s,
-                RenewalStart = s.PreSaleDate.AddMonths(-1),
+                RenewalStart = s.RenewalStartDate,
                 IsRenewal = (
                                 now >= s.RenewalStartDate
                                 && now <= s.RenewalEndDate
@@ -35,7 +41,9 @@ namespace Odasoft.XBOL.Business.Services
                             && now < s.PreSaleDate,
                 IsPreSale = now >= s.PreSaleDate && now < s.OnSaleDate,
                 IsGeneral = now >= s.OnSaleDate && now < s.OffSaleDate
-            }).ToList();
+            })
+            .OrderByDescending(s => s.Season.Id)
+            .ToList();
 
             if (clientId == null)
             {
@@ -51,13 +59,12 @@ namespace Odasoft.XBOL.Business.Services
             }
             else
             {
-                var clientSeasonIds = await _orderRepository.Get(
-                        o => o.ClientId == clientId
-                        && o.OrderType == Commons.Enums.OrderType.SeasonPass
-                    )
-                    .Select(o => o.Items.Select(i => i.ItemReferenceId).FirstOrDefault())
-                    .Distinct()
-                    .ToListAsync();
+                var clientSeasonIds = await _seasonPassRepository.Get(sp =>
+                    sp.ClientId == clientId
+                )
+                .Select(sp => sp.SeasonId)
+                .Distinct()
+                .ToListAsync();
 
                 var seasonStatesWithAccess = seasonStates.Select(s => new
                 {
@@ -84,20 +91,6 @@ namespace Odasoft.XBOL.Business.Services
 
                 return result;
             }
-
-            //var now = DateTimeOffset.UtcNow;
-
-            //return await _seasonRepository.Get(
-            //        filter: season => season.PreSaleDate <= now
-            //        && season.StartDate >= now
-            //    )
-            //    .Select(s => new SeasonItemDTO
-            //    {
-            //        Id = s.Id,
-            //        BannerImageUrl = s.BannerImageUrl,
-            //        ExternalSeasonKey = s.ExternalSeasonKey,
-            //    })
-            //    .FirstOrDefaultAsync();
         }
 
         public async Task<long?> GetSeasonIdByExternalKeyAsync(string externalSeasonKey)
