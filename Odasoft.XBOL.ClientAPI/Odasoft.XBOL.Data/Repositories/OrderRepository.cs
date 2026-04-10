@@ -21,11 +21,9 @@ namespace Odasoft.XBOL.Data.Repositories
             var renewableSeasonIds = await DbContext.Set<Season>()
                 .Where(s =>
                     s.PreviousSeasonId != null &&
-                    (
-                        s.RenewalStartDate <= now &&
-                        s.RenewalEndDate >= now
-                    )
-                && !DbContext.Set<Season>().Any(s2 => s2.PreviousSeasonId == s.Id)
+                    s.RenewalStartDate <= now &&
+                    s.RenewalEndDate >= now &&
+                    !DbContext.Set<Season>().Any(s2 => s2.PreviousSeasonId == s.Id)
                 )
                 .Select(s => s.PreviousSeasonId!.Value)
                 .ToHashSetAsync();
@@ -72,18 +70,15 @@ namespace Odasoft.XBOL.Data.Repositories
                 })
                 .ToListAsync();
 
-            var clientSeasonIds = orders
-                .SelectMany(o => o.Tickets)
-                .Where(t => t.SeasonId.HasValue)
-                .Select(t => t.SeasonId!.Value)
-                .ToHashSet();
+            var orderIds = orders.Select(o => o.Id).ToHashSet();
 
-            var nextSeasonMap = await DbContext.Set<Season>()
-                .Where(s => s.PreviousSeasonId != null)
-                .ToDictionaryAsync(
-                    s => s.PreviousSeasonId!.Value,
-                    s => s.Id
-                );
+            var renewedOrderIds = await DbContext.Set<Models.Order>()
+                .Where(o =>
+                    o.RelatedOrderId != null &&
+                    orderIds.Contains(o.RelatedOrderId.Value)
+                )
+                .Select(o => o.RelatedOrderId!.Value)
+                .ToHashSetAsync();
 
             var events = orders.Select(o =>
             {
@@ -96,7 +91,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     .ThenByDescending(t => t.StartDateTime)
                     .First();
 
-                bool isPastEvent = false;
+                bool isPastEvent;
 
                 if (isSeason)
                 {
@@ -107,17 +102,14 @@ namespace Odasoft.XBOL.Data.Repositories
                     isPastEvent = currentSchedule.StartDateTime < now;
                 }
 
-                bool hasNextSeason =
-                    currentSchedule.SeasonId.HasValue &&
-                    nextSeasonMap.TryGetValue(currentSchedule.SeasonId.Value, out var nextSeasonId) &&
-                    clientSeasonIds.Contains(nextSeasonId);
+                bool alreadyRenewed = renewedOrderIds.Contains(o.Id);
 
                 bool canRenovateSeasonPass =
                     isSeason &&
                     isPastEvent &&
                     currentSchedule.SeasonId.HasValue &&
                     renewableSeasonIds.Contains(currentSchedule.SeasonId.Value) &&
-                    !hasNextSeason;
+                    !alreadyRenewed;
 
                 return new MyEventDTO
                 {
