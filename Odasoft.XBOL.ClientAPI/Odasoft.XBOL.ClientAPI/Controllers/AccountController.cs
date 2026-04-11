@@ -31,12 +31,16 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             if (auth)
             {
+                string userId = model.Username == "client@xbol.com" ? "019c29aa-cd4b-7407-9b65-d5d49891eb04" : "5da1933e-65af-417c-8b79-d75817a33b4c";
+                string token = model.Username == "client@xbol.com" ? "TEST-TOKEN" : "TEST-TOKEN2";
+
                 return Ok(new User
                 {
+                    UserId = new Guid(userId),
                     FirstName = "User",
                     LastName = "Test",
                     Username = model.Username,
-                    Token = "TEST-TOKEN"
+                    Token = token
                 });
             }
             else

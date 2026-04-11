@@ -9,10 +9,8 @@ namespace Odasoft.XBOL.Models
 
         public long? OrganizerMemberId { get; set; }
         public OrganizerMember? OrganizerMember { get; set; }
-
-        public string? CountryPhoneCode { get; set; } = null;
-        public string? CountryPhoneISO { get; set; } = null;
-        public string? PhoneNumberNormalized { get; set; } = null;
+        public long? PhoneRegionCodeId { get; set; }
+        public PhoneRegionCode? PhoneRegionCode { get; set; }
 
         public DateTimeOffset? EmailVerifiedTimeStamp { get; set; }
         public DateTimeOffset? PhoneVerifiedTimeStamp { get; set; }
@@ -30,6 +28,9 @@ namespace Odasoft.XBOL.Models
         public DateTimeOffset? LastLogin { get; set; }
 
         public IList<Order> Orders { get; set; } = [];
+        public IList<PromoCodeRedemption> PromoCodeRedemptions { get; set; } = [];
+        public IList<SeatHold> SeatHolds { get; set; } = [];
+        public IList<AuditLog> AuditLogs { get; set; } = [];
         public IList<Ticket> Tickets { get; set; } = [];
     }
 }
