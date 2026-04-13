@@ -8,12 +8,21 @@ using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.ClientAPI.Configs;
 using Odasoft.XBOL.ClientAPI.Extensions;
 using Odasoft.XBOL.ClientAPI.Filters;
+using Odasoft.XBOL.ClientAPI.Schema;
 using Odasoft.XBOL.Commons.Options;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
 using Odasoft.XBOL.Models;
 using System.Reflection;
 using Wolverine;
+
+if (args.Contains("--generate-schema"))
+{
+    var outputPath = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "appsettings.schema.json"));
+    AppSettingsSchemaGenerator.GenerateAndWrite(outputPath);
+    return;
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
