@@ -47,3 +47,11 @@ make run      # Run the Docker Compose environment
 
 - **API Base URL**: <http://localhost:8080>
 - **API Health Check**: <http://localhost:8080/healthz>
+
+### Required env vars
+
+- `ConnectionStrings__Default`
+- `Cors__PolicyName`
+- `Cors__AcceptedOrigins__0` (add more with `__1`, `__2`, …)
+- `Authentication__AllowedUsers__0__Email`, `__0__Password`
+- `HttpClients__TicketingClientBaseAddress`
