@@ -5,7 +5,6 @@ using Odasoft.XBOL.Business;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
-using Odasoft.XBOL.ClientAPI.Configs;
 using Odasoft.XBOL.ClientAPI.Extensions;
 using Odasoft.XBOL.ClientAPI.Filters;
 using Odasoft.XBOL.ClientAPI.Schema;
@@ -37,7 +36,6 @@ builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>
 });
 
 #region AppSettings
-HttpClientsConfigs httpClientsConfigs = builder.Configuration.GetSection("HttpClients").Get<HttpClientsConfigs>()!;
 SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings").Get<SearchSettings>()!;
 EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
 #endregion
@@ -122,11 +120,7 @@ builder.Services.AddSingleton(searchSettings);
 builder.Services.AddSingleton(eventsTrackingSettings);
 
 // Add Http Clients
-builder.Services.AddHttpClient<TicketingClient>(
-    (provider, client) =>
-    {
-        client.BaseAddress = new Uri(builder.Configuration.GetValue("TicketingClientBaseAddress", httpClientsConfigs.TicketingClientBaseAddress));
-    });
+builder.Services.ConfigureHttpClients();
 
 var app = builder.Build();
 

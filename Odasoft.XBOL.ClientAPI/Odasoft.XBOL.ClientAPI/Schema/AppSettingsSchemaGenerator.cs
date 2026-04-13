@@ -1,5 +1,4 @@
 using Odasoft.XBOL.Business.Configs;
-using Odasoft.XBOL.ClientAPI.Configs;
 using Odasoft.XBOL.Commons.Options;
 using System.ComponentModel;
 using System.Text.Json;
@@ -73,8 +72,8 @@ public static class AppSettingsSchemaGenerator
         [Description("Accounts permitted to authenticate against the Client API.")]
         public AuthenticationOptions? Authentication { get; set; }
 
-        [Description("Upstream HTTP client base addresses.")]
-        public HttpClientsConfigs? HttpClients { get; set; }
+        [Description("Ticketing API client settings.")]
+        public TicketingClientOptions? TicketingClient { get; set; }
 
         [Description("Fuzzy search matching parameters.")]
         public SearchSettings? SearchSettings { get; set; }

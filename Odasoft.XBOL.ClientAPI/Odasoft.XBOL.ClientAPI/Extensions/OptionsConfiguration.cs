@@ -21,6 +21,11 @@ public static class OptionsConfiguration
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<TicketingClientOptions>()
+            .BindConfiguration("TicketingClient")
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         return services;
     }
 }

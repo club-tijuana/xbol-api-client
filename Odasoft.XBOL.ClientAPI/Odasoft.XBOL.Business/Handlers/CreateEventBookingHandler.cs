@@ -8,7 +8,7 @@ namespace Odasoft.XBOL.Business.Handlers
 {
     public class CreateEventBookingHandler
     {
-        private readonly TicketingClient _ticketingClient;
+        private readonly ITicketingClient _ticketingClient;
         private readonly EventScheduleService _eventScheduleService;
         private readonly SequenceTrackerService _sequenceTrackerService;
         private readonly SeasonService _seasonService;
@@ -21,7 +21,7 @@ namespace Odasoft.XBOL.Business.Handlers
         private const string SEASON_ORDER_LOCALIZER_PREFIX = "ORD-S";
 
         public CreateEventBookingHandler(
-            TicketingClient ticketingClient,
+            ITicketingClient ticketingClient,
             EventScheduleService eventScheduleService,
             SequenceTrackerService sequenceTrackerService,
             SeasonService seasonService,

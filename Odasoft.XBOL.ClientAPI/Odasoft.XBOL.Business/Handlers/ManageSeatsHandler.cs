@@ -4,9 +4,9 @@ namespace Odasoft.XBOL.Business.Handlers
 {
     public class ManageSeatsHandler
     {
-        private readonly TicketingClient _ticketingClient;
+        private readonly ITicketingClient _ticketingClient;
 
-        public ManageSeatsHandler(TicketingClient ticketingClient)
+        public ManageSeatsHandler(ITicketingClient ticketingClient)
         {
             _ticketingClient = ticketingClient;
         }

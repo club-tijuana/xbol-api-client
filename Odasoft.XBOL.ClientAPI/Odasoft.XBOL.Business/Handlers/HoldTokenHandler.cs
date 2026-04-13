@@ -4,9 +4,9 @@ namespace Odasoft.XBOL.Business.Handlers
 {
     public class HoldTokenHandler
     {
-        private readonly TicketingClient _ticketingClient;
+        private readonly ITicketingClient _ticketingClient;
 
-        public HoldTokenHandler(TicketingClient ticketingClient)
+        public HoldTokenHandler(ITicketingClient ticketingClient)
         {
             _ticketingClient = ticketingClient;
         }
