@@ -5,6 +5,7 @@ using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.ClientAPI.Configs;
+using Odasoft.XBOL.ClientAPI.Filters;
 using Odasoft.XBOL.Commons.Settings;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
@@ -72,7 +73,10 @@ builder.Services
 builder.Services.ConfigureServices();
 builder.Services.ConfigureRepositories();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiExceptionFilter>();
+});
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -169,6 +173,23 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Map health check endpoint for container health monitoring
-app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var appName = app.Environment.ApplicationName ?? "unknown";
+        var environment = app.Environment.EnvironmentName ?? "unknown";
+        var dockerImageVersion = Environment.GetEnvironmentVariable("DOCKER_IMAGE_VERSION") ?? "unknown";
+        var response = new
+        {
+            appName,
+            environment,
+            status = report.Status.ToString(),
+            dockerImageVersion
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
 
 app.Run();

@@ -16,11 +16,13 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     {
         private readonly BookingService _bookingService;
         private readonly IMessageBus _bus;
+        private readonly ILogger<BookingController> _logger;
 
-        public BookingController(BookingService bookingService, IMessageBus bus)
+        public BookingController(BookingService bookingService, IMessageBus bus, ILogger<BookingController> logger)
         {
             _bookingService = bookingService;
             _bus = bus;
+            _logger = logger;
         }
 
         [HttpGet("zones-by-schedule/{scheduleId}")]
@@ -67,6 +69,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get event item by schedule {ScheduleId}", scheduleId);
                 return BadRequest(ex.Message);
             }
         }
@@ -99,6 +102,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get season by id {SeasonId}", seasonId);
                 return BadRequest(ex.Message);
             }
         }
@@ -195,6 +199,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (ApiException ex)
             {
+                _logger.LogWarning(ex, "Ticketing API error during season renovation {Status}", ex.StatusCode);
                 if (ex.Response != null)
                 {
                     return BadRequest(ex.Response);
@@ -206,6 +211,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to renovate season seats");
                 return BadRequest(ex);
             }
         }

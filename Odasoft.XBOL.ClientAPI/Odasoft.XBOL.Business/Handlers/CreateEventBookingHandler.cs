@@ -1,4 +1,5 @@
-﻿using Odasoft.XBOL.Business.Messages;
+﻿using Microsoft.Extensions.Logging;
+using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.Business.Services;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.DTO.Results;
@@ -14,6 +15,7 @@ namespace Odasoft.XBOL.Business.Handlers
         private readonly OrderService _orderService;
         private readonly BookingService _bookingService;
         private readonly ClientService _clientService;
+        private readonly ILogger<CreateEventBookingHandler> _logger;
 
         private const string EVENT_ORDER_LOCALIZER_PREFIX = "ORD-E";
         private const string SEASON_ORDER_LOCALIZER_PREFIX = "ORD-S";
@@ -25,7 +27,8 @@ namespace Odasoft.XBOL.Business.Handlers
             SeasonService seasonService,
             OrderService orderService,
             BookingService bookingService,
-            ClientService clientService
+            ClientService clientService,
+            ILogger<CreateEventBookingHandler> logger
         )
         {
             _ticketingClient = ticketingClient;
@@ -35,6 +38,7 @@ namespace Odasoft.XBOL.Business.Handlers
             _orderService = orderService;
             _bookingService = bookingService;
             _clientService = clientService;
+            _logger = logger;
         }
 
         public async Task<BookingResult?> Handle(CreateEventBookingCommand command)
@@ -45,7 +49,7 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 if (schedule == null)
                 {
-                    Console.WriteLine($"Event with key {command.Request.EventKey} not found.");
+                    _logger.LogWarning("Event with key {EventKey} not found", command.Request.EventKey);
                     return null;
                 }
 
@@ -72,7 +76,7 @@ namespace Odasoft.XBOL.Business.Handlers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating event booking: {ex.Message}");
+                _logger.LogError(ex, "Error creating event booking for event {EventKey}", command.Request.EventKey);
                 return null;
             }
         }
@@ -85,7 +89,7 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 if (season == null)
                 {
-                    Console.WriteLine($"Season with key {command.Request.SeasonKey} not found.");
+                    _logger.LogWarning("Season with key {SeasonKey} not found", command.Request.SeasonKey);
                     return null;
                 }
 
@@ -167,7 +171,7 @@ namespace Odasoft.XBOL.Business.Handlers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating season booking: {ex.Message}");
+                _logger.LogError(ex, "Error creating season booking for season {SeasonKey}", command.Request.SeasonKey);
                 return null;
             }
         }
