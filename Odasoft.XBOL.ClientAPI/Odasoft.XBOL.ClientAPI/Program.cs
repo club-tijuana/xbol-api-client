@@ -5,6 +5,7 @@ using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.ClientAPI.Configs;
+using Odasoft.XBOL.ClientAPI.Filters;
 using Odasoft.XBOL.Commons.Settings;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
@@ -72,7 +73,10 @@ builder.Services
 builder.Services.ConfigureServices();
 builder.Services.ConfigureRepositories();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiExceptionFilter>();
+});
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
