@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Odasoft.XBOL.ClientAPI.Configs;
+using Microsoft.Extensions.Options;
+using Odasoft.XBOL.Commons.Options;
 using Odasoft.XBOL.Commons.Security;
 
 namespace Odasoft.XBOL.ClientAPI.Controllers
@@ -9,11 +10,11 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     [ApiController]
     public class AccountController : ControllerBase
     {
-        private Authentication _authentication;
+        private readonly AuthenticationOptions _authentication;
 
-        public AccountController(Authentication authentication)
+        public AccountController(IOptions<AuthenticationOptions> authentication)
         {
-            _authentication = authentication;
+            _authentication = authentication.Value;
         }
 
         [HttpPost("sign-in")]

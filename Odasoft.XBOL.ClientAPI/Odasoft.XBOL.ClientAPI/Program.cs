@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Odasoft.XBOL.Business;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.ClientAPI.Configs;
+using Odasoft.XBOL.ClientAPI.Extensions;
 using Odasoft.XBOL.ClientAPI.Filters;
-using Odasoft.XBOL.Commons.Settings;
+using Odasoft.XBOL.Commons.Options;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
 using Odasoft.XBOL.Models;
@@ -15,16 +17,17 @@ using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add MemoryCache
 builder.Services.AddMemoryCache();
 
-CorsSettings corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>();
-var connectionString = builder.Configuration.GetConnectionString("Default");
-builder.Services.AddDbContext<XBOLDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.ConfigureOptions();
+
+builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>
+{
+    var database = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+    options.UseNpgsql(database.Database);
+});
 
 #region AppSettings
-Authentication authenticationConfig = builder.Configuration.GetSection("Authentication").Get<Authentication>()!;
 HttpClientsConfigs httpClientsConfigs = builder.Configuration.GetSection("HttpClients").Get<HttpClientsConfigs>()!;
 SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings").Get<SearchSettings>()!;
 EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
@@ -45,29 +48,18 @@ builder.Services
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddCors(o => o.AddPolicy(corsSettings.PolicyName, builder =>
+var corsOptions = builder.Configuration
+    .GetSection(CorsOptions.SectionName)
+    .Get<CorsOptions>() ?? new CorsOptions();
+
+builder.Services.AddCors(o => o.AddPolicy(corsOptions.PolicyName, policy =>
 {
-    builder
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .WithOrigins(corsSettings.AcceptedOrigins)
-    .AllowCredentials();
+    policy
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .WithOrigins(corsOptions.AcceptedOrigins)
+        .AllowCredentials();
 }));
-
-// Identity + EF Core store
-builder.Services.AddDataProtection();
-
-builder.Services
-    .AddIdentityCore<User>(options =>
-    {
-        options.Password.RequireDigit = true;
-        options.Password.RequiredLength = 8;
-        options.User.RequireUniqueEmail = true;
-    })
-    .AddRoles<Odasoft.XBOL.Models.Role>()
-    .AddEntityFrameworkStores<XBOLDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
 
 // Add services to the container.
 builder.Services.ConfigureServices();
@@ -117,7 +109,6 @@ builder.Host.UseWolverine(opts =>
     opts.Discovery.IncludeAssembly(typeof(CreateEventBookingCommand).Assembly);
 });
 
-builder.Services.AddSingleton(authenticationConfig);
 builder.Services.AddSingleton(searchSettings);
 builder.Services.AddSingleton(eventsTrackingSettings);
 
@@ -166,7 +157,7 @@ if (
 }
 
 app.UseRequestLocalization();
-app.UseCors(corsSettings.PolicyName);
+app.UseCors(corsOptions.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
