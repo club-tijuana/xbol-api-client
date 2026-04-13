@@ -9,10 +9,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     public class OrderController : ControllerBase
     {
         private readonly OrderService _orderService;
+        private readonly ILogger<OrderController> _logger;
 
-        public OrderController(OrderService orderService)
+        public OrderController(OrderService orderService, ILogger<OrderController> logger)
         {
             _orderService = orderService;
+            _logger = logger;
         }
 
         [HttpGet("{orderId}")]
@@ -60,6 +62,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to get order to renovate {OrderId}", orderId);
                 return BadRequest(ex.Message);
             }
         }

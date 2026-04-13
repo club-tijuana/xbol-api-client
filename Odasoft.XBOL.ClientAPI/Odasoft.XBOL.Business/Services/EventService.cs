@@ -1,4 +1,5 @@
-﻿using Odasoft.XBOL.Business.Configs;
+﻿using Microsoft.Extensions.Logging;
+using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
@@ -14,6 +15,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly EventViewRepository _eventViewRepository;
         private readonly SearchSettings _searchSettings;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
+        private readonly ILogger<EventService> _logger;
 
         private const int MIN_PAGE = 1;
         private const int MAX_PAGE = 50;
@@ -26,7 +28,8 @@ namespace Odasoft.XBOL.Business.Services
             EventScheduleRepository eventScheduleRepository,
             EventViewRepository eventViewRepository,
             SearchSettings searchSettings,
-            EventsTrackingSettings eventsTrackingSettings
+            EventsTrackingSettings eventsTrackingSettings,
+            ILogger<EventService> logger
         )
         {
             _eventRepository = eventRepository;
@@ -35,6 +38,7 @@ namespace Odasoft.XBOL.Business.Services
             _eventViewRepository = eventViewRepository;
             _searchSettings = searchSettings;
             _eventsTrackingSettings = eventsTrackingSettings;
+            _logger = logger;
         }
 
         public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(long? clientId)
@@ -118,7 +122,7 @@ namespace Odasoft.XBOL.Business.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _logger.LogError(ex, "Failed to register event view for event {EventId}", eventView.EventId);
             }
         }
     }

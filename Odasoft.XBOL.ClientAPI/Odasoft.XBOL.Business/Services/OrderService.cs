@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
@@ -22,6 +23,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly UserManager<User> _userManager;
         private readonly SeasonService _seasonService;
         private readonly EventScheduleService _eventScheduleService;
+        private readonly ILogger<OrderService> _logger;
 
         public OrderService(
             OrderRepository orderRepository,
@@ -35,7 +37,8 @@ namespace Odasoft.XBOL.Business.Services
             EventRepository eventRepository,
             UserManager<User> userManager,
             SeasonService seasonService,
-            EventScheduleService eventScheduleService
+            EventScheduleService eventScheduleService,
+            ILogger<OrderService> logger
         )
         {
             _orderRepository = orderRepository;
@@ -50,6 +53,7 @@ namespace Odasoft.XBOL.Business.Services
             _userManager = userManager;
             _seasonService = seasonService;
             _eventScheduleService = eventScheduleService;
+            _logger = logger;
         }
 
         public async Task<OrderDTO?> GetOrderAsync(long clientId, long orderId)
@@ -121,7 +125,7 @@ namespace Odasoft.XBOL.Business.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Unable to create event order. Error: {ex.Message}");
+                _logger.LogError(ex, "Unable to create event order");
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -198,7 +202,7 @@ namespace Odasoft.XBOL.Business.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Unable to create season pass order. Error: {ex.Message}");
+                _logger.LogError(ex, "Unable to create season pass order");
                 await transaction.RollbackAsync();
                 throw;
             }

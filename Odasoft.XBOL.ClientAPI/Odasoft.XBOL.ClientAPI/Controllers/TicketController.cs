@@ -11,10 +11,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     public class TicketController : ControllerBase
     {
         private readonly TicketService _ticketService;
+        private readonly ILogger<TicketController> _logger;
 
-        public TicketController(TicketService ticketService)
+        public TicketController(TicketService ticketService, ILogger<TicketController> logger)
         {
             _ticketService = ticketService;
+            _logger = logger;
         }
 
         [HttpPost("share")]
@@ -54,6 +56,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to share ticket");
                 return BadRequest(ex.Message);
             }
         }
@@ -86,6 +89,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to unshare ticket");
                 return BadRequest(ex.Message);
             }
         }
