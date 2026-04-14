@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Requests\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Odasoft.XBOL.Commons\Odasoft.XBOL.Commons.csproj" />
   </ItemGroup>
 

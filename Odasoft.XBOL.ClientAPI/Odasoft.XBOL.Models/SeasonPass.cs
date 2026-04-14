@@ -13,17 +13,18 @@ namespace Odasoft.XBOL.Models
         public Guid? UserId { get; set; }
         public User? User { get; set; }
 
-        public long? BaseSeatId { get; set; }
-        public BaseSeat? BaseSeat { get; set; }
+        public long? SeasonSeatId { get; set; }
+        public SeasonSeat? SeasonSeat { get; set; }
 
         public string TrackingCode { get; set; } = null!;
         public string PrivateToken { get; set; } = null!;
 
         public SeasonPassType SeasonPassType { get; set; }
         public SeasonPassStatus Status { get; set; }
+        public SeasonPassSuspendedReason? SuspendedReason { get; set; } = null!;
+        public string? SuspendedOtherReason { get; set; } = null!;
 
-        public SeasonPassSuspendedReason? SuspendedReason { get; set; }
-        public string? SuspendedOtherReason { get; set; }
+        public bool IsDigital { get; set; } = true;
         public decimal Price { get; set; }
 
         public DateTimeOffset PurchasedAt { get; set; }
