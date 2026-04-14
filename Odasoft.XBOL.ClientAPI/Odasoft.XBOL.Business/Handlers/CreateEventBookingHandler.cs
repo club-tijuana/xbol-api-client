@@ -127,7 +127,7 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
                 {
-                    command.Request.HoldToken = null;
+                    command.Request.HoldToken = "";
 
                     SetForSaleRequest setForSaleRequest = new SetForSaleRequest
                     {
