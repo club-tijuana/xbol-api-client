@@ -2,12 +2,10 @@
 {
     public class PagedResponse<T>
     {
-        public IReadOnlyList<T> Items { get; set; } = [];
-
-        public int CurrentPage { get; set; }
-        public int PageSize { get; set; }
-
-        public int TotalItems { get; set; }
-        public int TotalPages { get; set; }
+        public List<T> Items { get; set; } = [];
+        public required int TotalCount { get; set; }
+        public required int Page { get; set; }
+        public required int PageSize { get; set; }
+        public required int TotalPages { get; set; }
     }
 }

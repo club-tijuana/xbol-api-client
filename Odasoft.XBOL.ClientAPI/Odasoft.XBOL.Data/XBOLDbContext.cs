@@ -10,10 +10,13 @@ namespace Odasoft.XBOL.Data
     {
         public DbSet<Season> Seasons => Set<Season>();
         public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<SeasonPass> SeasonPasses => Set<SeasonPass>();
         public DbSet<SeasonPassEventTicket> SeasonPassEventTickets => Set<SeasonPassEventTicket>();
+        public DbSet<SeasonSection> SeasonSections => Set<SeasonSection>();
+        public DbSet<SeasonSeat> SeasonSeats => Set<SeasonSeat>();
         public DbSet<BaseSeat> BaseSeats => Set<BaseSeat>();
         public DbSet<BaseRow> BaseRows => Set<BaseRow>();
         public DbSet<BaseSection> BaseSections => Set<BaseSection>();
@@ -25,6 +28,10 @@ namespace Odasoft.XBOL.Data
         public DbSet<EventSchedule> EventSchedules { get; set; }
         public DbSet<InventoryBatch> InventoryBatches { get; set; }
         public DbSet<Performer> Performers { get; set; }
+        public DbSet<EventViews> EventViews { get; set; }
+        public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
+        public DbSet<SequenceTracker> SequenceTrackers { get; set; }
+        public DbSet<EventCategory> EventCategories => Set<EventCategory>();
 
         public XBOLDbContext() : base()
         {
@@ -61,17 +68,22 @@ namespace Odasoft.XBOL.Data
             modelBuilder.Entity<Client>()
                 .HasOne(c => c.User)
                 .WithOne(u => u.Client)
-                .HasForeignKey<User>(u => u.ClientId)
-                .IsRequired();
+                .HasForeignKey<Client>(c => c.UserId);
 
             modelBuilder.Entity<SeasonPassEventTicket>()
                 .Property(spet => spet.Id)
                 .ValueGeneratedOnAdd();
 
+            modelBuilder.Entity<Order>()
+                .HasMany(o => o.Items)
+                .WithOne(i => i.Order)
+                .HasForeignKey(i => i.OrderId);
+
             modelBuilder.RemovePluralizingTableNameConvention();
 
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
+            modelBuilder.ApplyConfiguration(new EventConfiguration());
         }
     }
 }

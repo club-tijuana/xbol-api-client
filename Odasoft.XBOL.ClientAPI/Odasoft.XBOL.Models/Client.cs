@@ -6,13 +6,22 @@ namespace Odasoft.XBOL.Models
     {
         public ClientType ClientType { get; set; }
 
-        public string FirstName { get; set; } = null!;
-        public string LastName { get; set; } = null!;
+        public string? FullName { get; set; }
         public string? BusinessName { get; set; }
 
         public string Email { get; set; } = null!;
+        public long? PhoneRegionCodeId { get; set; }
+        public PhoneRegionCode? PhoneRegionCode { get; set; }
         public string PhoneNumber { get; set; } = null!;
-
+        public string? TaxId { get; set; }
+        public string? Country { get; set; }
+        public string? State { get; set; }
+        public string? City { get; set; }
+        public string? StreetAddress { get; set; }
+        public string? ExtNum { get; set; }
+        public string? IntNum { get; set; }
+        public string? PostalCode { get; set; }
+        public string? Neighborhood { get; set; }
         public bool IsActive { get; set; }
 
         public Guid? UserId { get; set; }
@@ -25,6 +34,8 @@ namespace Odasoft.XBOL.Models
 
         public IList<Order> Orders { get; set; } = [];
         public IList<ClientCreditAccount> ClientCreditAccounts { get; set; } = [];
+        public IList<SeatHold> SeatHolds { get; set; } = [];
         public IList<Ticket> Tickets { get; set; } = [];
+        public LegalRepresentative? LegalRepresentative { get; set; }
     }
 }
