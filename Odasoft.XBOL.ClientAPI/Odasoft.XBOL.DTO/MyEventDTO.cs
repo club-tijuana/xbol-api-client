@@ -8,7 +8,8 @@
         public string Name { get; set; } = string.Empty;
         public DateTimeOffset StartDate { get; set; }
         public string Location { get; set; } = string.Empty;
-        public bool isSeasonPass { get; set; }
-        public bool isPastEvent { get; set; }
+        public bool IsSeasonPass { get; set; }
+        public bool IsPastEvent { get; set; }
+        public bool CanRenovateSeasonPass { get; set; }
     }
 }
