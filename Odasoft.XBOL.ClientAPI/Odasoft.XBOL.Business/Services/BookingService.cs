@@ -55,6 +55,8 @@ namespace Odasoft.XBOL.Business.Services
                     .ThenInclude(e => e.VenueMap)
                 .Include(s => s.Event)
                     .ThenInclude(e => e.Categories)
+                .Include(s => s.Event)
+                    .ThenInclude(e => e.EventImages)
                 .FirstOrDefaultAsync();
 
             if (schedule == null)
@@ -68,11 +70,21 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(canReserve.Message);
             }
 
+            var banner = schedule.Event.EventImages
+                .Where(i => i.ImageType == Commons.Enums.ImageType.Banner)
+                .OrderBy(i => i.Order)
+                .FirstOrDefault();
+
+            var poster = schedule.Event.EventImages
+                .Where(i => i.ImageType == Commons.Enums.ImageType.Banner)
+                .OrderBy(i => i.Order)
+                .FirstOrDefault();
+
             return new EventItemDTO
             {
                 Id = schedule.Id,
-                BannerImageUrl = schedule.Event.BannerImageUrl ?? string.Empty,
-                PosterImageUrl = schedule.Event.PosterImageUrl ?? string.Empty,
+                BannerImageUrl = banner == null ? string.Empty : $"data:{banner.ContentType};base64,{Convert.ToBase64String(banner.Content)}",
+                PosterImageUrl = poster == null ? string.Empty : $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}",
                 Name = schedule.Event.Name,
                 StartDate = schedule.StartDateTime,
                 Location = schedule.Event.VenueMap.Name,

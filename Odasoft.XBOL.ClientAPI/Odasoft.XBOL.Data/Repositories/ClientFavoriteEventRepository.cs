@@ -29,14 +29,12 @@ namespace Odasoft.XBOL.Data.Repositories
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
 
-            List<EventItemDTO> events = await query
+            var events = await query
                 .Skip(skip)
                 .Take(pageSize)
-                .Select(e => new EventItemDTO
+                .Select(e => new
                 {
                     Id = e.Id,
-                    BannerImageUrl = e.BannerImageUrl,
-                    PosterImageUrl = e.PosterImageUrl,
                     Name = e.Name,
                     StartDate = e.Schedules
                         .OrderBy(s => s.StartDateTime)
@@ -50,13 +48,30 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                    IsFavorite = true
+                    IsFavorite = true,
+                    BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault()
                 })
                 .ToListAsync();
 
+            var result = events.Select(e => new EventItemDTO
+            {
+                Id = e.Id,
+                Name = e.Name,
+                StartDate = e.StartDate,
+                Location = e.Location,
+                Categories = e.Categories,
+                IsFavorite = e.IsFavorite,
+                BannerImageUrl = e.BannerFile == null ? null :
+                    $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}",
+
+                PosterImageUrl = e.PosterFile == null ? null :
+                    $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+            }).ToList();
+
             return new PagedResponse<EventItemDTO>
             {
-                Items = events,
+                Items = result,
                 TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize,

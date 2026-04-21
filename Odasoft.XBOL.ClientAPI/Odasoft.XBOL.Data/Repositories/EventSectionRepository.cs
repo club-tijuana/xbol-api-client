@@ -110,7 +110,11 @@ namespace Odasoft.XBOL.Data.Repositories
 
                 var seatOverrides = await query
                     .SelectMany(es => es.EventSeats)
-                    .Where(seat => seat.PriceOverride != null && seat.PriceOverride > 0)
+                    .Where(seat =>
+                        seat.PriceOverride != null &&
+                        seat.PriceOverride >= min &&
+                        (max == null || seat.PriceOverride <= max.Value)
+                    )
                     .Select(seat => new SeatDTO
                     {
                         Id = seat.Id,

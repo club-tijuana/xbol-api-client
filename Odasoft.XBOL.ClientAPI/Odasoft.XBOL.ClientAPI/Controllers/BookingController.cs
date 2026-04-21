@@ -127,15 +127,20 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             {
                 return BadRequest(ModelState);
             }
-
-            var result = await _bus.InvokeAsync<BookingResult?>(new CreateEventBookingCommand(request));
-
-            if (result is null)
+						
+            try
             {
-                return UnprocessableEntity("Booking failed. Please check the request details and try again.");
+                var result = await _bus.InvokeAsync<BookingResult?>(new CreateEventBookingCommand(request));
+                return Ok(result);
             }
-
-            return Ok(result);
+            catch (Exception ex)
+            {
+                // TODO: Replace temporary BadRequest error handling with proper exception handling:
+                // - Return clearer, more descriptive error messages
+                // - Map business errors to 422
+                // - Map not found errors to 404
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
@@ -159,14 +164,15 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 return BadRequest(ModelState);
             }
 
-            var result = await _bus.InvokeAsync<BookingResult?>(new CreateSeasonBookingCommand(request));
-
-            if (result is null)
+            try
             {
-                return UnprocessableEntity("Booking failed. Please check the request details and try again.");
+                var result = await _bus.InvokeAsync<BookingResult?>(new CreateSeasonBookingCommand(request));
+                return Ok(result);
             }
-
-            return Ok(result);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPost("season/renovate-season")]
@@ -194,25 +200,26 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 {
                     return UnprocessableEntity("Renovation failed. Please check the request details and try again.");
                 }
-
+				
                 return Ok(result);
             }
             catch (ApiException ex)
             {
                 _logger.LogWarning(ex, "Ticketing API error during season renovation {Status}", ex.StatusCode);
-                if (ex.Response != null)
+                
+				if (ex.Response != null)
                 {
                     return BadRequest(ex.Response);
                 }
                 else
                 {
-                    return BadRequest(ex);
+                    return BadRequest(ex.Message);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to renovate season seats");
-                return BadRequest(ex);
+                return BadRequest(ex.Message);
             }
         }
     }

@@ -19,22 +19,19 @@ namespace Odasoft.XBOL.Data.Repositories
                     .Select(f => f.EventId)
                     .ToListAsync() : new List<long>();
 
-            List<EventItemDTO> mainEvents = await DbContext.Set<Models.Event>()
+            var mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
                     e.Schedules != null
                     && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
-                    && e.Categories.Any(ec => ec.Id == 2 || ec.Id == 3)
                 )
                 .OrderByDescending(e => e.Schedules
                     .Where(s => s.StartDateTime > now)
                     .Min(s => s.StartDateTime)
                 )
                 .Take(pageSize)
-                .Select(e => new EventItemDTO
+                .Select(e => new
                 {
                     Id = e.Id,
-                    BannerImageUrl = e.BannerImageUrl,
-                    PosterImageUrl = e.PosterImageUrl,
                     Name = e.Name,
                     StartDate = e.Schedules
                         .OrderBy(s => s.StartDateTime)
@@ -48,11 +45,28 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Id)
+                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Id),
+                    BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault()
                 })
                 .ToListAsync();
 
-            return (mainEvents, mainEvents.Count);
+            var result = mainEvents.Select(e => new EventItemDTO
+            {
+                Id = e.Id,
+                Name = e.Name,
+                StartDate = e.StartDate,
+                Location = e.Location,
+                Categories = e.Categories,
+                IsFavorite = e.IsFavorite,
+                BannerImageUrl = e.BannerFile == null ? null :
+                    $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}",
+
+                PosterImageUrl = e.PosterFile == null ? null :
+                    $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+            }).ToList();
+
+            return (result, result.Count);
         }
 
         public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(
@@ -79,13 +93,11 @@ namespace Odasoft.XBOL.Data.Repositories
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
 
-            List<EventItemDTO> events = await query
+            var events = await query
                 .Take(pageSize)
-                .Select(e => new EventItemDTO
+                .Select(e => new
                 {
                     Id = e.Id,
-                    BannerImageUrl = e.BannerImageUrl,
-                    PosterImageUrl = e.PosterImageUrl,
                     Name = e.Name,
                     StartDate = e.Schedules
                         .OrderBy(s => s.StartDateTime)
@@ -99,13 +111,30 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Id)
+                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Id),
+                    BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault()
                 })
                 .ToListAsync();
 
+            var result = events.Select(e => new EventItemDTO
+            {
+                Id = e.Id,
+                Name = e.Name,
+                StartDate = e.StartDate,
+                Location = e.Location,
+                Categories = e.Categories,
+                IsFavorite = e.IsFavorite,
+                BannerImageUrl = e.BannerFile == null ? null :
+                    $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}",
+
+                PosterImageUrl = e.PosterFile == null ? null :
+                    $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+            }).ToList();
+
             return new PagedResponse<EventItemDTO>
             {
-                Items = events,
+                Items = result,
                 TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize,
@@ -132,6 +161,7 @@ namespace Odasoft.XBOL.Data.Repositories
             }
 
             var query = DbContext.Set<Models.Event>()
+                .Include(e => e.EventImages)
                 .Where(e =>
                     e.Schedules.Any(es =>
                         es.OnSaleDate <= now
@@ -161,14 +191,12 @@ namespace Odasoft.XBOL.Data.Repositories
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
 
-            List<EventItemDTO> events = await query
+            var events = await query
             .Skip(skip)
             .Take(pageSize)
-            .Select(e => new EventItemDTO
+            .Select(e => new
             {
                 Id = e.Id,
-                BannerImageUrl = e.BannerImageUrl,
-                PosterImageUrl = e.PosterImageUrl,
                 Name = e.Name,
                 StartDate = e.Schedules
                     .OrderBy(s => s.StartDateTime)
@@ -182,13 +210,30 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                IsFavorite = favouriteEventIds.Contains(e.Id)
+                IsFavorite = favouriteEventIds.Contains(e.Id),
+                BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault()
             })
             .ToListAsync();
 
+            var result = events.Select(e => new EventItemDTO
+            {
+                Id = e.Id,
+                Name = e.Name,
+                StartDate = e.StartDate,
+                Location = e.Location,
+                Categories = e.Categories,
+                IsFavorite = e.IsFavorite,
+                BannerImageUrl = e.BannerFile == null ? null :
+                    $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}",
+
+                PosterImageUrl = e.PosterFile == null ? null :
+                    $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+            }).ToList();
+
             return new PagedResponse<EventItemDTO>
             {
-                Items = events,
+                Items = result,
                 TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize,
@@ -210,6 +255,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     .ThenInclude(s => s.Sections)
                         .ThenInclude(sec => sec.BaseSection)
                 .Include(e => e.Categories)
+                .Include(e => e.EventImages)
                 .FirstOrDefaultAsync();
 
             if (eventEntity == null)
@@ -222,11 +268,24 @@ namespace Odasoft.XBOL.Data.Repositories
                     .AnyAsync(c => c.ClientId == clientId && c.EventId == eventId);
             }
 
+            var gallery = eventEntity.EventImages
+                .Where(i => i.ImageType == Commons.Enums.ImageType.Gallery)
+                .OrderBy(i => i.Order);
+
+            var poster = eventEntity.EventImages
+                .Where(i => i.ImageType == Commons.Enums.ImageType.Banner)
+                .OrderBy(i => i.Order)
+                .FirstOrDefault();
+
             EventDetailDTO? eventDetail = new EventDetailDTO
             {
                 Id = eventEntity.Id,
-                Image = eventEntity.PosterImageUrl,
-                Gallery = new List<string> { eventEntity.BannerImageUrl, eventEntity.PosterImageUrl },
+                Image = poster == null ? string.Empty : $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}",
+                Gallery = eventEntity.EventImages
+                    .Where(i => i.ImageType == Commons.Enums.ImageType.Gallery)
+                    .OrderBy(i => i.Order)
+                    .Select(i => $"data:{i.ContentType};base64,{Convert.ToBase64String(i.Content)}")
+                    .ToList(),
                 Name = eventEntity.Name,
                 LongDescription = eventEntity.LongDescription,
                 ShortDescription = eventEntity.ShortDescription,

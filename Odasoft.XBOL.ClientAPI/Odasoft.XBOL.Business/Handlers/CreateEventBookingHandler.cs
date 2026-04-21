@@ -165,7 +165,6 @@ namespace Odasoft.XBOL.Business.Handlers
                         };
                         await _ticketingClient.SetForSaleAsync(setForSaleRequest);
                     }
-
                     return null;
                 }
             }
