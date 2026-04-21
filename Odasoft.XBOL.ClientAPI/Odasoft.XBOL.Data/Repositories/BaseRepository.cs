@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Odasoft.XBOL.Models;
 using System.Data;
@@ -8,7 +9,9 @@ using System.Reflection;
 
 namespace Odasoft.XBOL.Data.Repositories
 {
-    public class BaseRepository<M> where M : BaseModel
+    // TODO: Fix warnings for all repos
+    public class BaseRepository<M>
+        where M : BaseModel
     {
         protected DbContext DbContext { get; set; }
         protected readonly DbSet<M> DbSet;
@@ -147,6 +150,23 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 await DbContext.SaveChangesAsync();
             }
+        }
+
+        public async Task UpdateRangeAsync(IEnumerable<M> entities)
+        {
+            foreach (var entity in entities)
+            {
+                var entry = DbContext.Entry(entity);
+
+                if (entry.State == EntityState.Detached)
+                {
+                    DbSet.Attach(entity);
+                }
+
+                entry.State = EntityState.Modified;
+            }
+
+            await DbContext.SaveChangesAsync();
         }
 
         public void HardDelete(M entity)
@@ -292,6 +312,11 @@ namespace Odasoft.XBOL.Data.Repositories
             );
         }
 
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await DbContext.Database.BeginTransactionAsync();
+        }
+
         protected Dictionary<string, object> GetDictionaryParameters(object parameters)
         {
             var sqlParameters = new Dictionary<string, object>();
@@ -299,7 +324,11 @@ namespace Odasoft.XBOL.Data.Repositories
             foreach (PropertyInfo prop in parameters.GetType().GetProperties())
             {
                 var value = prop.GetValue(parameters, null);
-                sqlParameters.Add(prop.Name, value ?? DBNull.Value);
+
+                if (value is not null)
+                {
+                    sqlParameters.Add(prop.Name, value);
+                }
             }
 
             return sqlParameters;
@@ -311,9 +340,9 @@ namespace Odasoft.XBOL.Data.Repositories
 
             foreach (var pair in parameters)
             {
-                if (pair.Value is DataTable)
+                if (pair.Value is DataTable dataTable)
                 {
-                    sqlParameters.Add(pair.Key, ((DataTable)pair.Value).AsTableValuedParameter());
+                    sqlParameters.Add(pair.Key, dataTable.AsTableValuedParameter());
                 }
                 else
                 {
@@ -345,15 +374,30 @@ namespace Odasoft.XBOL.Data.Repositories
             Disposed = true;
         }
 
-        private object[] GetPrimaryKeys(M entity)
+        private object[] GetPrimaryKeys(M entity) // Changed return type back to object[]
         {
             var keyNames = GetKeyNames();
             Type type = typeof(M);
-            var keys = new object[keyNames.Length];
+            var keys = new object[keyNames.Length]; // Back to a strict, non-nullable array
 
             for (int i = 0; i < keyNames.Length; i++)
             {
-                keys[i] = type.GetProperty(keyNames[i]).GetValue(entity, null);
+                var propertyInfo = type.GetProperty(keyNames[i]);
+
+                if (propertyInfo == null)
+                {
+                    throw new InvalidOperationException($"Property '{keyNames[i]}' was not found on entity '{type.Name}'.");
+                }
+
+                var keyValue = propertyInfo.GetValue(entity, null);
+
+                // NEW: Ensure the actual primary key value isn't null before adding it to the array
+                if (keyValue == null)
+                {
+                    throw new InvalidOperationException($"The primary key property '{keyNames[i]}' on entity '{type.Name}' cannot be null when performing an update.");
+                }
+
+                keys[i] = keyValue;
             }
 
             return keys;
@@ -361,11 +405,31 @@ namespace Odasoft.XBOL.Data.Repositories
 
         private string[] GetKeyNames()
         {
-            return DbContext
-                .Model.FindEntityType(typeof(M))
-                .FindPrimaryKey()
-                .Properties.Select(x => x.Name)
-                .ToArray();
+            var entityType = DbContext.Model.FindEntityType(typeof(M));
+            var primaryKey = entityType?.FindPrimaryKey(); // Use the null-conditional operator '?.'
+
+            // Safety check: Ensure the entity and its primary key actually exist
+            if (primaryKey == null)
+            {
+                throw new InvalidOperationException($"Entity type '{typeof(M).Name}' is not registered in the DbContext or does not have a primary key defined.");
+            }
+
+            return primaryKey.Properties.Select(x => x.Name).ToArray();
+        }
+
+        public IQueryable<M> GetTracked(
+            Expression<Func<M, bool>>? filter = null,
+            params string[] includedProperties)
+        {
+            IQueryable<M> query = DbSet;
+
+            if (filter != null)
+                query = query.Where(filter);
+
+            foreach (var include in includedProperties)
+                query = query.Include(include);
+
+            return query;
         }
     }
 }

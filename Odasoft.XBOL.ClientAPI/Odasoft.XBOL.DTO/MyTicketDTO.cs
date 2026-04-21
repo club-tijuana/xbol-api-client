@@ -1,8 +1,11 @@
-﻿namespace Odasoft.XBOL.DTO
+﻿using Odasoft.XBOL.Commons.Enums;
+
+namespace Odasoft.XBOL.DTO
 {
     public class MyTicketDTO
     {
         public long Id { get; set; }
+        public OrderType OrderType { get; set; }
         public string Name { get; set; } = string.Empty;
         public DateTimeOffset StartDate { get; set; }
         public string Location { get; set; } = string.Empty;
@@ -12,5 +15,8 @@
         public string Row { get; set; } = string.Empty;
         public string Seat { get; set; } = string.Empty;
         public string QR { get; set; } = string.Empty;
+        public bool CanShare { get; set; }
+        public bool IsShared { get; set; }
+        public bool IsOwner { get; set; }
     }
 }
