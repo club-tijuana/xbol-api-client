@@ -312,7 +312,11 @@ namespace Odasoft.XBOL.Data.Repositories
                 Image = banner != null
                     ? $"data:{banner.ContentType};base64,{Convert.ToBase64String(banner.Content)}"
                     : eventEntity.BannerImageUrl ?? string.Empty,
-                Gallery = new List<string> { eventEntity.BannerImageUrl, eventEntity.PosterImageUrl },
+                Gallery = eventEntity.EventImages
+                    .Where(i => i.ImageType == Commons.Enums.ImageType.Gallery)
+                    .OrderBy(i => i.Order)
+                    .Select(i => $"data:{i.ContentType};base64,{Convert.ToBase64String(i.Content)}")
+                    .ToList(),
                 Name = eventEntity.Name,
                 LongDescription = eventEntity.LongDescription,
                 ShortDescription = eventEntity.ShortDescription,
