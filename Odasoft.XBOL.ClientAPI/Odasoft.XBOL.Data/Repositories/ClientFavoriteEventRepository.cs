@@ -49,8 +49,10 @@ namespace Odasoft.XBOL.Data.Repositories
                             DisplayName = ec.DisplayName
                         }).ToList(),
                     IsFavorite = true,
-                    BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
-                    PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.Banner).OrderBy(i => i.Order).FirstOrDefault()
+                    BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.HorizontalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                    PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                    LegacyBannerUrl = e.BannerImageUrl,
+                    LegacyPosterUrl = e.PosterImageUrl
                 })
                 .ToListAsync();
 
@@ -62,11 +64,12 @@ namespace Odasoft.XBOL.Data.Repositories
                 Location = e.Location,
                 Categories = e.Categories,
                 IsFavorite = e.IsFavorite,
-                BannerImageUrl = e.BannerFile == null ? null :
-                    $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}",
-
-                PosterImageUrl = e.PosterFile == null ? null :
-                    $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+                BannerImageUrl = e.BannerFile != null
+                    ? $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}"
+                    : e.LegacyBannerUrl ?? string.Empty,
+                PosterImageUrl = e.PosterFile != null
+                    ? $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+                    : e.LegacyPosterUrl ?? string.Empty
             }).ToList();
 
             return new PagedResponse<EventItemDTO>

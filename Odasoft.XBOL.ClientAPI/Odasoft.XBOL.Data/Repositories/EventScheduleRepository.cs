@@ -108,32 +108,50 @@ namespace Odasoft.XBOL.Data.Repositories
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
 
-            List<ScheduleItemDTO> events = await query
+            var rawEvents = await query
             .Skip(skip)
             .Take(pageSize)
-            .Select(es => new ScheduleItemDTO
+            .Select(es => new
+            {
+                es.Id,
+                es.StartDateTime,
+                es.EventId,
+                EventName = es.Event.Name,
+                Location = es.Event.VenueMap.Venue.Name,
+                Categories = es.Event.Categories
+                    .Select(ec => new EventCategoryDTO
+                    {
+                        Id = ec.Id,
+                        Name = ec.Name,
+                        DisplayName = ec.DisplayName
+                    })
+                    .ToList(),
+                BannerFile = es.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.HorizontalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                PosterFile = es.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                LegacyBannerUrl = es.Event.BannerImageUrl,
+                LegacyPosterUrl = es.Event.PosterImageUrl
+            })
+            .ToListAsync();
+
+            List<ScheduleItemDTO> events = rawEvents.Select(es => new ScheduleItemDTO
             {
                 Id = es.Id,
                 StartDate = es.StartDateTime,
                 Event = new EventItemDTO
                 {
                     Id = es.EventId,
-                    BannerImageUrl = es.Event.BannerImageUrl,
-                    PosterImageUrl = es.Event.PosterImageUrl,
-                    Name = es.Event.Name,
+                    BannerImageUrl = es.BannerFile != null
+                        ? $"data:{es.BannerFile.ContentType};base64,{Convert.ToBase64String(es.BannerFile.Content)}"
+                        : es.LegacyBannerUrl ?? string.Empty,
+                    PosterImageUrl = es.PosterFile != null
+                        ? $"data:{es.PosterFile.ContentType};base64,{Convert.ToBase64String(es.PosterFile.Content)}"
+                        : es.LegacyPosterUrl ?? string.Empty,
+                    Name = es.EventName,
                     StartDate = es.StartDateTime,
-                    Location = es.Event.VenueMap.Venue.Name,
-                    Categories = es.Event.Categories
-                        .Select(ec => new EventCategoryDTO
-                        {
-                            Id = ec.Id,
-                            Name = ec.Name,
-                            DisplayName = ec.DisplayName
-                        })
-                        .ToList()
+                    Location = es.Location,
+                    Categories = es.Categories
                 }
-            })
-            .ToListAsync();
+            }).ToList();
 
             var performerQuery = DbContext.Set<Performer>().AsQueryable();
 
