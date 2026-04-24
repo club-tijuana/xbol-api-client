@@ -48,7 +48,6 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
         {
-            //return await _eventScheduleRepository.GetEventItemByScheduleIdAsync(scheduleId);
             var schedule = await _eventScheduleRepository.Get(
                 s => s.Id == scheduleId)
                 .Include(s => s.Event)

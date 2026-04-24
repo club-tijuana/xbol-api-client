@@ -127,7 +127,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             {
                 return BadRequest(ModelState);
             }
-						
+
             try
             {
                 var result = await _bus.InvokeAsync<BookingResult?>(new CreateEventBookingCommand(request));
@@ -200,14 +200,14 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 {
                     return UnprocessableEntity("Renovation failed. Please check the request details and try again.");
                 }
-				
+
                 return Ok(result);
             }
             catch (ApiException ex)
             {
                 _logger.LogWarning(ex, "Ticketing API error during season renovation {Status}", ex.StatusCode);
-                
-				if (ex.Response != null)
+
+                if (ex.Response != null)
                 {
                     return BadRequest(ex.Response);
                 }

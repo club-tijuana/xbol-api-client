@@ -63,7 +63,9 @@ namespace Odasoft.XBOL.Business.Services
             };
 
             if (eventIds == null || !eventIds.Any())
+            {
                 return response;
+            }
 
             eventIds = eventIds.Distinct().ToList();
 
@@ -78,7 +80,9 @@ namespace Odasoft.XBOL.Business.Services
             response.Inserted = newEventIds.Count;
 
             if (!newEventIds.Any())
+            {
                 return response;
+            }
 
             var newFavorites = newEventIds.Select(eventId => new ClientFavoriteEvent
             {

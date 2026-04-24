@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Odasoft.XBOL.Business;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;

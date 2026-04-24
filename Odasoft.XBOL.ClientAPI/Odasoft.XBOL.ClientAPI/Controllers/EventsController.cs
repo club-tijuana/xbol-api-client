@@ -180,7 +180,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             });
 
             if (count >= _eventsTrackingSettings.MaxViewsPerIpPerMinute)
+            {
                 return StatusCode(429, "Too many requests");
+            }
 
             _memoryCache.Set(key, count + 1, new MemoryCacheEntryOptions
             {

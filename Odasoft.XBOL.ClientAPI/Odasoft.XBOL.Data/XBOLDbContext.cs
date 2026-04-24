@@ -32,6 +32,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
         public DbSet<SequenceTracker> SequenceTrackers { get; set; }
         public DbSet<EventCategory> EventCategories => Set<EventCategory>();
+        public DbSet<EventImage> EventImages => Set<EventImage>();
 
         public XBOLDbContext() : base()
         {

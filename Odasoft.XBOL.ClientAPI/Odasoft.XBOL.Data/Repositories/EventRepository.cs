@@ -282,6 +282,10 @@ namespace Odasoft.XBOL.Data.Repositories
                 .OrderBy(i => i.Order)
                 .FirstOrDefault();
 
+            var gallery = eventEntity.EventImages
+                .Where(i => i.ImageType == Commons.Enums.ImageType.Gallery)
+                .OrderBy(i => i.Order);
+
             EventImagesDTO? images = null;
             if (includeImages)
             {
@@ -312,11 +316,9 @@ namespace Odasoft.XBOL.Data.Repositories
                 Image = banner != null
                     ? $"data:{banner.ContentType};base64,{Convert.ToBase64String(banner.Content)}"
                     : eventEntity.BannerImageUrl ?? string.Empty,
-                Gallery = eventEntity.EventImages
-                    .Where(i => i.ImageType == Commons.Enums.ImageType.Gallery)
-                    .OrderBy(i => i.Order)
-                    .Select(i => $"data:{i.ContentType};base64,{Convert.ToBase64String(i.Content)}")
-                    .ToList(),
+                Gallery = gallery != null
+                    ? gallery.Select(i => $"data:{i.ContentType};base64,{Convert.ToBase64String(i.Content)}").ToList()
+                    : new List<string> { eventEntity.BannerImageUrl, eventEntity.PosterImageUrl },
                 Name = eventEntity.Name,
                 LongDescription = eventEntity.LongDescription,
                 ShortDescription = eventEntity.ShortDescription,
