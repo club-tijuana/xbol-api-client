@@ -195,11 +195,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 }
 
                 var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request));
+
+                if (result is null)
+                {
+                    return UnprocessableEntity("Renovation failed. Please check the request details and try again.");
+                }
+
                 return Ok(result);
             }
             catch (ApiException ex)
             {
                 _logger.LogWarning(ex, "Ticketing API error during season renovation {Status}", ex.StatusCode);
+
                 if (ex.Response != null)
                 {
                     return BadRequest(ex.Response);

@@ -1,6 +1,4 @@
-﻿using Odasoft.XBOL.Commons.Enums;
-
-namespace Odasoft.XBOL.Models
+﻿namespace Odasoft.XBOL.Models
 {
     public class ClientFavoriteEvent : BaseModel
     {

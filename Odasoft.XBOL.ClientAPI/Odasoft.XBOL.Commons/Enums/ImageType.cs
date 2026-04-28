@@ -6,6 +6,8 @@
         Gallery,
         Logo,
         GeneralView,
-        Facade
+        Facade,
+        VerticalPoster,
+        HorizontalPoster
     }
 }

@@ -50,7 +50,7 @@ namespace Odasoft.XBOL.Business.Handlers
                 if (schedule == null)
                 {
                     _logger.LogWarning("Event with key {EventKey} not found", command.Request.EventKey);
-                    throw new Exception($"Event with key {command.Request.EventKey} not found");
+                    return null;
                 }
 
                 var canReserveEvent = await _bookingService.CanReserveEventAsync(schedule);
@@ -77,7 +77,7 @@ namespace Odasoft.XBOL.Business.Handlers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating event booking for event {EventKey}", command.Request.EventKey);
-                throw;
+                return null;
             }
         }
 
@@ -90,7 +90,7 @@ namespace Odasoft.XBOL.Business.Handlers
                 if (season == null)
                 {
                     _logger.LogWarning("Season with key {SeasonKey} not found", command.Request.SeasonKey);
-                    throw new Exception($"Season with key {command.Request.SeasonKey} not found");
+                    return null;
                 }
 
                 long? clientId = command.Request.ClientContact.Id;
@@ -153,7 +153,7 @@ namespace Odasoft.XBOL.Business.Handlers
                         OrderId = orderId
                     };
                 }
-                catch (Exception ex)
+                catch
                 {
                     if (command.Request.ReferenceOrderId != null)
                     {
@@ -165,14 +165,13 @@ namespace Odasoft.XBOL.Business.Handlers
                         };
                         await _ticketingClient.SetForSaleAsync(setForSaleRequest);
                     }
-
-                    throw;
+                    return null;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating season booking for season {SeasonKey}", command.Request.SeasonKey);
-                throw;
+                return null;
             }
         }
     }

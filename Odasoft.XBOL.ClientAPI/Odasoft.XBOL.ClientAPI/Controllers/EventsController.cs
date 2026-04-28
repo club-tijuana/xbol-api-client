@@ -127,9 +127,17 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Retrieves the full detail for a single event.
+        /// </summary>
+        /// <param name="eventId">Event identifier.</param>
+        /// <param name="includeImages">When true, populates the <c>images</c> map with data URIs for uploaded HorizontalPoster / VerticalPoster rows (legacy URL fallback when an upload is missing). Default false to keep the response small.</param>
         [HttpGet("{eventId}")]
         [EndpointName("GetEventDetailAsync")]
-        public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync([FromRoute] long eventId)
+        [ProducesResponseType(typeof(EventDetailDTO), StatusCodes.Status200OK)]
+        public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync(
+            [FromRoute] long eventId,
+            [FromQuery] bool includeImages = false)
         {
             // TODO: Remove temp token
             long? idClient = null;
@@ -142,7 +150,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             }
 
-            var result = await _eventService.GetEventDetailAsync(eventId, idClient);
+            var result = await _eventService.GetEventDetailAsync(eventId, idClient, includeImages);
 
             return Ok(result);
         }
@@ -172,7 +180,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             });
 
             if (count >= _eventsTrackingSettings.MaxViewsPerIpPerMinute)
+            {
                 return StatusCode(429, "Too many requests");
+            }
 
             _memoryCache.Set(key, count + 1, new MemoryCacheEntryOptions
             {
