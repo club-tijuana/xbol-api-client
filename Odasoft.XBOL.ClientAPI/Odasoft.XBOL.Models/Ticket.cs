@@ -35,6 +35,7 @@ namespace Odasoft.XBOL.Models
         public string SectionLabelSnapshot { get; set; } = null!;
         public string SeatLabelSnapshot { get; set; } = null!;
 
+        public bool IsDigital { get; set; } = true;
         public decimal PricePaid { get; set; }
 
         public TicketStatus Status { get; set; }
@@ -46,5 +47,8 @@ namespace Odasoft.XBOL.Models
         public DateTimeOffset UpdatedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public Guid UpdatedBy { get; set; }
+
+        public IList<TicketScanLog> ScanLogs { get; set; } = [];
+        public IList<TicketTransfer> Transfers { get; set; } = [];
     }
 }

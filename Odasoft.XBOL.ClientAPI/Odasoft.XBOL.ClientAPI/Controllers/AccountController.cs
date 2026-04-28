@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Odasoft.XBOL.ClientAPI.Configs;
+using Microsoft.Extensions.Options;
+using Odasoft.XBOL.Commons.Options;
 using Odasoft.XBOL.Commons.Security;
 
 namespace Odasoft.XBOL.ClientAPI.Controllers
@@ -9,11 +10,11 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     [ApiController]
     public class AccountController : ControllerBase
     {
-        private Authentication _authentication;
+        private readonly AuthenticationOptions _authentication;
 
-        public AccountController(Authentication authentication)
+        public AccountController(IOptions<AuthenticationOptions> authentication)
         {
-            _authentication = authentication;
+            _authentication = authentication.Value;
         }
 
         [HttpPost("sign-in")]
@@ -31,12 +32,16 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             if (auth)
             {
+                string userId = model.Username == "client@xbol.com" ? "019c29aa-cd4b-7407-9b65-d5d49891eb04" : "5da1933e-65af-417c-8b79-d75817a33b4c";
+                string token = model.Username == "client@xbol.com" ? "TEST-TOKEN" : "TEST-TOKEN2";
+
                 return Ok(new User
                 {
+                    UserId = new Guid(userId),
                     FirstName = "User",
                     LastName = "Test",
                     Username = model.Username,
-                    Token = "TEST-TOKEN"
+                    Token = token
                 });
             }
             else

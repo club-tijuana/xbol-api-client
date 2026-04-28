@@ -7,5 +7,7 @@
         public string? SortBy { get; set; }
         public bool? SortDesc { get; set; }
         public string? TextFilter { get; set; }
+        public DateTimeOffset? RangeDateFrom { get; set; }
+        public DateTimeOffset? RangeDateTo { get; set; }
     }
 }
