@@ -48,7 +48,6 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
         {
-            //return await _eventScheduleRepository.GetEventItemByScheduleIdAsync(scheduleId);
             var schedule = await _eventScheduleRepository.Get(
                 s => s.Id == scheduleId)
                 .Include(s => s.Event)
@@ -71,20 +70,24 @@ namespace Odasoft.XBOL.Business.Services
             }
 
             var banner = schedule.Event.EventImages
-                .Where(i => i.ImageType == Commons.Enums.ImageType.Banner)
+                .Where(i => i.ImageType == Commons.Enums.ImageType.HorizontalPoster)
                 .OrderBy(i => i.Order)
                 .FirstOrDefault();
 
             var poster = schedule.Event.EventImages
-                .Where(i => i.ImageType == Commons.Enums.ImageType.Banner)
+                .Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster)
                 .OrderBy(i => i.Order)
                 .FirstOrDefault();
 
             return new EventItemDTO
             {
                 Id = schedule.Id,
-                BannerImageUrl = banner == null ? string.Empty : $"data:{banner.ContentType};base64,{Convert.ToBase64String(banner.Content)}",
-                PosterImageUrl = poster == null ? string.Empty : $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}",
+                BannerImageUrl = banner != null
+                    ? $"data:{banner.ContentType};base64,{Convert.ToBase64String(banner.Content)}"
+                    : schedule.Event.BannerImageUrl ?? string.Empty,
+                PosterImageUrl = poster != null
+                    ? $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}"
+                    : schedule.Event.PosterImageUrl ?? string.Empty,
                 Name = schedule.Event.Name,
                 StartDate = schedule.StartDateTime,
                 Location = schedule.Event.VenueMap.Name,

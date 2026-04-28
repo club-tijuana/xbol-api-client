@@ -87,9 +87,9 @@ namespace Odasoft.XBOL.Business.Services
                 _searchSettings.MatchRatio);
         }
 
-        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient)
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient, bool includeImages = false)
         {
-            return await _eventRepository.GetEventDetailAsync(eventId, idClient);
+            return await _eventRepository.GetEventDetailAsync(eventId, idClient, includeImages);
         }
 
         public async Task<List<EventCategoryDTO>> GetEventCategories()

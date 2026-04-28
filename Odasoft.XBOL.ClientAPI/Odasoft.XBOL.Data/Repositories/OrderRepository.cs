@@ -60,7 +60,8 @@ namespace Odasoft.XBOL.Data.Repositories
                             t.EventSchedule.EndDateTime,
                             EventId = t.EventSchedule.EventId,
                             EventName = t.EventSchedule.Event.Name,
-                            EventImage = t.EventSchedule.Event.PosterImageUrl,
+                            EventPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                            LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
                             Location = t.EventSchedule.Event.VenueMap.Name,
                             TicketType = t.TicketType,
                             SeasonId = t.EventSchedule.Event.SeasonId,
@@ -115,7 +116,9 @@ namespace Odasoft.XBOL.Data.Repositories
                 {
                     OrderId = o.Id,
                     EventId = currentSchedule.EventId,
-                    EventImage = currentSchedule.EventImage,
+                    EventImage = currentSchedule.EventPosterFile != null
+                        ? $"data:{currentSchedule.EventPosterFile.ContentType};base64,{Convert.ToBase64String(currentSchedule.EventPosterFile.Content)}"
+                        : currentSchedule.LegacyPosterUrl ?? string.Empty,
                     Name = isSeason ? currentSchedule.SeasonName : currentSchedule.EventName,
                     StartDate = currentSchedule.StartDateTime,
                     Location = currentSchedule.Location,
@@ -137,7 +140,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
         public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId, long orderId)
         {
-            var query = DbContext.Set<Order>()
+            var result = await DbContext.Set<Order>()
                 .Where(o =>
                     o.Id == orderId &&
                     o.Tickets.Any(t =>
@@ -159,12 +162,13 @@ namespace Odasoft.XBOL.Data.Repositories
                     EventId = t.EventSchedule.Event.Id,
                     OrderId = t.OriginalOrder!.Id
                 })
-                .Select(g => new MyEventDetailDTO
+                .Select(g => new
                 {
                     OrderId = g.Key.OrderId,
                     EventId = g.Key.EventId,
                     EventKey = g.First().EventSchedule.ExternalEventKey,
-                    EventImage = g.First().EventSchedule.Event.PosterImageUrl,
+                    EventImageFile = g.First().EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                    LegacyPosterUrl = g.First().EventSchedule.Event.PosterImageUrl,
                     Folio = g.First().OriginalOrder!.Reference,
                     Name = g.First().EventSchedule.Event.Name,
                     Date = g.First().EventSchedule.Event.Schedules
@@ -187,7 +191,33 @@ namespace Odasoft.XBOL.Data.Repositories
                 })
                 .FirstOrDefaultAsync();
 
-            return await query;
+            if (result == null)
+            {
+                return null;
+            }
+
+            var detail = new MyEventDetailDTO
+            {
+                OrderId = result.OrderId,
+                EventId = result.EventId,
+                EventKey = result.EventKey,
+                EventImage = result.EventImageFile != null
+                    ? $"data:{result.EventImageFile.ContentType};base64,{Convert.ToBase64String(result.EventImageFile.Content)}"
+                    : result.LegacyPosterUrl ?? string.Empty,
+                Folio = result.Folio,
+                Name = result.Name,
+                Date = result.Date,
+                Location = result.Location,
+                SubTotal = result.SubTotal,
+                TotalFees = result.TotalFees,
+                TotalTaxes = result.TotalTaxes,
+                Total = result.Total,
+                Seats = result.Seats,
+                SelectedSeats = result.SelectedSeats,
+                Currency = result.Currency
+            };
+
+            return detail;
         }
 
         public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByOrderAsync(
@@ -215,14 +245,15 @@ namespace Odasoft.XBOL.Data.Repositories
             var tickets = await query
                 .Skip(skip)
                 .Take(pageSize)
-                .Select(t => new MyTicketDTO
+                .Select(t => new
                 {
                     Id = t.Id,
                     OrderType = t.OriginalOrder != null ? t.OriginalOrder.OrderType : OrderType.Ticket,
                     Name = t.EventSchedule.Event.Name,
                     Location = t.EventSchedule.Event.VenueMap.Name,
                     StartDate = t.EventSchedule.StartDateTime,
-                    EventImage = t.EventSchedule.Event.PosterImageUrl,
+                    EventImageFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                    LegacyEventImageUrl = t.EventSchedule.Event.PosterImageUrl,
                     Code = t.TicketCode,
                     Section = t.EventSection.BaseSection.Name,
                     Row = t.EventSeat.BaseSeat.BaseRow.RowLabel,
@@ -238,9 +269,28 @@ namespace Odasoft.XBOL.Data.Repositories
                 })
                 .ToListAsync();
 
+            var result = tickets.Select(t => new MyTicketDTO
+            {
+                Id = t.Id,
+                OrderType = t.OrderType,
+                Name = t.Name,
+                Location = t.Location,
+                StartDate = t.StartDate,
+                EventImage = t.EventImageFile != null
+                    ? $"data:{t.EventImageFile.ContentType};base64,{Convert.ToBase64String(t.EventImageFile.Content)}"
+                    : t.LegacyEventImageUrl ?? string.Empty,
+                Code = t.Code,
+                Section = t.Section,
+                Row = t.Row,
+                Seat = t.Seat,
+                CanShare = t.CanShare,
+                IsOwner = t.IsOwner,
+                IsShared = t.IsShared
+            });
+
             return new PagedResponse<MyTicketDTO>
             {
-                Items = tickets,
+                Items = result.ToList(),
                 TotalCount = totalCount,
                 Page = page,
                 PageSize = pageSize,
@@ -278,7 +328,8 @@ namespace Odasoft.XBOL.Data.Repositories
                             {
                                 EventId = t.EventSchedule.Event.Id,
                                 EventName = t.EventSchedule.Event.Name,
-                                t.EventSchedule.Event.PosterImageUrl,
+                                EventPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                                LegacyEventPosterUrl = t.EventSchedule.Event.PosterImageUrl,
                                 VenueName = t.EventSchedule.Event.VenueMap.Name,
 
                                 Season = t.EventSchedule.Event.Season == null ? null : new
@@ -286,7 +337,8 @@ namespace Odasoft.XBOL.Data.Repositories
                                     t.EventSchedule.Event.Season.Id,
                                     t.EventSchedule.Event.Season.Name,
                                     t.EventSchedule.Event.Season.ExternalSeasonKey,
-                                    t.EventSchedule.Event.Season.PosterImageUrl,
+                                    SeasonPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
+                                    LegacySeasonPosterUrl = t.EventSchedule.Event.Season.PosterImageUrl,
                                     t.EventSchedule.Event.Season.StartDate
                                 }
                             }
@@ -296,7 +348,9 @@ namespace Odasoft.XBOL.Data.Repositories
                 .FirstOrDefaultAsync();
 
             if (orderData == null || !orderData.Tickets.Any())
+            {
                 return null;
+            }
 
             var seats = orderData.Tickets
                 .Select(t => new
@@ -342,7 +396,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemName = first.EventSchedule.Event.EventName,
                     ItemLocation = first.EventSchedule.Event.VenueName,
                     ItemKey = first.EventSchedule.ExternalEventKey,
-                    ItemPosterImageUrl = first.EventSchedule.Event.PosterImageUrl,
+                    ItemPosterImageUrl = first.EventSchedule.Event.EventPosterFile != null
+                        ? $"data:{first.EventSchedule.Event.EventPosterFile.ContentType};base64,{Convert.ToBase64String(first.EventSchedule.Event.EventPosterFile.Content)}"
+                    : first.EventSchedule.Event.LegacyEventPosterUrl ?? string.Empty,
                     ItemStartDate = first.EventSchedule.StartDateTime,
 
                     ItemSeats = seats,
@@ -358,7 +414,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     .ToList();
 
                 if (seasons.Count != 1)
+                {
                     throw new Exception("Invalid season order: múltiples seasons detectadas.");
+                }
 
                 var venues = orderData.Tickets
                     .Select(t => t.EventSchedule.Event.VenueName)
@@ -366,7 +424,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     .ToList();
 
                 if (venues.Count != 1)
+                {
                     throw new Exception("Invalid season order: múltiples venues detectados.");
+                }
 
                 var season = seasons.First()!;
 
@@ -384,7 +444,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemName = season.Name,
                     ItemLocation = venues.First(),
                     ItemKey = season.ExternalSeasonKey,
-                    ItemPosterImageUrl = season.PosterImageUrl,
+                    ItemPosterImageUrl = season.SeasonPosterFile != null
+                        ? $"data:{season.SeasonPosterFile.ContentType};base64,{Convert.ToBase64String(season.SeasonPosterFile.Content)}"
+                    : season.LegacySeasonPosterUrl ?? string.Empty,
                     ItemStartDate = season.StartDate,
 
                     ItemSeats = seats,

@@ -41,7 +41,8 @@ namespace Odasoft.XBOL.Business.Services
                     "EventSection.BaseSection",
                     "EventSeat",
                     "EventSeat.BaseSeat",
-                    "EventSeat.BaseSeat.BaseRow"
+                    "EventSeat.BaseSeat.BaseRow",
+                    "EventSchedule.Event.EventImages"
                 ])
                 .FirstOrDefaultAsync();
 
@@ -75,13 +76,18 @@ namespace Odasoft.XBOL.Business.Services
                 await _ticketRepository.UpdateAsync(ticket);
             }
 
+            var poster = ticket.EventSchedule.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).FirstOrDefault();
+            var legacyPoster = ticket.EventSchedule.Event.PosterImageUrl;
+
             return new MyTicketDTO
             {
                 Id = ticket.Id,
                 Name = ticket.EventSchedule.Event.Name,
                 Location = ticket.EventSchedule.Event.VenueMap.Name,
                 StartDate = ticket.EventSchedule.StartDateTime,
-                EventImage = ticket.EventSchedule.Event.PosterImageUrl,
+                EventImage = poster != null
+                    ? $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}"
+                    : legacyPoster ?? string.Empty,
                 Code = ticket.TicketCode,
                 Section = ticket.EventSection.BaseSection.Name,
                 Row = ticket.EventSeat.BaseSeat.BaseRow.RowLabel,

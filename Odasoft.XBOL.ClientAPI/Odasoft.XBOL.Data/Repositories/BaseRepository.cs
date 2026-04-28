@@ -424,10 +424,14 @@ namespace Odasoft.XBOL.Data.Repositories
             IQueryable<M> query = DbSet;
 
             if (filter != null)
+            {
                 query = query.Where(filter);
+            }
 
             foreach (var include in includedProperties)
+            {
                 query = query.Include(include);
+            }
 
             return query;
         }
