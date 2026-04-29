@@ -17,6 +17,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly EventSeatRepository _eventSeatRepository;
         private readonly TicketRepository _ticketRepository;
         private readonly SeasonPassRepository _seasonPassRepository;
+        private readonly SeasonPassEventTicketRepository _seasonPassEventTicketRepository;
         private readonly SeasonRepository _seasonRepository;
         private readonly SeasonSeatRepository _seasonSeatRepository;
         private readonly EventRepository _eventRepository;
@@ -32,6 +33,7 @@ namespace Odasoft.XBOL.Business.Services
             EventSeatRepository eventSeatRepository,
             TicketRepository ticketRepository,
             SeasonPassRepository seasonPassRepository,
+            SeasonPassEventTicketRepository seasonPassEventTicketRepository,
             SeasonRepository seasonRepository,
             SeasonSeatRepository seasonSeatRepository,
             EventRepository eventRepository,
@@ -47,6 +49,7 @@ namespace Odasoft.XBOL.Business.Services
             _eventSeatRepository = eventSeatRepository;
             _ticketRepository = ticketRepository;
             _seasonPassRepository = seasonPassRepository;
+            _seasonPassEventTicketRepository = seasonPassEventTicketRepository;
             _seasonRepository = seasonRepository;
             _seasonSeatRepository = seasonSeatRepository;
             _eventRepository = eventRepository;
@@ -156,6 +159,7 @@ namespace Odasoft.XBOL.Business.Services
                 // Remove this workaround once sharing is implemented for season passes.
                 List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats, season.Id, client);
                 List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats, season.Id, client);
+                await CreateSeasonPassEventTicketsAsync(seasonPasses, tickets);
 
                 var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
                                 ? 0
@@ -374,6 +378,36 @@ namespace Odasoft.XBOL.Business.Services
 
             await _seasonPassRepository.CommitAsync();
             return seasonPasses;
+        }
+
+        private async Task CreateSeasonPassEventTicketsAsync(List<SeasonPass> seasonPasses, List<Ticket> tickets)
+        {
+            var passByCode = seasonPasses.ToDictionary(p => p.TrackingCode);
+            var joins = new List<SeasonPassEventTicket>();
+
+            foreach (var ticket in tickets)
+            {
+                if (!passByCode.TryGetValue(ticket.TicketCode, out var pass))
+                    continue;
+
+                var join = new SeasonPassEventTicket
+                {
+                    SeasonPassId = pass.Id,
+                    TicketId = ticket.Id
+                };
+
+                await _seasonPassEventTicketRepository.InsertAsync(join);
+                joins.Add(join);
+            }
+
+            await _seasonPassEventTicketRepository.CommitAsync();
+
+            foreach (var join in joins)
+            {
+                var ticket = tickets.First(t => t.Id == join.TicketId);
+                ticket.SeasonPassEventTicketId = join.Id;
+            }
+            await _ticketRepository.UpdateRangeAsync(tickets);
         }
 
         public async Task<SeasonToRenovateDTO> GetOrderToRenovate(long orderId, long clientId)
