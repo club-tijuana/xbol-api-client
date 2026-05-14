@@ -1,12 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Data.Configurations;
 using Odasoft.XBOL.Data.Extensions;
 using Odasoft.XBOL.Models;
 
 namespace Odasoft.XBOL.Data
 {
-    public class XBOLDbContext : IdentityDbContext<User, Role, Guid>
+    public class XBOLDbContext : DbContext
     {
         public DbSet<Season> Seasons => Set<Season>();
         public DbSet<Order> Orders => Set<Order>();
@@ -33,16 +32,12 @@ namespace Odasoft.XBOL.Data
         public DbSet<SequenceTracker> SequenceTrackers { get; set; }
         public DbSet<EventCategory> EventCategories => Set<EventCategory>();
         public DbSet<EventImage> EventImages => Set<EventImage>();
+        public DbSet<Role> Roles => Set<Role>();
+        public DbSet<User> Users => Set<User>();
 
-        public XBOLDbContext() : base()
-        {
+        public XBOLDbContext() { }
 
-        }
-
-        public XBOLDbContext(DbContextOptions<XBOLDbContext> options)
-           : base(options)
-        {
-        }
+        public XBOLDbContext(DbContextOptions<XBOLDbContext> options) : base(options) { }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -64,13 +59,6 @@ namespace Odasoft.XBOL.Data
                 }
             }
 
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<Client>()
-                .HasOne(c => c.User)
-                .WithOne(u => u.Client)
-                .HasForeignKey<Client>(c => c.UserId);
-
             modelBuilder.Entity<SeasonPassEventTicket>()
                 .Property(spet => spet.Id)
                 .ValueGeneratedOnAdd();
@@ -81,6 +69,19 @@ namespace Odasoft.XBOL.Data
                 .HasForeignKey(i => i.OrderId);
 
             modelBuilder.RemovePluralizingTableNameConvention();
+
+            modelBuilder.Entity<User>(b =>
+            {
+                b.HasKey(u => u.Id);
+                b.HasIndex(u => u.NormalizedUserName).HasDatabaseName("IX_User_NormalizedUserName");
+                b.HasIndex(u => u.NormalizedEmail).HasDatabaseName("IX_User_NormalizedEmail");
+            });
+
+            modelBuilder.Entity<Role>(b =>
+            {
+                b.HasKey(r => r.Id);
+                b.HasIndex(r => r.NormalizedName).HasDatabaseName("IX_Role_NormalizedName");
+            });
 
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());

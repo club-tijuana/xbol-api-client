@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using FirebaseAdmin;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
@@ -10,7 +10,6 @@ using Odasoft.XBOL.ClientAPI.Schema;
 using Odasoft.XBOL.Commons.Options;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
-using Odasoft.XBOL.Models;
 using System.Reflection;
 using Wolverine;
 
@@ -27,6 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemoryCache();
 
 builder.Services.ConfigureOptions();
+builder.Services.ConfigureFirebaseAdmin();
 
 builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>
 {
@@ -39,20 +39,9 @@ SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings
 EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
 #endregion
 
-// Identity + EF Core store
 builder.Services.AddDataProtection();
-
-builder.Services
-    .AddIdentityCore<User>(options =>
-    {
-        options.Password.RequireDigit = true;
-        options.Password.RequiredLength = 8;
-        options.User.RequireUniqueEmail = true;
-    })
-    .AddRoles<Role>()
-    .AddEntityFrameworkStores<XBOLDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)
@@ -122,6 +111,7 @@ builder.Services.AddSingleton(eventsTrackingSettings);
 builder.Services.ConfigureHttpClients();
 
 var app = builder.Build();
+app.Services.GetRequiredService<FirebaseApp>();
 
 // Enable middleware to serve generated OpenAPI as a JSON endpoint and the Swagger UI.
 if (app.Environment.IsDevelopment())

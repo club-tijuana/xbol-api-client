@@ -24,8 +24,8 @@ namespace Odasoft.XBOL.Models
         public string? Neighborhood { get; set; }
         public bool IsActive { get; set; }
 
-        public Guid? UserId { get; set; }
-        public User? User { get; set; }
+        public string? FirebaseUid { get; set; }
+        public DateTimeOffset? RefreshTokensRevokedAt { get; set; }
 
         public DateTimeOffset CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }

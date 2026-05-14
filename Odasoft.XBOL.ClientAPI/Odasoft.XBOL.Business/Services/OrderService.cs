@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Commons.Enums;
@@ -21,7 +20,6 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonRepository _seasonRepository;
         private readonly SeasonSeatRepository _seasonSeatRepository;
         private readonly EventRepository _eventRepository;
-        private readonly UserManager<User> _userManager;
         private readonly SeasonService _seasonService;
         private readonly EventScheduleService _eventScheduleService;
         private readonly ILogger<OrderService> _logger;
@@ -37,7 +35,6 @@ namespace Odasoft.XBOL.Business.Services
             SeasonRepository seasonRepository,
             SeasonSeatRepository seasonSeatRepository,
             EventRepository eventRepository,
-            UserManager<User> userManager,
             SeasonService seasonService,
             EventScheduleService eventScheduleService,
             ILogger<OrderService> logger
@@ -53,7 +50,6 @@ namespace Odasoft.XBOL.Business.Services
             _seasonRepository = seasonRepository;
             _seasonSeatRepository = seasonSeatRepository;
             _eventRepository = eventRepository;
-            _userManager = userManager;
             _seasonService = seasonService;
             _eventScheduleService = eventScheduleService;
             _logger = logger;
@@ -90,7 +86,7 @@ namespace Odasoft.XBOL.Business.Services
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
-                    UserId = client.UserId,
+                    UserId = null,
                     Reference = request.Localizer,
                     Status = OrderStatus.Paid,
                     SubTotal = subtotal,
@@ -167,7 +163,7 @@ namespace Odasoft.XBOL.Business.Services
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
-                    UserId = client.UserId,
+                    UserId = null,
                     Reference = request.Localizer,
                     Status = OrderStatus.Paid,
                     SubTotal = subtotal,
@@ -358,7 +354,7 @@ namespace Odasoft.XBOL.Business.Services
                 var seasonPass = new SeasonPass
                 {
                     ClientId = client.Id,
-                    UserId = client.UserId,
+                    UserId = null,
                     SeasonId = seasonId,
                     Price = seats[seat.ExternalSeatObjectKey],
                     PurchasedAt = now,

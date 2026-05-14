@@ -28,18 +28,14 @@ namespace Odasoft.XBOL.Business.Services
             string upperEmail = request.Email.ToUpper().Trim();
 
             var client = await _clientRepository.Get(
-                    filter: client => client.User != null
-                    && client.User.PhoneNumber != null
+                    filter: client => client.PhoneNumber != null
                     && client.Email.ToUpper().Equals(upperEmail)
-                    && client.User.PhoneNumber.Equals(request.Phone),
-                    includedProperties: [
-                        "User"
-                    ]
+                    && client.PhoneNumber.Equals(request.Phone)
                 )
                 .Select(client => new ClientDTO
                 {
                     Id = client.Id,
-                    UserId = client.UserId != null ? client.UserId.Value.ToString() : string.Empty,
+                    UserId = client.FirebaseUid ?? string.Empty,
                     FullName = client.FullName ?? "",
                     BusinessName = client.BusinessName,
                     Email = client.Email,

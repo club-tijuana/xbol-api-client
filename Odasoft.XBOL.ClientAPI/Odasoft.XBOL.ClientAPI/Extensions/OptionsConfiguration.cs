@@ -21,6 +21,15 @@ public static class OptionsConfiguration
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<GcipAuthOptions>()
+            .BindConfiguration(GcipAuthOptions.SectionName)
+            .ValidateDataAnnotations()
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.ServiceAccountJson)
+                    || !string.IsNullOrWhiteSpace(options.ServiceAccountJsonPath),
+                "GcipAuth:ServiceAccountJson or GcipAuth:ServiceAccountJsonPath is required.")
+            .ValidateOnStart();
+
         services.AddOptions<TicketingClientOptions>()
             .BindConfiguration("TicketingClient")
             .ValidateDataAnnotations()
