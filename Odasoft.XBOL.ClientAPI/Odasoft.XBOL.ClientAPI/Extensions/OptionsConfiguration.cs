@@ -16,11 +16,6 @@ public static class OptionsConfiguration
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<AuthenticationOptions>()
-            .BindConfiguration(AuthenticationOptions.SectionName)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
         services.AddOptions<GcipAuthOptions>()
             .BindConfiguration(GcipAuthOptions.SectionName)
             .ValidateDataAnnotations()

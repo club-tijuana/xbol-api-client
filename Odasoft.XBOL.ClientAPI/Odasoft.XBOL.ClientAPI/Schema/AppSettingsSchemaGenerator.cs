@@ -69,9 +69,6 @@ public static class AppSettingsSchemaGenerator
         [Description("Cross-origin policy registered in the HTTP pipeline.")]
         public CorsOptions? Cors { get; set; }
 
-        [Description("Accounts permitted to authenticate against the Client API.")]
-        public AuthenticationOptions? Authentication { get; set; }
-
         [Description("Firebase Admin SDK authentication settings for the client tenant.")]
         public GcipAuthOptions? GcipAuth { get; set; }
 

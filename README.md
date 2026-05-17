@@ -54,6 +54,12 @@ To verify the secret is stored:
 dotnet user-secrets list --project Odasoft.XBOL.ClientAPI/Odasoft.XBOL.ClientAPI
 ```
 
+### Client Authentication Contract
+
+Client applications authenticate against the Firebase client tenant and call this API with a Firebase ID token in the `Authorization: Bearer ***` header. The API verifies bearer tokens with Firebase Admin SDK and resolves the authenticated buyer through `Client.FirebaseUid`.
+
+This API does not expose a password login endpoint. `POST /api/auth/register` is API-owned because registration creates the local `Client` profile for the Firebase client-tenant user. Domain-specific onboarding links and unclaimed-client claiming are out of scope for this auth-only slice. Login/session UX belongs to the client application; SSR/session-cookie support is tracked separately in bead `client-app-1ac`.
+
 ## Deployment
 
 The container is production-ready with:
@@ -89,7 +95,7 @@ Runtime configuration is stored in GCP Secret Manager. Each environment has a de
 | Secret                       | Contents                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------------ |
 | `dev-xbol-db-secret`         | PostgreSQL credentials (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`) |
-| `dev-xbol-api-client-secret` | App configuration (connection string, CORS origins, allowed users, GCIP key)   |
+| `dev-xbol-api-client-secret` | App configuration (connection string, CORS origins, GCIP key)                  |
 
 The app secret stores environment variables using ASP.NET's `__` (double underscore) convention for nested config and array indices:
 
@@ -98,8 +104,6 @@ The app secret stores environment variables using ASP.NET's `__` (double undersc
   "ConnectionStrings__Database": "Host=<DB_HOST>;Port=<DB_PORT>;Database=<DB_NAME>;Username=<DB_USER>;Password=<DB_PASS>",
   "Cors__AcceptedOrigins__0": "http://localhost:3000",
   "Cors__AcceptedOrigins__1": "https://dev-web.pwrticket.mx",
-  "Authentication__AllowedUsers__0__Email": "client@xbol.com",
-  "Authentication__AllowedUsers__0__Password": "<password>",
   "GcipAuth__ServiceAccountJson": "<service-account-json>",
   "TicketingClient__BaseAddress": "https://dev-api.ticketing.pwrticket.mx"
 }

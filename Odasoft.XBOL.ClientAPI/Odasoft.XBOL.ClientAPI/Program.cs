@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using FirebaseAdmin;
+using Microsoft.AspNetCore.DataProtection;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
@@ -13,6 +14,12 @@ using Odasoft.XBOL.Data.Extensions;
 using System.Reflection;
 using Wolverine;
 
+const string DataProtectionApplicationName = "Odasoft.XBOL.ClientAPI";
+var dataProtectionKeysPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+    ".aspnet",
+    "DataProtection-Keys");
+
 if (args.Contains("--generate-schema"))
 {
     var outputPath = Path.GetFullPath(
@@ -24,9 +31,11 @@ if (args.Contains("--generate-schema"))
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.ConfigureOptions();
 builder.Services.ConfigureFirebaseAdmin();
+builder.Services.ConfigureAuth(builder.Configuration);
 
 builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>
 {
@@ -39,9 +48,9 @@ SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings
 EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
 #endregion
 
-builder.Services.AddDataProtection();
-builder.Services.AddAuthentication();
-builder.Services.AddAuthorization();
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName(DataProtectionApplicationName);
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)
@@ -176,3 +185,5 @@ app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthCheck
 });
 
 app.Run();
+
+public partial class Program;
