@@ -7,6 +7,8 @@ namespace Odasoft.XBOL.Models
         public ClientType ClientType { get; set; }
 
         public string? FullName { get; set; }
+        public DateTimeOffset? DateOfBirth { get; set; }
+        public Gender? Gender { get; set; }
         public string? BusinessName { get; set; }
 
         public string Email { get; set; } = null!;

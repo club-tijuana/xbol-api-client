@@ -77,7 +77,7 @@ namespace Odasoft.XBOL.Business.Handlers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating event booking for event {EventKey}", command.Request.EventKey);
-                return null;
+                throw;
             }
         }
 
@@ -165,13 +165,13 @@ namespace Odasoft.XBOL.Business.Handlers
                         };
                         await _ticketingClient.SetForSaleAsync(setForSaleRequest);
                     }
-                    return null;
+                    throw;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating season booking for season {SeasonKey}", command.Request.SeasonKey);
-                return null;
+                throw;
             }
         }
     }

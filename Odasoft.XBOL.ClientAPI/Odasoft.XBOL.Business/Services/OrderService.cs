@@ -68,13 +68,7 @@ namespace Odasoft.XBOL.Business.Services
             {
                 EventSchedule schedule = await _eventScheduleRepository.Get(x => x.ExternalEventKey == request.EventKey).FirstAsync();
 
-                string emailRequest = request.ClientContact.Email.ToUpper();
-                var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
-
-                if (client == null)
-                {
-                    client = await CreateClientAsync(request.ClientContact);
-                }
+                var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
 
                 request.ClientContact.Id = client.Id;
 
@@ -140,13 +134,7 @@ namespace Odasoft.XBOL.Business.Services
                     .Get(x => x.ExternalSeasonKey == request.SeasonKey)
                     .SingleOrDefaultAsync();
 
-                string emailRequest = request.ClientContact.Email.ToUpper();
-                var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
-
-                if (client == null)
-                {
-                    client = await CreateClientAsync(request.ClientContact);
-                }
+                var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
 
                 request.ClientContact.Id = client.Id;
 
@@ -208,16 +196,97 @@ namespace Odasoft.XBOL.Business.Services
             }
         }
 
-        private async Task<Client> CreateClientAsync(ClientInfoRequest clientInfo)
+        private async Task<Client> UpsertClientFromOrderContactAsync(ClientInfoRequest clientInfo)
         {
-            // TODO: Better use the client service to create the client
+            var effectiveFullName = ResolveFullName(clientInfo);
+
+            var client = await FindClientByContactAsync(clientInfo);
+            if (client is not null)
+            {
+                ApplyOrderContact(client, clientInfo, effectiveFullName);
+                await _clientRepository.UpdateAsync(client);
+                return client;
+            }
+
+            client = await CreateClientAsync(clientInfo, effectiveFullName);
+            return client;
+        }
+
+        private async Task<Client?> FindClientByContactAsync(ClientInfoRequest clientInfo)
+        {
+            if (!string.IsNullOrWhiteSpace(clientInfo.Email))
+            {
+                var email = clientInfo.Email.Trim().ToUpperInvariant();
+                var client = await _clientRepository
+                    .Get(filter: client => client.Email != null && client.Email.ToUpper().Equals(email))
+                    .OrderByDescending(client => client.FirebaseUid != null)
+                    .ThenByDescending(client => client.Id)
+                    .FirstOrDefaultAsync();
+
+                if (client is not null)
+                {
+                    return client;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientInfo.PhoneNumber))
+            {
+                return await _clientRepository.GetByContactPhoneNumberAsync(clientInfo.PhoneNumber);
+            }
+
+            return null;
+        }
+
+        private static void ApplyOrderContact(Client client, ClientInfoRequest clientInfo, string? effectiveFullName)
+        {
+            if (!string.IsNullOrWhiteSpace(clientInfo.Email))
+            {
+                client.Email = clientInfo.Email.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientInfo.PhoneNumber))
+            {
+                var phoneNumber = NormalizePhoneNumber(clientInfo.PhoneNumber);
+                if (phoneNumber.Length > 0 && NormalizePhoneNumber(client.PhoneNumber) != phoneNumber)
+                {
+                    client.PhoneNumber = phoneNumber;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(effectiveFullName))
+            {
+                client.FullName = effectiveFullName;
+            }
+
+            if (clientInfo.Gender.HasValue)
+            {
+                client.Gender = (Gender?)clientInfo.Gender;
+            }
+
+            if (clientInfo.Birthday.HasValue)
+            {
+                client.DateOfBirth = clientInfo.Birthday;
+            }
+
+            client.IsActive = true;
+            client.UpdatedAt = DateTime.UtcNow;
+            client.UpdatedBy = Guid.Empty;
+        }
+
+        private async Task<Client> CreateClientAsync(ClientInfoRequest clientInfo, string? effectiveFullName)
+        {
             var client = new Client
             {
-                Email = clientInfo.Email ?? "",
-                PhoneNumber = clientInfo.PhoneNumber ?? "",
-                FullName = $"{clientInfo.FirstName} {clientInfo.LastName}",
+                Email = clientInfo.Email?.Trim() ?? "",
+                PhoneNumber = string.IsNullOrWhiteSpace(clientInfo.PhoneNumber)
+                    ? ""
+                    : NormalizePhoneNumber(clientInfo.PhoneNumber),
+                FullName = effectiveFullName,
                 BusinessName = clientInfo.FullName,
+                DateOfBirth = clientInfo.Birthday,
+                Gender = (Gender?)clientInfo.Gender,
                 ClientType = ClientType.Individual,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = Guid.Empty,
                 UpdatedAt = DateTime.UtcNow,
@@ -228,6 +297,22 @@ namespace Odasoft.XBOL.Business.Services
             await _clientRepository.CommitAsync();
 
             return client;
+        }
+
+        private static string? ResolveFullName(ClientInfoRequest clientInfo)
+        {
+            if (!string.IsNullOrWhiteSpace(clientInfo.FullName))
+            {
+                return clientInfo.FullName.Trim();
+            }
+
+            var composed = $"{clientInfo.FirstName} {clientInfo.LastName}".Trim();
+            return string.IsNullOrWhiteSpace(composed) ? null : composed;
+        }
+
+        private static string NormalizePhoneNumber(string value)
+        {
+            return new string(value.Where(char.IsDigit).ToArray());
         }
 
         private async Task<List<Ticket>> CreateTicketsAsync(IDictionary<string, decimal> seats, long eventId, Client client)
