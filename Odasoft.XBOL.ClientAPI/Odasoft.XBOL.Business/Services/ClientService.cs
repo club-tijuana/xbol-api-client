@@ -26,12 +26,20 @@ namespace Odasoft.XBOL.Business.Services
         public async Task<ClientDTO?> GetClientByContactAsync(ClientContactRequest request)
         {
             string upperEmail = request.Email.ToUpper().Trim();
+            var normalizedRequestPhone = NormalizePhoneNumber(request.Phone);
+            if (normalizedRequestPhone.Length == 0)
+            {
+                return null;
+            }
 
-            var client = await _clientRepository.Get(
+            var normalizedRequestPhoneWithCode = AddPhoneCode(normalizedRequestPhone, request.PhoneCode);
+
+            var candidates = await _clientRepository.Get(
                     filter: client => client.PhoneNumber != null
+                    && client.FirebaseUid != null
                     && client.Email.ToUpper().Equals(upperEmail)
-                    && client.PhoneNumber.Equals(request.Phone)
                 )
+                .OrderByDescending(client => client.Id)
                 .Select(client => new ClientDTO
                 {
                     Id = client.Id,
@@ -42,9 +50,59 @@ namespace Odasoft.XBOL.Business.Services
                     PhoneNumber = client.PhoneNumber,
                     PhoneCode = client.PhoneRegionCode != null ? client.PhoneRegionCode.DialCode : string.Empty
                 })
-                .FirstOrDefaultAsync();
+                .ToListAsync();
+
+            var client = candidates.FirstOrDefault(client =>
+                PhoneNumbersMatch(
+                    client.PhoneNumber,
+                    client.PhoneCode,
+                    normalizedRequestPhone,
+                    normalizedRequestPhoneWithCode));
 
             return client;
+        }
+
+        private static bool PhoneNumbersMatch(
+            string phoneNumber,
+            string phoneCode,
+            string normalizedRequestPhone,
+            string normalizedRequestPhoneWithCode)
+        {
+            var normalizedClientPhone = NormalizePhoneNumber(phoneNumber);
+            if (normalizedClientPhone.Length == 0)
+            {
+                return false;
+            }
+
+            var normalizedClientPhoneWithCode = AddPhoneCode(normalizedClientPhone, phoneCode);
+
+            return normalizedClientPhone == normalizedRequestPhone
+                || normalizedClientPhone == normalizedRequestPhoneWithCode
+                || normalizedClientPhoneWithCode == normalizedRequestPhone
+                || normalizedClientPhoneWithCode == normalizedRequestPhoneWithCode;
+        }
+
+        private static string AddPhoneCode(string normalizedPhoneNumber, string? phoneCode)
+        {
+            var normalizedPhoneCode = NormalizePhoneNumber(phoneCode);
+            if (normalizedPhoneNumber.Length == 0
+                || normalizedPhoneCode.Length == 0
+                || normalizedPhoneNumber.StartsWith(normalizedPhoneCode))
+            {
+                return normalizedPhoneNumber;
+            }
+
+            return normalizedPhoneCode + normalizedPhoneNumber;
+        }
+
+        private static string NormalizePhoneNumber(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            return new string(value.Where(char.IsDigit).ToArray());
         }
 
         public async Task<PagedResponse<MyEventDTO>> GetMyEventsAsync(
