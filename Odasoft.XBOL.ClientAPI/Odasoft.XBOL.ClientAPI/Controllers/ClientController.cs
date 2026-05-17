@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
@@ -11,10 +13,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     public class ClientController : ControllerBase
     {
         private readonly ClientService _clientService;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public ClientController(ClientService clientService)
+        public ClientController(ClientService clientService, IClientIdentityService clientIdentityService)
         {
             _clientService = clientService;
+            _clientIdentityService = clientIdentityService;
         }
 
         /// <summary>
@@ -25,6 +29,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         /// <param name="orderType">The order type used to filter the events.</param>
         /// <returns>A paginated list of events.</returns>
         [HttpGet("my-events")]
+        [Authorize]
         [EndpointName("GetMyEventsAsync")]
         [ProducesResponseType(typeof(PagedResponse<MyEventDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<MyEventDTO>>> GetMyEventsAsync(
@@ -32,47 +37,26 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? pageSize,
             [FromQuery] OrderType orderType)
         {
-            // TODO: Remove temp token
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                long idClient = token == "TEST-TOKEN" ? 1 : 2;
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+            var result = await _clientService.GetMyEventsAsync(page, pageSize, orderType, client.Id);
 
-                var result = await _clientService.GetMyEventsAsync(page, pageSize, orderType, idClient);
-
-                return Ok(result);
-            }
-            else
-            {
-                return Unauthorized();
-            }
+            return Ok(result);
         }
 
         [HttpGet("my-event/{eventId}/{orderId}")]
+        [Authorize]
         [EndpointName("GetMyEventDetailAsync")]
         public async Task<ActionResult<MyEventDetailDTO>> GetMyEventDetailAsync(long eventId, long orderId)
         {
-            // TODO: Remove temp token
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+            var result = await _clientService.GetMyEventDetailAsync(client.Id, eventId, orderId);
+
+            if (result == null)
             {
-                var token = authHeader.Substring("Bearer ".Length);
-                long idClient = token == "TEST-TOKEN" ? 1 : 2;
-
-                var result = await _clientService.GetMyEventDetailAsync(idClient, eventId, orderId);
-
-                if (result == null)
-                {
-                    return NotFound();
-                }
-
-                return Ok(result);
+                return NotFound();
             }
-            else
-            {
-                return Unauthorized();
-            }
+
+            return Ok(result);
         }
 
         /// <summary>
@@ -92,6 +76,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         /// </param>
         /// <returns>A paginated response containing the tickets.</returns>
         [HttpGet("my-event-tickets")]
+        [Authorize]
         [EndpointName("GetMyTicketsByOrderAsync")]
         [ProducesResponseType(typeof(PagedResponse<MyTicketDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<MyTicketDTO>>> GetMyTicketsByOrderAsync(
@@ -101,21 +86,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] long orderId
         )
         {
-            // TODO: Remove temp token
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                long idClient = token == "TEST-TOKEN" ? 1 : 2;
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+            var result = await _clientService.GetMyTicketsByOrderAsync(page, pageSize, eventId, orderId, client.Id);
 
-                var result = await _clientService.GetMyTicketsByOrderAsync(page, pageSize, eventId, orderId, idClient);
-
-                return Ok(result);
-            }
-            else
-            {
-                return Unauthorized();
-            }
+            return Ok(result);
         }
     }
 }
