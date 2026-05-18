@@ -77,11 +77,6 @@ public sealed class ClientIdentityService(
         var fullName = NormalizeRequired(request.FullName, nameof(RegisterRequest.FullName));
         var suppliedPhone = NormalizeOptionalClaim(request.PhoneNumber);
 
-        if (!string.IsNullOrWhiteSpace(request.ClaimToken))
-        {
-            throw ClaimTokenLinkingUnsupported();
-        }
-
         var firebaseRegistration = await passwordAuthClient.SignUpAsync(email, password, cancellationToken);
         var firebasePhoneNumber = ToFirebasePhoneNumber(suppliedPhone);
 
@@ -144,13 +139,6 @@ public sealed class ClientIdentityService(
             await tenantAuth.DeleteUserAsync(firebaseRegistration.FirebaseUid, cleanupCancellation.Token);
             throw;
         }
-    }
-
-    public Task<RegisterResponse> ClaimCurrentClientAsync(ClaimsPrincipal principal, ClaimClientRequest request)
-    {
-        _ = request;
-        _ = GetFirebaseIdentity(principal);
-        throw ClaimTokenLinkingUnsupported();
     }
 
     private static AuthenticatedClientIdentity GetFirebaseIdentity(ClaimsPrincipal principal)
@@ -241,11 +229,4 @@ public sealed class ClientIdentityService(
         return identity.EmailVerified ? "verified" : "pending";
     }
 
-    private static ClientAuthException ClaimTokenLinkingUnsupported()
-    {
-        return new ClientAuthException(
-            "Claim-token client linking is not supported in this auth-only registration flow.",
-            StatusCodes.Status400BadRequest,
-            ClientAuthProblemCodes.ClaimTokenInvalid);
-    }
 }

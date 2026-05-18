@@ -14,6 +14,4 @@ public interface IClientIdentityService
     Task<AuthMeResponse> GetMeAsync(ClaimsPrincipal principal);
 
     Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
-
-    Task<RegisterResponse> ClaimCurrentClientAsync(ClaimsPrincipal principal, ClaimClientRequest request);
 }

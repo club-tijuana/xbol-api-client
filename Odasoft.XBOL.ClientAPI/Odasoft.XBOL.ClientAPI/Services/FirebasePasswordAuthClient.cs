@@ -62,9 +62,7 @@ public sealed class FirebasePasswordAuthClient(
 
         return new FirebasePasswordAuthResult(
             result.LocalId,
-            result.IdToken,
-            result.Email,
-            result.RefreshToken);
+            result.Email);
     }
 
     private static ClientAuthException BuildException(HttpStatusCode statusCode, string content)
@@ -101,8 +99,7 @@ public sealed class FirebasePasswordAuthClient(
     private sealed record FirebasePasswordAuthResponse(
         string LocalId,
         string IdToken,
-        string? Email,
-        string? RefreshToken);
+        string? Email);
 
     private sealed record FirebasePasswordAuthErrorResponse(FirebasePasswordAuthError? Error);
 

@@ -28,7 +28,6 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.ConfigureOptions();
 builder.Services.ConfigureFirebaseAdmin();
-builder.Services.ConfigureDataProtection();
 builder.Services.ConfigureAuth(builder.Configuration);
 
 builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>

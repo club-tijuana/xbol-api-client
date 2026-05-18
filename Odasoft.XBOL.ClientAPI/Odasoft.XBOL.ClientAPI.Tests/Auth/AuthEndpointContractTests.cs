@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using FirebaseAdmin;
@@ -148,25 +147,6 @@ public sealed class AuthEndpointContractTests
         await AssertProblemCodeAsync(response, HttpStatusCode.Forbidden, "verification_required");
     }
 
-    [Fact]
-    public async Task Claim_client_returns_claim_token_invalid_problem_code()
-    {
-        await using var factory = new AuthEndpointFactory(
-            new ThrowingIdentityService(new ClientAuthException(
-                "Claim-token client linking is not supported in this auth-only registration flow.",
-                StatusCodes.Status400BadRequest,
-                ClientAuthProblemCodes.ClaimTokenInvalid)));
-        using var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "test-token");
-
-        using var response = await client.PostAsJsonAsync("/api/auth/claim-client", new
-        {
-            claimToken = "claim-token"
-        });
-
-        await AssertProblemCodeAsync(response, HttpStatusCode.BadRequest, "claim_token_invalid");
-    }
-
     private static async Task AssertProblemCodeAsync(
         HttpResponseMessage response,
         HttpStatusCode statusCode,
@@ -265,9 +245,9 @@ public sealed class AuthEndpointContractTests
                 PhoneNumber = "+526641234567",
                 SignInProvider = "password",
                 Client = Client,
-                OnboardingStatus = "linked"
+                OnboardingStatus = "linked",
+                VerificationStatus = "pending"
             };
-            SetOptionalProperty(response, "VerificationStatus", "pending");
             return Task.FromResult(response);
         }
 
@@ -277,23 +257,10 @@ public sealed class AuthEndpointContractTests
             {
                 FirebaseUid = "firebase-route",
                 Client = Client,
-                OnboardingStatus = "linked"
+                CustomToken = "custom-route-token",
+                OnboardingStatus = "linked",
+                VerificationStatus = "pending"
             };
-            SetOptionalProperty(response, "CustomToken", "custom-route-token");
-            SetOptionalProperty(response, "IdToken", "custom-route-token");
-            SetOptionalProperty(response, "VerificationStatus", "pending");
-            return Task.FromResult(response);
-        }
-
-        public Task<RegisterResponse> ClaimCurrentClientAsync(ClaimsPrincipal principal, ClaimClientRequest request)
-        {
-            var response = new RegisterResponse
-            {
-                FirebaseUid = "firebase-route",
-                Client = Client,
-                OnboardingStatus = "linked"
-            };
-            SetOptionalProperty(response, "VerificationStatus", "verified");
             return Task.FromResult(response);
         }
 
@@ -306,13 +273,6 @@ public sealed class AuthEndpointContractTests
             PhoneNumber = "+526641234567",
             PhoneCode = "+52"
         };
-
-        private static void SetOptionalProperty(object target, string propertyName, object? value)
-        {
-            target.GetType()
-                .GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public)
-                ?.SetValue(target, value);
-        }
     }
 
     private sealed class ThrowingIdentityService(ClientAuthException exception) : IClientIdentityService
@@ -337,9 +297,5 @@ public sealed class AuthEndpointContractTests
             throw exception;
         }
 
-        public Task<RegisterResponse> ClaimCurrentClientAsync(ClaimsPrincipal principal, ClaimClientRequest request)
-        {
-            throw exception;
-        }
     }
 }

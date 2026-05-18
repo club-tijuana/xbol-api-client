@@ -31,11 +31,4 @@ public class AuthController(IClientIdentityService clientIdentityService) : Cont
         return Ok(await clientIdentityService.GetMeAsync(User));
     }
 
-    [Authorize]
-    [HttpPost("claim-client")]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<RegisterResponse>> ClaimClientAsync([FromBody] ClaimClientRequest request)
-    {
-        return Ok(await clientIdentityService.ClaimCurrentClientAsync(User, request));
-    }
 }

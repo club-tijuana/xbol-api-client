@@ -41,7 +41,6 @@ namespace Odasoft.XBOL.Models
         public Guid UpdatedBy { get; set; }
 
         public string? FirebaseUid { get; set; }
-        public DateTimeOffset? RefreshTokensRevokedAt { get; set; }
 
         public DateTimeOffset? LastLogin { get; set; }
 

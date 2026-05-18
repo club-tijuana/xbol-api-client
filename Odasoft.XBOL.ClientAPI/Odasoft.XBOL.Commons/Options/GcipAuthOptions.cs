@@ -27,7 +27,4 @@ public sealed class GcipAuthOptions
 
     [Description("Firebase service account JSON content.")]
     public string? ServiceAccountJson { get; init; }
-
-    [Description("Enable linking client identities by Firebase phone_number claims. Leave disabled until phone login is released.")]
-    public bool EnablePhoneIdentityLinking { get; init; }
 }

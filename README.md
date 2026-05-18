@@ -56,9 +56,7 @@ dotnet user-secrets list --project Odasoft.XBOL.ClientAPI/Odasoft.XBOL.ClientAPI
 
 ### Client Authentication Contract
 
-Client applications authenticate against the Firebase client tenant and call this API with a Firebase ID token in the `Authorization: Bearer ***` header. The API verifies bearer tokens with Firebase Admin SDK and resolves the authenticated buyer through `Client.FirebaseUid`.
-
-This API does not expose a password login endpoint. `POST /api/auth/register` is API-owned because registration creates the local `Client` profile for the Firebase client-tenant user. Domain-specific onboarding links and unclaimed-client claiming are out of scope for this auth-only slice. Login/session UX belongs to the client application; SSR/session-cookie support is tracked separately in bead `client-app-1ac`.
+Client applications authenticate against the Firebase client tenant and call this API with a Firebase ID token in the `Authorization: Bearer ***` header. The API verifies bearer tokens with Firebase Admin SDK and resolves the authenticated buyer through `Client.FirebaseUid`. This API does not expose a password login endpoint. `POST /api/auth/register` is API-owned because registration creates the local `Client` profile for the Firebase client-tenant user.
 
 ## Deployment
 

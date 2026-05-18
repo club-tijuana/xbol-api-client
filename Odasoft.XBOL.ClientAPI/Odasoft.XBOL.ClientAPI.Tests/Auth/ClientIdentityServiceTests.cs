@@ -1,9 +1,7 @@
 using System.Security.Claims;
 using System.Reflection;
-using System.Text.Json;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.ClientAPI.Auth;
@@ -38,7 +36,6 @@ public sealed class ClientIdentityServiceTests
         Assert.Equal("custom-token", response.CustomToken);
         Assert.Equal("linked", response.OnboardingStatus);
         Assert.Equal("pending", response.VerificationStatus);
-        Assert.DoesNotContain(response.GetType().GetProperties(), p => p.Name == "IdToken");
         Assert.Equal("firebase-123", response.Client.UserId);
         Assert.Equal("Client Name", response.Client.FullName);
         Assert.Equal("client@example.com", response.Client.Email);
@@ -74,33 +71,6 @@ public sealed class ClientIdentityServiceTests
         Assert.Equal("firebase-no-phone", response.Client.UserId);
         Assert.Equal(string.Empty, response.Client.PhoneNumber);
         Assert.Equal(string.Empty, (await db.Context.Clients.SingleAsync()).PhoneNumber);
-    }
-
-    [Fact]
-    public async Task RegisterAsync_rejects_claim_token_without_creating_firebase_user()
-    {
-        await using var db = await TestAuthDatabase.CreateAsync();
-        var unclaimed = await db.InsertClientAsync("claim@example.com", "+526641111111", "Claimed Name");
-        var firebasePassword = new FakeFirebasePasswordAuthClient("firebase-claim", "claim@example.com");
-        var firebaseTenant = new FakeFirebaseTenantAuthClient("unused-token");
-        var service = db.CreateService(firebasePassword, firebaseTenant);
-
-        var exception = await Assert.ThrowsAsync<ClientAuthException>(() => service.RegisterAsync(new RegisterRequest
-        {
-            Email = "claim@example.com",
-            Password = "Password123!",
-            FullName = "Claimed Name",
-            PhoneNumber = "+526641111111",
-            ClaimToken = db.CreateClaimToken(unclaimed.Id, TimeSpan.FromMinutes(5))
-        }, CancellationToken.None));
-
-        Assert.Equal(StatusCodes.Status400BadRequest, exception.StatusCode);
-        Assert.Equal(ClientAuthProblemCodes.ClaimTokenInvalid, exception.Code);
-        Assert.Equal(0, firebasePassword.SignUpCalls);
-        Assert.Empty(firebaseTenant.DeletedUsers);
-        var client = await db.Context.Clients.SingleAsync();
-        Assert.Null(client.FirebaseUid);
-        Assert.Equal("+526641111111", client.PhoneNumber);
     }
 
     [Fact]
@@ -341,38 +311,6 @@ public sealed class ClientIdentityServiceTests
     }
 
     [Fact]
-    public async Task ClaimCurrentClientAsync_rejects_claim_token_without_mutating_client()
-    {
-        await using var db = await TestAuthDatabase.CreateAsync();
-        var unclaimed = await db.InsertClientAsync("ticket@example.com", "+526641111111", "Ticket Owner");
-        var service = db.CreateService();
-
-        var exception = await Assert.ThrowsAsync<ClientAuthException>(() => service.ClaimCurrentClientAsync(
-            CreatePrincipal("firebase-linked", emailVerified: true),
-            new ClaimClientRequest { ClaimToken = db.CreateClaimToken(unclaimed.Id, TimeSpan.FromMinutes(5)) }));
-
-        Assert.Equal(StatusCodes.Status400BadRequest, exception.StatusCode);
-        Assert.Equal(ClientAuthProblemCodes.ClaimTokenInvalid, exception.Code);
-        Assert.Equal(1, await db.Context.Clients.CountAsync());
-        Assert.Null((await db.Context.Clients.SingleAsync()).FirebaseUid);
-    }
-
-    [Fact]
-    public async Task ClaimCurrentClientAsync_rejects_invalid_claim_token()
-    {
-        await using var db = await TestAuthDatabase.CreateAsync();
-        var service = db.CreateService();
-
-        var exception = await Assert.ThrowsAsync<ClientAuthException>(() => service.ClaimCurrentClientAsync(
-            CreatePrincipal("firebase-invalid", emailVerified: true),
-            new ClaimClientRequest { ClaimToken = "not-a-valid-claim-token" }));
-
-        Assert.Equal(StatusCodes.Status400BadRequest, exception.StatusCode);
-        Assert.Equal(ClientAuthProblemCodes.ClaimTokenInvalid, exception.Code);
-        Assert.Empty(await db.Context.Clients.ToListAsync());
-    }
-
-    [Fact]
     public async Task RequireCurrentClientAsync_rejects_unlinked_identity_with_problem_code()
     {
         await using var db = await TestAuthDatabase.CreateAsync();
@@ -442,9 +380,7 @@ public sealed class ClientIdentityServiceTests
             SignUpCalls++;
             return Task.FromResult(new FirebasePasswordAuthResult(
                 firebaseUid,
-                "rest-id-token",
-                firebaseEmail,
-                "refresh-token"));
+                firebaseEmail));
         }
     }
 
@@ -503,19 +439,14 @@ public sealed class ClientIdentityServiceTests
 
     private sealed class TestAuthDatabase : IAsyncDisposable
     {
-        private const string ClientClaimTokenPurpose = "Odasoft.XBOL.ClientAPI.Auth.ClientClaimToken";
-
         private readonly SqliteConnection connection;
-        private readonly IDataProtectionProvider dataProtectionProvider;
 
         private TestAuthDatabase(
             SqliteConnection connection,
-            XBOLDbContext context,
-            IDataProtectionProvider dataProtectionProvider)
+            XBOLDbContext context)
         {
             this.connection = connection;
             Context = context;
-            this.dataProtectionProvider = dataProtectionProvider;
         }
 
         public XBOLDbContext Context { get; }
@@ -529,10 +460,8 @@ public sealed class ClientIdentityServiceTests
                 .Options;
             var context = new XBOLDbContext(options);
             await context.Database.EnsureCreatedAsync();
-            var dataProtectionProvider = DataProtectionProvider.Create(
-                new DirectoryInfo(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
 
-            return new TestAuthDatabase(connection, context, dataProtectionProvider);
+            return new TestAuthDatabase(connection, context);
         }
 
         public ClientIdentityService CreateService(
@@ -563,19 +492,6 @@ public sealed class ClientIdentityServiceTests
             Context.Clients.Add(client);
             await Context.SaveChangesAsync();
             return client;
-        }
-
-        public string CreateClaimToken(long clientId, TimeSpan lifetime)
-        {
-            var payload = JsonSerializer.Serialize(new
-            {
-                clientId,
-                expiresAtUtc = DateTimeOffset.UtcNow.Add(lifetime)
-            });
-
-            return dataProtectionProvider
-                .CreateProtector(ClientClaimTokenPurpose)
-                .Protect(payload);
         }
 
         public async ValueTask DisposeAsync()
