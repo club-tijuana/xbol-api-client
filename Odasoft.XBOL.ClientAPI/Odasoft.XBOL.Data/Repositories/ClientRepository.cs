@@ -22,7 +22,8 @@ namespace Odasoft.XBOL.Data.Repositories
 
             return DbContext.Set<Client>()
                 .Include(x => x.PhoneRegionCode)
-                .OrderByDescending(x => x.Id)
+                .OrderByDescending(x => x.FirebaseUid != null)
+                .ThenByDescending(x => x.Id)
                 .FirstOrDefaultAsync(x =>
                     x.PhoneNumber != null
                     && (x.PhoneNumber

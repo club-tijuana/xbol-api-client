@@ -61,6 +61,42 @@ public sealed class OrderServiceClientContactTests
     }
 
     [Fact]
+    public async Task Order_contact_upsert_prefers_linked_client_when_phone_matches_duplicates()
+    {
+        await using var db = await TestOrderDatabase.CreateAsync();
+        var linked = await db.InsertClientAsync(
+            email: "linked@example.com",
+            phoneNumber: "+526641234567",
+            fullName: "Linked Client",
+            firebaseUid: "firebase-linked");
+        var unclaimed = await db.InsertClientAsync(
+            email: string.Empty,
+            phoneNumber: "526641234567",
+            fullName: "Unclaimed Client",
+            firebaseUid: null);
+        var service = db.CreateOrderService();
+
+        var client = await InvokeUpsertClientFromOrderContactAsync(service, new ClientInfoRequest
+        {
+            PhoneNumber = "(526) 641-234-567",
+            FullName = "Box Office Update"
+        });
+
+        Assert.Equal(linked.Id, client.Id);
+        Assert.Equal(2, await db.Context.Clients.CountAsync());
+
+        var storedLinked = await db.Context.Clients.SingleAsync(client => client.Id == linked.Id);
+        Assert.Equal("firebase-linked", storedLinked.FirebaseUid);
+        Assert.Equal("Box Office Update", storedLinked.FullName);
+        Assert.Equal("+526641234567", storedLinked.PhoneNumber);
+
+        var storedUnclaimed = await db.Context.Clients.SingleAsync(client => client.Id == unclaimed.Id);
+        Assert.Null(storedUnclaimed.FirebaseUid);
+        Assert.Equal("Unclaimed Client", storedUnclaimed.FullName);
+        Assert.Equal("526641234567", storedUnclaimed.PhoneNumber);
+    }
+
+    [Fact]
     public async Task Order_contact_upsert_prefers_linked_client_when_email_matches_duplicates()
     {
         await using var db = await TestOrderDatabase.CreateAsync();
