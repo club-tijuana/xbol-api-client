@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Business.Exceptions;
+using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
@@ -9,11 +10,13 @@ namespace Odasoft.XBOL.Business.Services
     public class TicketService
     {
         private readonly TicketRepository _ticketRepository;
+        private readonly MediaRepository _mediaRepository;
         private readonly ClientService _clientService;
 
-        public TicketService(TicketRepository ticketRepository, ClientService clientService)
+        public TicketService(TicketRepository ticketRepository, MediaRepository mediaRepository, ClientService clientService)
         {
             _ticketRepository = ticketRepository;
+            _mediaRepository = mediaRepository;
             _clientService = clientService;
         }
 
@@ -42,7 +45,6 @@ namespace Odasoft.XBOL.Business.Services
                     "EventSeat",
                     "EventSeat.BaseSeat",
                     "EventSeat.BaseSeat.BaseRow",
-                    "EventSchedule.Event.EventImages"
                 ])
                 .FirstOrDefaultAsync();
 
@@ -76,7 +78,14 @@ namespace Odasoft.XBOL.Business.Services
                 await _ticketRepository.UpdateAsync(ticket);
             }
 
-            var poster = ticket.EventSchedule.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).FirstOrDefault();
+            var banner = _mediaRepository
+                .Get(m =>
+                    m.ReferenceId == ticket.EventSchedule.EventId &&
+                    m.ReferenceType == ClientSaleType.Event &&
+                    m.MediaType == ClientMediaType.Banner &&
+                    m.DeletedAt == null
+                )
+                .FirstOrDefault();
             var legacyPoster = ticket.EventSchedule.Event.PosterImageUrl;
 
             return new MyTicketDTO
@@ -85,8 +94,8 @@ namespace Odasoft.XBOL.Business.Services
                 Name = ticket.EventSchedule.Event.Name,
                 Location = ticket.EventSchedule.Event.VenueMap.Name,
                 StartDate = ticket.EventSchedule.StartDateTime,
-                EventImage = poster != null
-                    ? $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}"
+                EventImage = banner != null && banner.Url != null
+                    ? banner.Url
                     : legacyPoster ?? string.Empty,
                 Code = ticket.TicketCode,
                 Section = ticket.EventSection.BaseSection.Name,
