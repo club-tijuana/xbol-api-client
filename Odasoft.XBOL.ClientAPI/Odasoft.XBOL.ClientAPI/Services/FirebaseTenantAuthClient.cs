@@ -5,15 +5,9 @@ namespace Odasoft.XBOL.ClientAPI.Services;
 
 public sealed class FirebaseTenantAuthClient(TenantAwareFirebaseAuth tenantAuth) : IFirebaseTenantAuthClient
 {
-    public Task UpdateUserAsync(FirebaseClientUserUpdate update, CancellationToken cancellationToken)
+    public Task<UserRecord> CreateUserAsync(UserRecordArgs user, CancellationToken cancellationToken)
     {
-        return tenantAuth.UpdateUserAsync(new UserRecordArgs
-        {
-            Uid = update.FirebaseUid,
-            DisplayName = update.DisplayName,
-            PhoneNumber = update.PhoneNumber,
-            Disabled = update.Disabled
-        }, cancellationToken);
+        return tenantAuth.CreateUserAsync(user, cancellationToken);
     }
 
     public Task DeleteUserAsync(string firebaseUid, CancellationToken cancellationToken)

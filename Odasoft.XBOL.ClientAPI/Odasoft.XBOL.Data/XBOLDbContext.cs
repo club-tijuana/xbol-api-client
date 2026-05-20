@@ -70,21 +70,7 @@ namespace Odasoft.XBOL.Data
 
             modelBuilder.RemovePluralizingTableNameConvention();
 
-            modelBuilder.Entity<User>(b =>
-            {
-                b.HasKey(u => u.Id);
-                b.HasIndex(u => u.NormalizedUserName).HasDatabaseName("IX_User_NormalizedUserName");
-                b.HasIndex(u => u.NormalizedEmail).HasDatabaseName("IX_User_NormalizedEmail");
-            });
-
-            modelBuilder.Entity<Role>(b =>
-            {
-                b.HasKey(r => r.Id);
-                b.HasIndex(r => r.NormalizedName).HasDatabaseName("IX_Role_NormalizedName");
-            });
-
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
-            modelBuilder.ApplyConfiguration(new ClientConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfiguration(new EventConfiguration());
         }

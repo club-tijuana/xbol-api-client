@@ -8,10 +8,6 @@ namespace Odasoft.XBOL.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<User> builder)
         {
-            builder.HasIndex(x => x.FirebaseUid)
-                   .IsUnique()
-                   .HasFilter("\"FirebaseUid\" IS NOT NULL");
-
             builder.HasOne(x => x.OrganizerMember)
                    .WithOne(x => x.User)
                    .HasForeignKey<OrganizerMember>(x => x.UserId);

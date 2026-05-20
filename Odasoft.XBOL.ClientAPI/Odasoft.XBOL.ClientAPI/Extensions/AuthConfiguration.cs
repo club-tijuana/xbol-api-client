@@ -20,7 +20,6 @@ public static class AuthConfiguration
             var authOptions = sp.GetRequiredService<IOptions<GcipAuthOptions>>().Value;
             return sp.GetRequiredService<FirebaseAuth>().TenantManager.AuthForTenant(authOptions.TenantId);
         });
-        services.AddSingleton<IClientFirebaseTokenVerifier, FirebaseAdminClientTokenVerifier>();
 
         services.AddSingleton<IFirebaseTenantAuthClient, FirebaseTenantAuthClient>();
         services.AddScoped<IClientIdentityService, ClientIdentityService>();

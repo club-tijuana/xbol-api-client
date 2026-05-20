@@ -1,7 +1,6 @@
 <Solution>
   <Project Path="Odasoft.XBOL.Business/Odasoft.XBOL.Business.csproj" />
   <Project Path="Odasoft.XBOL.ClientAPI/Odasoft.XBOL.ClientAPI.csproj" />
-  <Project Path="Odasoft.XBOL.ClientAPI.Tests/Odasoft.XBOL.ClientAPI.Tests.csproj" />
   <Project Path="Odasoft.XBOL.Commons/Odasoft.XBOL.Commons.csproj" Id="5565c7d0-a01c-4078-926a-74406705f4c7" />
   <Project Path="Odasoft.XBOL.Data/Odasoft.XBOL.Data.csproj" />
   <Project Path="Odasoft.XBOL.DTO/Odasoft.XBOL.DTO.csproj" Id="88d5a450-5bd6-45e6-9718-a9f3bd419f5d" />

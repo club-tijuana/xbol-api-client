@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using FirebaseAdmin;
+using FirebaseAdmin.Auth;
 using Odasoft.XBOL.ClientAPI.Auth;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Data.Repositories;
@@ -11,8 +13,7 @@ namespace Odasoft.XBOL.ClientAPI.Services;
 
 public sealed class ClientIdentityService(
     ClientRepository clientRepository,
-    IFirebaseTenantAuthClient tenantAuth,
-    IFirebasePasswordAuthClient passwordAuthClient) : IClientIdentityService
+    IFirebaseTenantAuthClient tenantAuth) : IClientIdentityService
 {
     public async Task<ClientDTO?> TryResolveCurrentClientAsync(ClaimsPrincipal principal)
     {
@@ -71,38 +72,32 @@ public sealed class ClientIdentityService(
     public async Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         var email = NormalizeRequired(request.Email, nameof(RegisterRequest.Email));
-        var password = NormalizeRequired(request.Password, nameof(RegisterRequest.Password));
+        var password = ValidateRequiredPassword(request.Password, nameof(RegisterRequest.Password));
         var fullName = NormalizeRequired(request.FullName, nameof(RegisterRequest.FullName));
         var suppliedPhone = NormalizeOptionalClaim(request.PhoneNumber);
 
-        var firebaseRegistration = await passwordAuthClient.SignUpAsync(email, password, cancellationToken);
+        var firebaseUser = await CreateFirebaseUserAsync(email, password, fullName, cancellationToken);
 
         try
         {
-            await tenantAuth.UpdateUserAsync(new FirebaseClientUserUpdate(
-                firebaseRegistration.FirebaseUid,
-                fullName,
-                PhoneNumber: null,
-                Disabled: false), cancellationToken);
-
             var identity = new AuthenticatedClientIdentity(
-                firebaseRegistration.FirebaseUid,
-                firebaseRegistration.Email,
-                false,
-                fullName,
+                firebaseUser.Uid,
+                firebaseUser.Email,
+                firebaseUser.EmailVerified,
+                firebaseUser.DisplayName,
                 suppliedPhone,
                 "password");
 
             var customToken = await tenantAuth.CreateCustomTokenAsync(
-                firebaseRegistration.FirebaseUid,
+                firebaseUser.Uid,
                 cancellationToken);
 
             var client = new Client
             {
-                FirebaseUid = firebaseRegistration.FirebaseUid,
-                Email = email,
+                FirebaseUid = firebaseUser.Uid,
+                Email = firebaseUser.Email ?? email,
                 PhoneNumber = suppliedPhone ?? string.Empty,
-                FullName = fullName,
+                FullName = firebaseUser.DisplayName ?? fullName,
                 ClientType = ClientType.Individual,
                 IsActive = true,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -116,7 +111,7 @@ public sealed class ClientIdentityService(
 
             return new RegisterResponse
             {
-                FirebaseUid = firebaseRegistration.FirebaseUid,
+                FirebaseUid = firebaseUser.Uid,
                 CustomToken = customToken,
                 Client = ToDto(client),
                 OnboardingStatus = "linked",
@@ -126,7 +121,35 @@ public sealed class ClientIdentityService(
         catch
         {
             using var cleanupCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await tenantAuth.DeleteUserAsync(firebaseRegistration.FirebaseUid, cleanupCancellation.Token);
+            await tenantAuth.DeleteUserAsync(firebaseUser.Uid, cleanupCancellation.Token);
+            throw;
+        }
+    }
+
+    private async Task<UserRecord> CreateFirebaseUserAsync(
+        string email,
+        string password,
+        string fullName,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await tenantAuth.CreateUserAsync(new UserRecordArgs
+            {
+                Email = email,
+                Password = password,
+                DisplayName = fullName,
+                EmailVerified = false,
+                Disabled = false
+            }, cancellationToken);
+        }
+        catch (FirebaseAuthException ex)
+        {
+            if (TryMapFirebaseRegistrationException(ex, out var authException))
+            {
+                throw authException;
+            }
+
             throw;
         }
     }
@@ -174,6 +197,19 @@ public sealed class ClientIdentityService(
         return value.Trim();
     }
 
+    private static string ValidateRequiredPassword(string? value, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ClientAuthException(
+                $"{fieldName} is required.",
+                StatusCodes.Status400BadRequest,
+                ClientAuthProblemCodes.InvalidRegistration);
+        }
+
+        return value;
+    }
+
     private static ClientDTO ToDto(Client client)
     {
         return new ClientDTO
@@ -198,4 +234,30 @@ public sealed class ClientIdentityService(
         return identity.EmailVerified ? "verified" : "pending";
     }
 
+    private static bool TryMapFirebaseRegistrationException(
+        FirebaseAuthException exception,
+        out ClientAuthException authException)
+    {
+        switch (exception.AuthErrorCode)
+        {
+            case AuthErrorCode.EmailAlreadyExists:
+                authException = new ClientAuthException(
+                    "Email is already in use.",
+                    StatusCodes.Status409Conflict,
+                    ClientAuthProblemCodes.FirebaseEmailExists);
+                return true;
+        }
+
+        if (exception.ErrorCode == ErrorCode.InvalidArgument)
+        {
+            authException = new ClientAuthException(
+                "Firebase rejected one or more registration fields.",
+                StatusCodes.Status400BadRequest,
+                ClientAuthProblemCodes.InvalidRegistration);
+            return true;
+        }
+
+        authException = null!;
+        return false;
+    }
 }

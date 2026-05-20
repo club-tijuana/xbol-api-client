@@ -93,7 +93,7 @@ Runtime configuration is stored in GCP Secret Manager. Each environment has a de
 | Secret                       | Contents                                                                       |
 | ---------------------------- | ------------------------------------------------------------------------------ |
 | `dev-xbol-db-secret`         | PostgreSQL credentials (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`) |
-| `dev-xbol-api-client-secret` | App configuration (connection string, CORS origins, GCIP key)                  |
+| `dev-xbol-api-client-secret` | App configuration (connection string, CORS origins, Firebase service account) |
 
 The app secret stores environment variables using ASP.NET's `__` (double underscore) convention for nested config and array indices:
 

@@ -1,8 +1,10 @@
+using FirebaseAdmin.Auth;
+
 namespace Odasoft.XBOL.ClientAPI.Services;
 
 public interface IFirebaseTenantAuthClient
 {
-    Task UpdateUserAsync(FirebaseClientUserUpdate update, CancellationToken cancellationToken);
+    Task<UserRecord> CreateUserAsync(UserRecordArgs user, CancellationToken cancellationToken);
 
     Task DeleteUserAsync(string firebaseUid, CancellationToken cancellationToken);
 

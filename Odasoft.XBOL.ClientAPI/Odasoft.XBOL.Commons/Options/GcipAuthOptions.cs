@@ -17,11 +17,6 @@ public sealed class GcipAuthOptions
     [Description("Firebase project ID.")]
     public string ProjectId { get; init; } = string.Empty;
 
-    [Required]
-    [MinLength(1)]
-    [Description("Firebase Web API key used for client-tenant email/password auth API calls.")]
-    public string ApiKey { get; init; } = string.Empty;
-
     [Description("Path to a Firebase service account JSON file.")]
     public string? ServiceAccountJsonPath { get; init; }
 

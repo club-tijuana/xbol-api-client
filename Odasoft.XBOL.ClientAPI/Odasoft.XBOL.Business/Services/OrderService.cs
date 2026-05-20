@@ -198,6 +198,8 @@ namespace Odasoft.XBOL.Business.Services
 
         private async Task<Client> UpsertClientFromOrderContactAsync(ClientInfoRequest clientInfo)
         {
+            EnsureUsableContact(clientInfo);
+
             var effectiveFullName = ResolveFullName(clientInfo);
 
             var client = await FindClientByContactAsync(clientInfo);
@@ -215,6 +217,18 @@ namespace Odasoft.XBOL.Business.Services
 
             client = await CreateClientAsync(clientInfo, effectiveFullName);
             return client;
+        }
+
+        private static void EnsureUsableContact(ClientInfoRequest clientInfo)
+        {
+            var hasEmail = !string.IsNullOrWhiteSpace(clientInfo.Email);
+            var hasPhone = !string.IsNullOrWhiteSpace(clientInfo.PhoneNumber)
+                && NormalizePhoneNumber(clientInfo.PhoneNumber).Length > 0;
+
+            if (!hasEmail && !hasPhone)
+            {
+                throw new InvalidOperationException("Client email or phone number must be provided.");
+            }
         }
 
         private async Task<Client?> FindClientByContactAsync(ClientInfoRequest clientInfo)

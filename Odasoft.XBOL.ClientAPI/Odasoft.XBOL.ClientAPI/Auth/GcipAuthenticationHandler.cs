@@ -1,7 +1,8 @@
+using System.Net.Http.Headers;
 using System.Security.Claims;
-using System.Text.Json;
 using System.Text.Encodings.Web;
 using FirebaseAdmin.Auth;
+using FirebaseAdmin.Auth.Multitenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -17,41 +18,40 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
     public const string EmailVerifiedClaimType = "firebase.email_verified";
     public const string SignInProviderClaimType = "firebase.sign_in_provider";
 
-    private readonly IClientFirebaseTokenVerifier _tokenVerifier;
+    private readonly TenantAwareFirebaseAuth _tenantAuth;
 
     public GcipAuthenticationHandler(
         IOptionsMonitor<GcipAuthenticationOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IClientFirebaseTokenVerifier tokenVerifier)
+        TenantAwareFirebaseAuth tenantAuth)
         : base(options, logger, encoder)
     {
-        _tokenVerifier = tokenVerifier;
+        _tenantAuth = tenantAuth;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var authorization = Request.Headers.Authorization.ToString();
-        if (string.IsNullOrWhiteSpace(authorization))
+        if (!AuthenticationHeaderValue.TryParse(Request.Headers.Authorization, out var authorization))
         {
             return AuthenticateResult.NoResult();
         }
 
-        if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(authorization.Scheme, SchemeName, StringComparison.OrdinalIgnoreCase))
         {
             return AuthenticateResult.NoResult();
         }
 
-        var token = authorization["Bearer ".Length..].Trim();
+        var token = authorization.Parameter;
         if (string.IsNullOrWhiteSpace(token))
         {
             return AuthenticateResult.Fail("Authorization header with Bearer scheme requires a token value.");
         }
 
-        VerifiedFirebaseClientToken decoded;
+        FirebaseToken decoded;
         try
         {
-            decoded = await _tokenVerifier.VerifyIdTokenAsync(token, Context.RequestAborted);
+            decoded = await _tenantAuth.VerifyIdTokenAsync(token, Context.RequestAborted);
         }
         catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.TenantIdMismatch)
         {
@@ -62,7 +62,7 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
             return AuthenticateResult.Fail($"Firebase ID token verification failed: {ex.Message}");
         }
 
-        var claims = BuildClaims(decoded, token);
+        var claims = BuildClaims(decoded);
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, Scheme.Name);
@@ -86,7 +86,7 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
         await Response.WriteAsJsonAsync(problem);
     }
 
-    private static List<Claim> BuildClaims(VerifiedFirebaseClientToken token, string rawToken)
+    private static List<Claim> BuildClaims(FirebaseToken token)
     {
         var claims = new List<Claim>
         {
@@ -119,9 +119,8 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
             claims.Add(new Claim(ClaimTypes.MobilePhone, phoneNumberString));
         }
 
-        if ((token.Claims.TryGetValue("firebase", out var firebase)
+        if (token.Claims.TryGetValue("firebase", out var firebase)
             && TryReadSignInProvider(firebase, out var signInProviderString))
-            || TryReadSignInProvider(rawToken, out signInProviderString))
         {
             claims.Add(new Claim(SignInProviderClaimType, signInProviderString));
         }
@@ -133,7 +132,7 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
     {
         signInProvider = string.Empty;
 
-        if (firebaseClaim is IDictionary<string, object> firebaseClaims
+        if (firebaseClaim is IReadOnlyDictionary<string, object> firebaseClaims
             && firebaseClaims.TryGetValue("sign_in_provider", out var value)
             && value is string stringValue)
         {
@@ -141,59 +140,6 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
             return true;
         }
 
-        if (firebaseClaim is JsonElement { ValueKind: JsonValueKind.Object } json
-            && json.TryGetProperty("sign_in_provider", out var signInProviderProperty)
-            && signInProviderProperty.ValueKind == JsonValueKind.String)
-        {
-            signInProvider = signInProviderProperty.GetString() ?? string.Empty;
-            return !string.IsNullOrWhiteSpace(signInProvider);
-        }
-
         return false;
-    }
-
-    private static bool TryReadSignInProvider(string rawToken, out string signInProvider)
-    {
-        signInProvider = string.Empty;
-        var parts = rawToken.Split('.');
-        if (parts.Length < 2)
-        {
-            return false;
-        }
-
-        try
-        {
-            var payload = Base64UrlDecode(parts[1]);
-            using var json = JsonDocument.Parse(payload);
-            if (json.RootElement.TryGetProperty("firebase", out var firebase)
-                && firebase.TryGetProperty("sign_in_provider", out var provider)
-                && provider.ValueKind == JsonValueKind.String)
-            {
-                signInProvider = provider.GetString() ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(signInProvider);
-            }
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-
-        return false;
-    }
-
-    private static byte[] Base64UrlDecode(string value)
-    {
-        var base64 = value.Replace('-', '+').Replace('_', '/');
-        var padding = base64.Length % 4;
-        if (padding > 0)
-        {
-            base64 = base64.PadRight(base64.Length + 4 - padding, '=');
-        }
-
-        return Convert.FromBase64String(base64);
     }
 }

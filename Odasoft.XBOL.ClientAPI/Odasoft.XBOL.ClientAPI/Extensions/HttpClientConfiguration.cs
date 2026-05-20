@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using Odasoft.XBOL.Business;
-using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.Commons.Options;
 
 namespace Odasoft.XBOL.ClientAPI.Extensions;
@@ -13,11 +12,6 @@ public static class HttpClientConfiguration
         {
             var opts = sp.GetRequiredService<IOptions<TicketingClientOptions>>();
             client.BaseAddress = new Uri(opts.Value.BaseAddress);
-        });
-
-        services.AddHttpClient<IFirebasePasswordAuthClient, FirebasePasswordAuthClient>(client =>
-        {
-            client.BaseAddress = new Uri("https://identitytoolkit.googleapis.com/");
         });
 
         return services;
