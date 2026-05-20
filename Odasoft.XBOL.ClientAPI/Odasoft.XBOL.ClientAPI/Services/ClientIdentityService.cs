@@ -179,7 +179,7 @@ public sealed class ClientIdentityService(
         return new ClientDTO
         {
             Id = client.Id,
-            UserId = client.FirebaseUid ?? string.Empty,
+            FirebaseUid = client.FirebaseUid ?? string.Empty,
             FullName = client.FullName ?? string.Empty,
             BusinessName = client.BusinessName,
             Email = client.Email,

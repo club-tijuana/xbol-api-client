@@ -35,7 +35,7 @@ public sealed class ClientServiceContactTests
 
         Assert.NotNull(client);
         Assert.Equal(linked.Id, client.Id);
-        Assert.Equal("firebase-linked", client.UserId);
+        Assert.Equal("firebase-linked", client.FirebaseUid);
     }
 
     [Fact]

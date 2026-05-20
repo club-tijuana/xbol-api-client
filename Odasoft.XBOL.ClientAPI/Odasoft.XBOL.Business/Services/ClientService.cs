@@ -34,7 +34,7 @@ namespace Odasoft.XBOL.Business.Services
                 .Select(client => new ClientDTO
                 {
                     Id = client.Id,
-                    UserId = client.FirebaseUid ?? string.Empty,
+                    FirebaseUid = client.FirebaseUid ?? string.Empty,
                     FullName = client.FullName ?? "",
                     BusinessName = client.BusinessName,
                     Email = client.Email,

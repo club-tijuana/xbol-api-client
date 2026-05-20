@@ -33,7 +33,7 @@ public sealed class ClientIdentityServiceTests
         Assert.Equal("custom-token", response.CustomToken);
         Assert.Equal("linked", response.OnboardingStatus);
         Assert.Equal("pending", response.VerificationStatus);
-        Assert.Equal("firebase-123", response.Client.UserId);
+        Assert.Equal("firebase-123", response.Client.FirebaseUid);
         Assert.Equal("Client Name", response.Client.FullName);
         Assert.Equal("client@example.com", response.Client.Email);
         Assert.Equal("+526641234567", response.Client.PhoneNumber);
@@ -66,7 +66,7 @@ public sealed class ClientIdentityServiceTests
             PhoneNumber = " "
         }, CancellationToken.None);
 
-        Assert.Equal("firebase-no-phone", response.Client.UserId);
+        Assert.Equal("firebase-no-phone", response.Client.FirebaseUid);
         Assert.Equal(string.Empty, response.Client.PhoneNumber);
         Assert.Equal(string.Empty, (await db.Context.Clients.SingleAsync()).PhoneNumber);
     }
@@ -89,7 +89,7 @@ public sealed class ClientIdentityServiceTests
         }, CancellationToken.None);
 
         Assert.NotEqual(unclaimed.Id, response.Client.Id);
-        Assert.Equal("firebase-existing", response.Client.UserId);
+        Assert.Equal("firebase-existing", response.Client.FirebaseUid);
         Assert.Equal("Updated Existing", response.Client.FullName);
         Assert.Equal("+526649999999", response.Client.PhoneNumber);
         Assert.Equal("pending", response.VerificationStatus);
@@ -192,7 +192,7 @@ public sealed class ClientIdentityServiceTests
             PhoneNumber = "+526643333333"
         }, CancellationToken.None);
 
-        Assert.Equal("firebase-ambiguous", response.Client.UserId);
+        Assert.Equal("firebase-ambiguous", response.Client.FirebaseUid);
         Assert.Equal(3, await db.Context.Clients.CountAsync());
         Assert.Equal(2, await db.Context.Clients.CountAsync(client => client.FirebaseUid == null));
         Assert.Empty(firebaseTenant.DeletedUsers);

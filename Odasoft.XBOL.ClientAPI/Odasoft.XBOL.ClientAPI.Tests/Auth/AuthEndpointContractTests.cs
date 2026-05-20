@@ -41,7 +41,7 @@ public sealed class AuthEndpointContractTests
         Assert.False(body.RootElement.TryGetProperty("idToken", out _));
         Assert.Equal("linked", body.RootElement.GetProperty("onboardingStatus").GetString());
         Assert.Equal("pending", body.RootElement.GetProperty("verificationStatus").GetString());
-        Assert.Equal("firebase-route", body.RootElement.GetProperty("client").GetProperty("userId").GetString());
+        Assert.Equal("firebase-route", body.RootElement.GetProperty("client").GetProperty("firebaseUid").GetString());
     }
 
     [Fact]
@@ -267,7 +267,7 @@ public sealed class AuthEndpointContractTests
         private static ClientDTO Client => new()
         {
             Id = 123,
-            UserId = "firebase-route",
+            FirebaseUid = "firebase-route",
             FullName = "Client Name",
             Email = "client@example.com",
             PhoneNumber = "+526641234567",
