@@ -1,6 +1,4 @@
 using System.Security.Claims;
-using FirebaseAdmin;
-using FirebaseAdmin.Auth;
 using Odasoft.XBOL.ClientAPI.Auth;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Data.Repositories;
@@ -78,22 +76,14 @@ public sealed class ClientIdentityService(
         var suppliedPhone = NormalizeOptionalClaim(request.PhoneNumber);
 
         var firebaseRegistration = await passwordAuthClient.SignUpAsync(email, password, cancellationToken);
-        var firebasePhoneNumber = ToFirebasePhoneNumber(suppliedPhone);
 
         try
         {
-            try
-            {
-                await tenantAuth.UpdateUserAsync(new FirebaseClientUserUpdate(
-                    firebaseRegistration.FirebaseUid,
-                    fullName,
-                    firebasePhoneNumber,
-                    Disabled: false), cancellationToken);
-            }
-            catch (FirebaseAuthException ex) when (firebasePhoneNumber is not null)
-            {
-                throw MapFirebasePhoneUpdateException(ex);
-            }
+            await tenantAuth.UpdateUserAsync(new FirebaseClientUserUpdate(
+                firebaseRegistration.FirebaseUid,
+                fullName,
+                PhoneNumber: null,
+                Disabled: false), cancellationToken);
 
             var identity = new AuthenticatedClientIdentity(
                 firebaseRegistration.FirebaseUid,
@@ -182,27 +172,6 @@ public sealed class ClientIdentityService(
         }
 
         return value.Trim();
-    }
-
-    private static string? ToFirebasePhoneNumber(string? phoneNumber)
-    {
-        return phoneNumber?.StartsWith('+') == true ? phoneNumber : null;
-    }
-
-    private static ClientAuthException MapFirebasePhoneUpdateException(FirebaseAuthException exception)
-    {
-        var isConflict = exception.AuthErrorCode == AuthErrorCode.PhoneNumberAlreadyExists
-            || exception.ErrorCode is ErrorCode.Conflict or ErrorCode.AlreadyExists;
-
-        return isConflict
-            ? new ClientAuthException(
-                "The supplied phone number is already linked to another Firebase account.",
-                StatusCodes.Status409Conflict,
-                ClientAuthProblemCodes.ClientIdentityConflict)
-            : new ClientAuthException(
-                "The supplied phone number is not valid for Firebase registration.",
-                StatusCodes.Status400BadRequest,
-                ClientAuthProblemCodes.InvalidRegistration);
     }
 
     private static ClientDTO ToDto(Client client)

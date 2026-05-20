@@ -39,7 +39,7 @@ public sealed class ClientServiceContactTests
     }
 
     [Fact]
-    public async Task GetClientByContactAsync_matches_phone_using_request_phone_code()
+    public async Task GetClientByContactAsync_returns_linked_client_by_email_when_phone_is_missing()
     {
         await using var db = await TestClientDatabase.CreateAsync();
         var linked = await db.InsertClientAsync(
@@ -52,8 +52,28 @@ public sealed class ClientServiceContactTests
         var client = await service.GetClientByContactAsync(new ClientContactRequest
         {
             Email = "recipient@example.com",
-            Phone = "6641234567",
-            PhoneCode = "+52"
+            Phone = ""
+        });
+
+        Assert.NotNull(client);
+        Assert.Equal(linked.Id, client.Id);
+    }
+
+    [Fact]
+    public async Task GetClientByContactAsync_returns_linked_client_by_email_when_phone_differs()
+    {
+        await using var db = await TestClientDatabase.CreateAsync();
+        var linked = await db.InsertClientAsync(
+            email: "recipient@example.com",
+            phoneNumber: "+526641234567",
+            fullName: "Linked Recipient",
+            firebaseUid: "firebase-linked");
+        var service = db.CreateClientService();
+
+        var client = await service.GetClientByContactAsync(new ClientContactRequest
+        {
+            Email = "recipient@example.com",
+            Phone = "+526649999999"
         });
 
         Assert.NotNull(client);

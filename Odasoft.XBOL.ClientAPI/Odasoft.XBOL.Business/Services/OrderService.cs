@@ -203,6 +203,11 @@ namespace Odasoft.XBOL.Business.Services
             var client = await FindClientByContactAsync(clientInfo);
             if (client is not null)
             {
+                if (client.FirebaseUid is not null)
+                {
+                    return client;
+                }
+
                 ApplyOrderContact(client, clientInfo, effectiveFullName);
                 await _clientRepository.UpdateAsync(client);
                 return client;

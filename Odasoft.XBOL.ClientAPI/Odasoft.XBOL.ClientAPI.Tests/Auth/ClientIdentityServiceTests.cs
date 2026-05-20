@@ -1,7 +1,4 @@
 using System.Security.Claims;
-using System.Reflection;
-using FirebaseAdmin;
-using FirebaseAdmin.Auth;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.ClientAPI.Auth;
@@ -49,6 +46,7 @@ public sealed class ClientIdentityServiceTests
         Assert.Equal("+526641234567", client.PhoneNumber);
         Assert.True(client.IsActive);
         Assert.Single(firebaseTenant.UpdatedUsers);
+        Assert.Null(firebaseTenant.Updates.Single().PhoneNumber);
         Assert.Empty(firebaseTenant.DeletedUsers);
     }
 
@@ -226,31 +224,26 @@ public sealed class ClientIdentityServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_maps_firebase_phone_update_failure_and_deletes_firebase_user()
+    public async Task RegisterAsync_deletes_firebase_user_when_profile_update_fails()
     {
         await using var db = await TestAuthDatabase.CreateAsync();
         var firebasePassword = new FakeFirebasePasswordAuthClient(
-            "firebase-phone-failure",
-            "phone-failure@example.com");
+            "firebase-profile-failure",
+            "profile-failure@example.com");
         var firebaseTenant = new FakeFirebaseTenantAuthClient(
             "unused-token",
-            updateUserException: CreateFirebaseAuthException(
-                ErrorCode.Conflict,
-                "Phone number already exists.",
-                AuthErrorCode.PhoneNumberAlreadyExists));
+            updateUserException: new InvalidOperationException("profile update failed"));
         var service = db.CreateService(firebasePassword, firebaseTenant);
 
-        var exception = await Assert.ThrowsAsync<ClientAuthException>(() => service.RegisterAsync(new RegisterRequest
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RegisterAsync(new RegisterRequest
         {
-            Email = "phone-failure@example.com",
+            Email = "profile-failure@example.com",
             Password = "Password123!",
-            FullName = "Phone Failure",
+            FullName = "Profile Failure",
             PhoneNumber = "+526641111111"
         }, CancellationToken.None));
 
-        Assert.Equal(StatusCodes.Status409Conflict, exception.StatusCode);
-        Assert.Equal(ClientAuthProblemCodes.ClientIdentityConflict, exception.Code);
-        Assert.Equal(["firebase-phone-failure"], firebaseTenant.DeletedUsers);
+        Assert.Equal(["firebase-profile-failure"], firebaseTenant.DeletedUsers);
         Assert.Empty(await db.Context.Clients.ToListAsync());
     }
 
@@ -352,22 +345,6 @@ public sealed class ClientIdentityServiceTests
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
     }
 
-    private static FirebaseAuthException CreateFirebaseAuthException(
-        ErrorCode errorCode,
-        string message,
-        AuthErrorCode? authErrorCode)
-    {
-        var exception = (FirebaseAuthException?)Activator.CreateInstance(
-            typeof(FirebaseAuthException),
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            args: [errorCode, message, authErrorCode, null, null],
-            culture: null);
-
-        Assert.NotNull(exception);
-        return exception;
-    }
-
     private sealed class FakeFirebasePasswordAuthClient(string firebaseUid, string firebaseEmail) : IFirebasePasswordAuthClient
     {
         public int SignUpCalls { get; private set; }
@@ -405,6 +382,7 @@ public sealed class ClientIdentityServiceTests
         public List<bool> DeleteCancellationTokenWasCanceled { get; } = [];
         public List<bool> DeleteCancellationTokenCanBeCanceled { get; } = [];
         public List<string> UpdatedUsers { get; } = [];
+        public List<FirebaseClientUserUpdate> Updates { get; } = [];
 
         public Task UpdateUserAsync(FirebaseClientUserUpdate update, CancellationToken cancellationToken)
         {
@@ -414,6 +392,7 @@ public sealed class ClientIdentityServiceTests
             }
 
             UpdatedUsers.Add(update.FirebaseUid);
+            Updates.Add(update);
             return Task.CompletedTask;
         }
 

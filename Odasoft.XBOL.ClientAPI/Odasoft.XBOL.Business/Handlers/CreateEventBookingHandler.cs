@@ -96,7 +96,7 @@ namespace Odasoft.XBOL.Business.Handlers
                 long? clientId = command.Request.ClientContact.Id;
                 if (clientId == null)
                 {
-                    if (command.Request.ClientContact.Email == null || command.Request.ClientContact.PhoneNumber == null)
+                    if (command.Request.ClientContact.Email == null)
                     {
                         throw new Exception("Client information must be provided");
                     }
@@ -104,7 +104,7 @@ namespace Odasoft.XBOL.Business.Handlers
                     ClientContactRequest contact = new ClientContactRequest
                     {
                         Email = command.Request.ClientContact.Email,
-                        Phone = command.Request.ClientContact.PhoneNumber,
+                        Phone = command.Request.ClientContact.PhoneNumber ?? string.Empty,
                         PhoneCode = ""
                     };
                     var client = await _clientService.GetClientByContactAsync(contact);

@@ -14,13 +14,14 @@ namespace Odasoft.XBOL.ClientAPI.Tests.Orders;
 public sealed class OrderServiceClientContactTests
 {
     [Fact]
-    public async Task Order_contact_upsert_matches_existing_registered_client_by_normalized_phone()
+    public async Task Order_contact_upsert_does_not_match_linked_client_by_phone_only()
     {
         await using var db = await TestOrderDatabase.CreateAsync();
-        var existing = await db.InsertClientAsync(
-            email: string.Empty,
+        var linked = await db.InsertClientAsync(
+            email: "linked@example.com",
             phoneNumber: "+526641234567",
-            fullName: "Registered Client");
+            fullName: "Linked Client",
+            firebaseUid: "firebase-linked");
         var service = db.CreateOrderService();
 
         var client = await InvokeUpsertClientFromOrderContactAsync(service, new ClientInfoRequest
@@ -29,11 +30,13 @@ public sealed class OrderServiceClientContactTests
             FullName = "Box Office Name"
         });
 
-        Assert.Equal(existing.Id, client.Id);
-        Assert.Equal(1, await db.Context.Clients.CountAsync());
-        var stored = await db.Context.Clients.SingleAsync();
-        Assert.Equal("+526641234567", stored.PhoneNumber);
-        Assert.Equal("Box Office Name", stored.FullName);
+        Assert.NotEqual(linked.Id, client.Id);
+        Assert.Equal(2, await db.Context.Clients.CountAsync());
+
+        var storedLinked = await db.Context.Clients.SingleAsync(client => client.Id == linked.Id);
+        Assert.Equal("linked@example.com", storedLinked.Email);
+        Assert.Equal("+526641234567", storedLinked.PhoneNumber);
+        Assert.Equal("Linked Client", storedLinked.FullName);
     }
 
     [Fact]
@@ -61,7 +64,7 @@ public sealed class OrderServiceClientContactTests
     }
 
     [Fact]
-    public async Task Order_contact_upsert_prefers_linked_client_when_phone_matches_duplicates()
+    public async Task Order_contact_upsert_prefers_unclaimed_client_when_phone_matches_duplicates()
     {
         await using var db = await TestOrderDatabase.CreateAsync();
         var linked = await db.InsertClientAsync(
@@ -82,17 +85,17 @@ public sealed class OrderServiceClientContactTests
             FullName = "Box Office Update"
         });
 
-        Assert.Equal(linked.Id, client.Id);
+        Assert.Equal(unclaimed.Id, client.Id);
         Assert.Equal(2, await db.Context.Clients.CountAsync());
 
         var storedLinked = await db.Context.Clients.SingleAsync(client => client.Id == linked.Id);
         Assert.Equal("firebase-linked", storedLinked.FirebaseUid);
-        Assert.Equal("Box Office Update", storedLinked.FullName);
+        Assert.Equal("Linked Client", storedLinked.FullName);
         Assert.Equal("+526641234567", storedLinked.PhoneNumber);
 
         var storedUnclaimed = await db.Context.Clients.SingleAsync(client => client.Id == unclaimed.Id);
         Assert.Null(storedUnclaimed.FirebaseUid);
-        Assert.Equal("Unclaimed Client", storedUnclaimed.FullName);
+        Assert.Equal("Box Office Update", storedUnclaimed.FullName);
         Assert.Equal("526641234567", storedUnclaimed.PhoneNumber);
     }
 
@@ -112,6 +115,8 @@ public sealed class OrderServiceClientContactTests
             firebaseUid: "firebase-linked");
         var service = db.CreateOrderService();
 
+        var originalUpdatedAt = linked.UpdatedAt;
+
         var client = await InvokeUpsertClientFromOrderContactAsync(service, new ClientInfoRequest
         {
             Email = " DUPLICATE@example.com ",
@@ -124,8 +129,9 @@ public sealed class OrderServiceClientContactTests
 
         var storedLinked = await db.Context.Clients.SingleAsync(client => client.Id == linked.Id);
         Assert.Equal("firebase-linked", storedLinked.FirebaseUid);
-        Assert.Equal("Box Office Update", storedLinked.FullName);
-        Assert.Equal("526649999999", storedLinked.PhoneNumber);
+        Assert.Equal("Linked Client", storedLinked.FullName);
+        Assert.Equal("+526642222222", storedLinked.PhoneNumber);
+        Assert.Equal(originalUpdatedAt, storedLinked.UpdatedAt);
 
         var storedUnclaimed = await db.Context.Clients.SingleAsync(client => client.Id == unclaimed.Id);
         Assert.Null(storedUnclaimed.FirebaseUid);
@@ -140,7 +146,8 @@ public sealed class OrderServiceClientContactTests
         var existing = await db.InsertClientAsync(
             email: "preserve-phone@example.com",
             phoneNumber: "526641111111",
-            fullName: "Existing Client");
+            fullName: "Existing Client",
+            firebaseUid: null);
         var service = db.CreateOrderService();
 
         var client = await InvokeUpsertClientFromOrderContactAsync(service, new ClientInfoRequest

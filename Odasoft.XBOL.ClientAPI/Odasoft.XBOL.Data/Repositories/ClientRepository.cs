@@ -22,10 +22,10 @@ namespace Odasoft.XBOL.Data.Repositories
 
             return DbContext.Set<Client>()
                 .Include(x => x.PhoneRegionCode)
-                .OrderByDescending(x => x.FirebaseUid != null)
-                .ThenByDescending(x => x.Id)
+                .OrderByDescending(x => x.Id)
                 .FirstOrDefaultAsync(x =>
                     x.PhoneNumber != null
+                    && x.FirebaseUid == null
                     && (x.PhoneNumber
                             .Replace("+", "")
                             .Replace(" ", "")
