@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
@@ -23,7 +24,17 @@ namespace Odasoft.XBOL.Data.Repositories
                     e.Schedules != null
                 //&& e.Schedules.All(es => es.StartDateTime > now) // TODO: Commented for testing purposes
                 )
-                .OrderByDescending(e => e.ViewCount)
+                .GroupJoin(
+                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    eventObject => eventObject.Id,
+                    media => media.ReferenceId,
+                    (e, m) => new
+                    {
+                        Event = e,
+                        EventImages = m
+                    }
+                )
+                .OrderByDescending(e => e.Event.ViewCount)
                 .AsQueryable();
 
             int totalCount = await query.CountAsync();
@@ -34,14 +45,14 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Take(pageSize)
                 .Select(e => new
                 {
-                    Id = e.Id,
-                    Name = e.Name,
-                    StartDate = e.Schedules
+                    Id = e.Event.Id,
+                    Name = e.Event.Name,
+                    StartDate = e.Event.Schedules
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
                         .FirstOrDefault(),
-                    Location = e.VenueMap.Name,
-                    Categories = e.Categories
+                    Location = e.Event.VenueMap.Name,
+                    Categories = e.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
                             Id = ec.Id,
@@ -49,10 +60,9 @@ namespace Odasoft.XBOL.Data.Repositories
                             DisplayName = ec.DisplayName
                         }).ToList(),
                     IsFavorite = true,
-                    BannerFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.HorizontalPoster).OrderBy(i => i.Order).FirstOrDefault(),
-                    PosterFile = e.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
-                    LegacyBannerUrl = e.BannerImageUrl,
-                    LegacyPosterUrl = e.PosterImageUrl
+                    BannerFile = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    LegacyBannerUrl = e.Event.BannerImageUrl,
+                    LegacyPosterUrl = e.Event.PosterImageUrl
                 })
                 .ToListAsync();
 
@@ -64,11 +74,11 @@ namespace Odasoft.XBOL.Data.Repositories
                 Location = e.Location,
                 Categories = e.Categories,
                 IsFavorite = e.IsFavorite,
-                BannerImageUrl = e.BannerFile != null
-                    ? $"data:{e.BannerFile.ContentType};base64,{Convert.ToBase64String(e.BannerFile.Content)}"
+                BannerImageUrl = e.BannerFile != null && e.BannerFile.Url != null
+                    ? e.BannerFile.Url
                     : e.LegacyBannerUrl ?? string.Empty,
-                PosterImageUrl = e.PosterFile != null
-                    ? $"data:{e.PosterFile.ContentType};base64,{Convert.ToBase64String(e.PosterFile.Content)}"
+                PosterImageUrl = e.BannerFile != null && e.BannerFile.Url != null
+                    ? e.BannerFile.Url
                     : e.LegacyPosterUrl ?? string.Empty
             }).ToList();
 

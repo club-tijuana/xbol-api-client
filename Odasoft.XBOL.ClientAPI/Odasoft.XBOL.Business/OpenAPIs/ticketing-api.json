@@ -1754,17 +1754,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               }
             }
@@ -1774,17 +1774,37 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               }
             }
@@ -1794,17 +1814,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               }
             }
@@ -1814,17 +1834,17 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SeatsIoErrorResponse"
+                  "$ref": "#/components/schemas/SeatsIoProblemDetails"
                 }
               }
             }
@@ -2413,6 +2433,7 @@
             "type": "string"
           },
           "seats": {
+            "minLength": 1,
             "type": "object",
             "additionalProperties": {
               "type": "number",
@@ -3515,6 +3536,55 @@
           "requestId": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SeatsIoProblemDetails": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeatsIoProblemError"
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "SeatsIoProblemError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
           }
         },
         "additionalProperties": false

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
@@ -15,30 +16,26 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         private readonly EventService _eventService;
         private readonly IMemoryCache _memoryCache;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public EventsController(EventService eventService, IMemoryCache memoryCache, EventsTrackingSettings eventsTrackingSettings)
+        public EventsController(
+            EventService eventService,
+            IMemoryCache memoryCache,
+            EventsTrackingSettings eventsTrackingSettings,
+            IClientIdentityService clientIdentityService)
         {
             _eventService = eventService;
             _memoryCache = memoryCache;
             _eventsTrackingSettings = eventsTrackingSettings;
+            _clientIdentityService = clientIdentityService;
         }
 
         [HttpGet("main")]
         [EndpointName("GetMainEventsAsync")]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync()
         {
-            // TODO: Remove temp token
-            long? clientId = null;
-
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                clientId = token == "TEST-TOKEN" ? 1 : 2;
-
-            }
-
-            var result = await _eventService.GetMainEventsAsync(clientId);
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            var result = await _eventService.GetMainEventsAsync(client?.Id);
 
             return Ok(result);
         }
@@ -60,18 +57,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? page,
             [FromQuery] int? pageSize)
         {
-            // TODO: Remove temp token
-            long? clientId = null;
-
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                clientId = token == "TEST-TOKEN" ? 1 : 2;
-
-            }
-
-            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, clientId);
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, client?.Id);
 
             return Ok(result);
         }
@@ -85,18 +72,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] long? eventCategoryId,
             [FromQuery] string? searchTerm)
         {
-            // TODO: Remove temp token
-            long? clientId = null;
-
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                clientId = token == "TEST-TOKEN" ? 1 : 2;
-
-            }
-
-            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, clientId);
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, client?.Id);
 
             return Ok(result);
         }
@@ -139,18 +116,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromRoute] long eventId,
             [FromQuery] bool includeImages = false)
         {
-            // TODO: Remove temp token
-            long? idClient = null;
-
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                idClient = token == "TEST-TOKEN" ? 1 : 2;
-
-            }
-
-            var result = await _eventService.GetEventDetailAsync(eventId, idClient, includeImages);
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            var result = await _eventService.GetEventDetailAsync(eventId, client?.Id, includeImages);
 
             return Ok(result);
         }

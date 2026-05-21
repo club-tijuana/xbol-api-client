@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Commons.Enums;
@@ -17,10 +16,10 @@ namespace Odasoft.XBOL.Business.Services
         private readonly EventSeatRepository _eventSeatRepository;
         private readonly TicketRepository _ticketRepository;
         private readonly SeasonPassRepository _seasonPassRepository;
+        private readonly SeasonPassEventTicketRepository _seasonPassEventTicketRepository;
         private readonly SeasonRepository _seasonRepository;
         private readonly SeasonSeatRepository _seasonSeatRepository;
         private readonly EventRepository _eventRepository;
-        private readonly UserManager<User> _userManager;
         private readonly SeasonService _seasonService;
         private readonly EventScheduleService _eventScheduleService;
         private readonly ILogger<OrderService> _logger;
@@ -32,10 +31,10 @@ namespace Odasoft.XBOL.Business.Services
             EventSeatRepository eventSeatRepository,
             TicketRepository ticketRepository,
             SeasonPassRepository seasonPassRepository,
+            SeasonPassEventTicketRepository seasonPassEventTicketRepository,
             SeasonRepository seasonRepository,
             SeasonSeatRepository seasonSeatRepository,
             EventRepository eventRepository,
-            UserManager<User> userManager,
             SeasonService seasonService,
             EventScheduleService eventScheduleService,
             ILogger<OrderService> logger
@@ -47,10 +46,10 @@ namespace Odasoft.XBOL.Business.Services
             _eventSeatRepository = eventSeatRepository;
             _ticketRepository = ticketRepository;
             _seasonPassRepository = seasonPassRepository;
+            _seasonPassEventTicketRepository = seasonPassEventTicketRepository;
             _seasonRepository = seasonRepository;
             _seasonSeatRepository = seasonSeatRepository;
             _eventRepository = eventRepository;
-            _userManager = userManager;
             _seasonService = seasonService;
             _eventScheduleService = eventScheduleService;
             _logger = logger;
@@ -69,13 +68,7 @@ namespace Odasoft.XBOL.Business.Services
             {
                 EventSchedule schedule = await _eventScheduleRepository.Get(x => x.ExternalEventKey == request.EventKey).FirstAsync();
 
-                string emailRequest = request.ClientContact.Email.ToUpper();
-                var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
-
-                if (client == null)
-                {
-                    client = await CreateClientAsync(request.ClientContact);
-                }
+                var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
 
                 request.ClientContact.Id = client.Id;
 
@@ -87,7 +80,7 @@ namespace Odasoft.XBOL.Business.Services
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
-                    UserId = client.UserId,
+                    UserId = null,
                     Reference = request.Localizer,
                     Status = OrderStatus.Paid,
                     SubTotal = subtotal,
@@ -141,13 +134,7 @@ namespace Odasoft.XBOL.Business.Services
                     .Get(x => x.ExternalSeasonKey == request.SeasonKey)
                     .SingleOrDefaultAsync();
 
-                string emailRequest = request.ClientContact.Email.ToUpper();
-                var client = await _clientRepository.Get(filter: client => client.Email.ToUpper().Equals(emailRequest)).FirstOrDefaultAsync();
-
-                if (client == null)
-                {
-                    client = await CreateClientAsync(request.ClientContact);
-                }
+                var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
 
                 request.ClientContact.Id = client.Id;
 
@@ -156,6 +143,7 @@ namespace Odasoft.XBOL.Business.Services
                 // Remove this workaround once sharing is implemented for season passes.
                 List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats, season.Id, client);
                 List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats, season.Id, client);
+                await CreateSeasonPassEventTicketsAsync(seasonPasses, tickets);
 
                 var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
                                 ? 0
@@ -163,7 +151,7 @@ namespace Odasoft.XBOL.Business.Services
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
-                    UserId = client.UserId,
+                    UserId = null,
                     Reference = request.Localizer,
                     Status = OrderStatus.Paid,
                     SubTotal = subtotal,
@@ -208,16 +196,116 @@ namespace Odasoft.XBOL.Business.Services
             }
         }
 
-        private async Task<Client> CreateClientAsync(ClientInfoRequest clientInfo)
+        private async Task<Client> UpsertClientFromOrderContactAsync(ClientInfoRequest clientInfo)
         {
-            // TODO: Better use the client service to create the client
+            EnsureUsableContact(clientInfo);
+
+            var effectiveFullName = ResolveFullName(clientInfo);
+
+            var client = await FindClientByContactAsync(clientInfo);
+            if (client is not null)
+            {
+                if (client.FirebaseUid is not null)
+                {
+                    return client;
+                }
+
+                ApplyOrderContact(client, clientInfo, effectiveFullName);
+                await _clientRepository.UpdateAsync(client);
+                return client;
+            }
+
+            client = await CreateClientAsync(clientInfo, effectiveFullName);
+            return client;
+        }
+
+        private static void EnsureUsableContact(ClientInfoRequest clientInfo)
+        {
+            var hasEmail = !string.IsNullOrWhiteSpace(clientInfo.Email);
+            var hasPhone = !string.IsNullOrWhiteSpace(clientInfo.PhoneNumber)
+                && NormalizePhoneNumber(clientInfo.PhoneNumber).Length > 0;
+
+            if (!hasEmail && !hasPhone)
+            {
+                throw new InvalidOperationException("Client email or phone number must be provided.");
+            }
+        }
+
+        private async Task<Client?> FindClientByContactAsync(ClientInfoRequest clientInfo)
+        {
+            if (!string.IsNullOrWhiteSpace(clientInfo.Email))
+            {
+                var email = clientInfo.Email.Trim().ToUpperInvariant();
+                var client = await _clientRepository
+                    .Get(filter: client => client.Email != null && client.Email.ToUpper().Equals(email))
+                    .OrderByDescending(client => client.FirebaseUid != null)
+                    .ThenByDescending(client => client.Id)
+                    .FirstOrDefaultAsync();
+
+                if (client is not null)
+                {
+                    return client;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientInfo.PhoneNumber))
+            {
+                return await _clientRepository.GetByContactPhoneNumberAsync(clientInfo.PhoneNumber);
+            }
+
+            return null;
+        }
+
+        private static void ApplyOrderContact(Client client, ClientInfoRequest clientInfo, string? effectiveFullName)
+        {
+            if (!string.IsNullOrWhiteSpace(clientInfo.Email))
+            {
+                client.Email = clientInfo.Email.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(clientInfo.PhoneNumber))
+            {
+                var phoneNumber = NormalizePhoneNumber(clientInfo.PhoneNumber);
+                if (phoneNumber.Length > 0 && NormalizePhoneNumber(client.PhoneNumber) != phoneNumber)
+                {
+                    client.PhoneNumber = phoneNumber;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(effectiveFullName))
+            {
+                client.FullName = effectiveFullName;
+            }
+
+            if (clientInfo.Gender.HasValue)
+            {
+                client.Gender = (Gender?)clientInfo.Gender;
+            }
+
+            if (clientInfo.Birthday.HasValue)
+            {
+                client.DateOfBirth = clientInfo.Birthday;
+            }
+
+            client.IsActive = true;
+            client.UpdatedAt = DateTime.UtcNow;
+            client.UpdatedBy = Guid.Empty;
+        }
+
+        private async Task<Client> CreateClientAsync(ClientInfoRequest clientInfo, string? effectiveFullName)
+        {
             var client = new Client
             {
-                Email = clientInfo.Email ?? "",
-                PhoneNumber = clientInfo.PhoneNumber ?? "",
-                FullName = $"{clientInfo.FirstName} {clientInfo.LastName}",
+                Email = clientInfo.Email?.Trim() ?? "",
+                PhoneNumber = string.IsNullOrWhiteSpace(clientInfo.PhoneNumber)
+                    ? ""
+                    : NormalizePhoneNumber(clientInfo.PhoneNumber),
+                FullName = effectiveFullName,
                 BusinessName = clientInfo.FullName,
+                DateOfBirth = clientInfo.Birthday,
+                Gender = (Gender?)clientInfo.Gender,
                 ClientType = ClientType.Individual,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = Guid.Empty,
                 UpdatedAt = DateTime.UtcNow,
@@ -228,6 +316,22 @@ namespace Odasoft.XBOL.Business.Services
             await _clientRepository.CommitAsync();
 
             return client;
+        }
+
+        private static string? ResolveFullName(ClientInfoRequest clientInfo)
+        {
+            if (!string.IsNullOrWhiteSpace(clientInfo.FullName))
+            {
+                return clientInfo.FullName.Trim();
+            }
+
+            var composed = $"{clientInfo.FirstName} {clientInfo.LastName}".Trim();
+            return string.IsNullOrWhiteSpace(composed) ? null : composed;
+        }
+
+        private static string NormalizePhoneNumber(string value)
+        {
+            return new string(value.Where(char.IsDigit).ToArray());
         }
 
         private async Task<List<Ticket>> CreateTicketsAsync(IDictionary<string, decimal> seats, long eventId, Client client)
@@ -354,7 +458,7 @@ namespace Odasoft.XBOL.Business.Services
                 var seasonPass = new SeasonPass
                 {
                     ClientId = client.Id,
-                    UserId = client.UserId,
+                    UserId = null,
                     SeasonId = seasonId,
                     Price = seats[seat.ExternalSeatObjectKey],
                     PurchasedAt = now,
@@ -374,6 +478,36 @@ namespace Odasoft.XBOL.Business.Services
 
             await _seasonPassRepository.CommitAsync();
             return seasonPasses;
+        }
+
+        private async Task CreateSeasonPassEventTicketsAsync(List<SeasonPass> seasonPasses, List<Ticket> tickets)
+        {
+            var passByCode = seasonPasses.ToDictionary(p => p.TrackingCode);
+            var joins = new List<SeasonPassEventTicket>();
+
+            foreach (var ticket in tickets)
+            {
+                if (!passByCode.TryGetValue(ticket.TicketCode, out var pass))
+                    continue;
+
+                var join = new SeasonPassEventTicket
+                {
+                    SeasonPassId = pass.Id,
+                    TicketId = ticket.Id
+                };
+
+                await _seasonPassEventTicketRepository.InsertAsync(join);
+                joins.Add(join);
+            }
+
+            await _seasonPassEventTicketRepository.CommitAsync();
+
+            foreach (var join in joins)
+            {
+                var ticket = tickets.First(t => t.Id == join.TicketId);
+                ticket.SeasonPassEventTicketId = join.Id;
+            }
+            await _ticketRepository.UpdateRangeAsync(tickets);
         }
 
         public async Task<SeasonToRenovateDTO> GetOrderToRenovate(long orderId, long clientId)
