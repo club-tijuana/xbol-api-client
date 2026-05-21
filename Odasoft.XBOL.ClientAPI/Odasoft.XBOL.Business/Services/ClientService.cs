@@ -26,20 +26,15 @@ namespace Odasoft.XBOL.Business.Services
         public async Task<ClientDTO?> GetClientByContactAsync(ClientContactRequest request)
         {
             string upperEmail = request.Email.ToUpper().Trim();
-
-            var client = await _clientRepository.Get(
-                    filter: client => client.User != null
-                    && client.User.PhoneNumber != null
-                    && client.Email.ToUpper().Equals(upperEmail)
-                    && client.User.PhoneNumber.Equals(request.Phone),
-                    includedProperties: [
-                        "User"
-                    ]
-                )
+            return await _clientRepository.Get(
+                    filter: client => client.FirebaseUid != null
+                        && client.Email.ToUpper().Equals(upperEmail)
+                    )
+                .OrderByDescending(client => client.Id)
                 .Select(client => new ClientDTO
                 {
                     Id = client.Id,
-                    UserId = client.UserId != null ? client.UserId.Value.ToString() : string.Empty,
+                    FirebaseUid = client.FirebaseUid ?? string.Empty,
                     FullName = client.FullName ?? "",
                     BusinessName = client.BusinessName,
                     Email = client.Email,
@@ -47,8 +42,6 @@ namespace Odasoft.XBOL.Business.Services
                     PhoneCode = client.PhoneRegionCode != null ? client.PhoneRegionCode.DialCode : string.Empty
                 })
                 .FirstOrDefaultAsync();
-
-            return client;
         }
 
         public async Task<PagedResponse<MyEventDTO>> GetMyEventsAsync(

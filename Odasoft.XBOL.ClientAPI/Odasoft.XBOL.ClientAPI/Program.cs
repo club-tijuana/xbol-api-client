@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using FirebaseAdmin;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;
@@ -10,7 +10,6 @@ using Odasoft.XBOL.ClientAPI.Schema;
 using Odasoft.XBOL.Commons.Options;
 using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Extensions;
-using Odasoft.XBOL.Models;
 using System.Reflection;
 using Wolverine;
 
@@ -25,8 +24,11 @@ if (args.Contains("--generate-schema"))
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.ConfigureOptions();
+builder.Services.ConfigureFirebaseAdmin();
+builder.Services.ConfigureAuth(builder.Configuration);
 
 builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>
 {
@@ -38,21 +40,6 @@ builder.Services.AddDbContext<XBOLDbContext>((sp, options) =>
 SearchSettings searchSettings = builder.Configuration.GetSection("SearchSettings").Get<SearchSettings>()!;
 EventsTrackingSettings eventsTrackingSettings = builder.Configuration.GetSection("EventsTrackingSettings").Get<EventsTrackingSettings>()!;
 #endregion
-
-// Identity + EF Core store
-builder.Services.AddDataProtection();
-
-builder.Services
-    .AddIdentityCore<User>(options =>
-    {
-        options.Password.RequireDigit = true;
-        options.Password.RequiredLength = 8;
-        options.User.RequireUniqueEmail = true;
-    })
-    .AddRoles<Role>()
-    .AddEntityFrameworkStores<XBOLDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
 
 var corsOptions = builder.Configuration
     .GetSection(CorsOptions.SectionName)
@@ -122,6 +109,7 @@ builder.Services.AddSingleton(eventsTrackingSettings);
 builder.Services.ConfigureHttpClients();
 
 var app = builder.Build();
+app.Services.GetRequiredService<FirebaseApp>();
 
 // Enable middleware to serve generated OpenAPI as a JSON endpoint and the Swagger UI.
 if (app.Environment.IsDevelopment())
@@ -186,3 +174,5 @@ app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthCheck
 });
 
 app.Run();
+
+public partial class Program;

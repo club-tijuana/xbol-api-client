@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.DTO;
 
 namespace Odasoft.XBOL.ClientAPI.Controllers
@@ -10,55 +12,41 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     {
         private readonly OrderService _orderService;
         private readonly ILogger<OrderController> _logger;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public OrderController(OrderService orderService, ILogger<OrderController> logger)
+        public OrderController(
+            OrderService orderService,
+            ILogger<OrderController> logger,
+            IClientIdentityService clientIdentityService)
         {
             _orderService = orderService;
             _logger = logger;
+            _clientIdentityService = clientIdentityService;
         }
 
         [HttpGet("{orderId}")]
+        [Authorize]
         [EndpointName("GetOrderAsync")]
         public async Task<ActionResult<OrderDTO>> GetOrderAsync([FromRoute] long orderId)
         {
-            // TODO: Remove temp token
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                long idClient = token == "TEST-TOKEN" ? 1 : 2;
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+            var result = await _orderService.GetOrderAsync(client.Id, orderId);
 
-                var result = await _orderService.GetOrderAsync(idClient, orderId);
-
-                return Ok(result);
-            }
-            else
-            {
-                return Unauthorized();
-            }
+            return Ok(result);
         }
 
         [HttpGet("renovate/{orderId}")]
+        [Authorize]
         [EndpointName("GetOrderToRenovate")]
         public async Task<ActionResult<SeasonToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
         {
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+
             try
             {
-                // TODO: Remove temp token
-                var authHeader = Request.Headers["Authorization"].ToString();
-                if (authHeader.StartsWith("Bearer "))
-                {
-                    var token = authHeader.Substring("Bearer ".Length);
-                    long idClient = token == "TEST-TOKEN" ? 1 : 2;
+                var result = await _orderService.GetOrderToRenovate(orderId, client.Id);
 
-                    var result = await _orderService.GetOrderToRenovate(orderId, idClient);
-
-                    return Ok(result);
-                }
-                else
-                {
-                    return Unauthorized();
-                }
+                return Ok(result);
             }
             catch (Exception ex)
             {
