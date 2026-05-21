@@ -9,6 +9,7 @@
     <!-- Docker configuration for Visual Studio -->
     <DockerfileContext>..\..</DockerfileContext>
     <DockerfilePath>..\Dockerfile</DockerfilePath>
+    <UserSecretsId>858f24ca-553d-4cc9-81b7-1626da1287e2</UserSecretsId>
   </PropertyGroup>
 
   <!-- Production optimizations -->
@@ -44,10 +45,8 @@
     <ProjectReference Include="..\Odasoft.XBOL.Data\Odasoft.XBOL.Data.csproj" />
   </ItemGroup>
 
-  <Target Name="GenerateAppSettingsSchema" AfterTargets="Build"
-          Condition="'$(Configuration)' == 'Debug'">
-    <Exec Command="dotnet run --project &quot;$(MSBuildProjectFullPath)&quot; --no-build -- --generate-schema"
-          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  <Target Name="GenerateAppSettingsSchema" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectFullPath)&quot; --no-build -- --generate-schema" WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
 </Project>

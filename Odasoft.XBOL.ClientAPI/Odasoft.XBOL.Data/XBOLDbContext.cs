@@ -31,7 +31,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
         public DbSet<SequenceTracker> SequenceTrackers { get; set; }
         public DbSet<EventCategory> EventCategories => Set<EventCategory>();
-        public DbSet<EventImage> EventImages => Set<EventImage>();
+        public DbSet<Media> Media => Set<Media>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<User> Users => Set<User>();
 

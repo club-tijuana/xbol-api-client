@@ -60,7 +60,6 @@ namespace Odasoft.XBOL.Data.Repositories
                             t.EventSchedule.EndDateTime,
                             EventId = t.EventSchedule.EventId,
                             EventName = t.EventSchedule.Event.Name,
-                            EventPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
                             LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
                             Location = t.EventSchedule.Event.VenueMap.Name,
                             TicketType = t.TicketType,
@@ -112,12 +111,21 @@ namespace Odasoft.XBOL.Data.Repositories
                     renewableSeasonIds.Contains(currentSchedule.SeasonId.Value) &&
                     !alreadyRenewed;
 
+                var banner = DbContext.Set<Media>().Where(m =>
+                    m.ReferenceId == currentSchedule.EventId &&
+                    m.ReferenceType == ClientSaleType.Event &&
+                    m.MediaType == ClientMediaType.Banner &&
+                    m.DeletedAt == null
+                )
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
                 return new MyEventDTO
                 {
                     OrderId = o.Id,
                     EventId = currentSchedule.EventId,
-                    EventImage = currentSchedule.EventPosterFile != null
-                        ? $"data:{currentSchedule.EventPosterFile.ContentType};base64,{Convert.ToBase64String(currentSchedule.EventPosterFile.Content)}"
+                    EventImage = banner != null && banner.Url != null
+                        ? banner.Url
                         : currentSchedule.LegacyPosterUrl ?? string.Empty,
                     Name = isSeason ? currentSchedule.SeasonName : currentSchedule.EventName,
                     StartDate = currentSchedule.StartDateTime,
@@ -167,7 +175,6 @@ namespace Odasoft.XBOL.Data.Repositories
                     OrderId = g.Key.OrderId,
                     EventId = g.Key.EventId,
                     EventKey = g.First().EventSchedule.ExternalEventKey,
-                    EventImageFile = g.First().EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
                     LegacyPosterUrl = g.First().EventSchedule.Event.PosterImageUrl,
                     Folio = g.First().OriginalOrder!.Reference,
                     Name = g.First().EventSchedule.Event.Name,
@@ -191,6 +198,15 @@ namespace Odasoft.XBOL.Data.Repositories
                 })
                 .FirstOrDefaultAsync();
 
+            var banner = DbContext.Set<Media>().Where(m =>
+                    m.ReferenceId == eventId &&
+                    m.ReferenceType == ClientSaleType.Event &&
+                    m.MediaType == ClientMediaType.Banner &&
+                    m.DeletedAt == null
+                )
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
             if (result == null)
             {
                 return null;
@@ -201,9 +217,9 @@ namespace Odasoft.XBOL.Data.Repositories
                 OrderId = result.OrderId,
                 EventId = result.EventId,
                 EventKey = result.EventKey,
-                EventImage = result.EventImageFile != null
-                    ? $"data:{result.EventImageFile.ContentType};base64,{Convert.ToBase64String(result.EventImageFile.Content)}"
-                    : result.LegacyPosterUrl ?? string.Empty,
+                EventImage = banner != null && banner.Url != null
+                     ? banner.Url
+                     : result.LegacyPosterUrl ?? string.Empty,
                 Folio = result.Folio,
                 Name = result.Name,
                 Date = result.Date,
@@ -243,28 +259,38 @@ namespace Odasoft.XBOL.Data.Repositories
             var skip = (page - 1) * pageSize;
 
             var tickets = await query
+                .GroupJoin(
+                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    eventObject => eventObject.EventSchedule.EventId,
+                    media => media.ReferenceId,
+                    (t, m) => new
+                    {
+                        Ticket = t,
+                        EventImages = m
+                    }
+                )
                 .Skip(skip)
                 .Take(pageSize)
                 .Select(t => new
                 {
-                    Id = t.Id,
-                    OrderType = t.OriginalOrder != null ? t.OriginalOrder.OrderType : OrderType.Ticket,
-                    Name = t.EventSchedule.Event.Name,
-                    Location = t.EventSchedule.Event.VenueMap.Name,
-                    StartDate = t.EventSchedule.StartDateTime,
-                    EventImageFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
-                    LegacyEventImageUrl = t.EventSchedule.Event.PosterImageUrl,
-                    Code = t.TicketCode,
-                    Section = t.EventSection.BaseSection.Name,
-                    Row = t.EventSeat.BaseSeat.BaseRow.RowLabel,
-                    Seat = t.EventSeat.BaseSeat.SeatNumber,
+                    Id = t.Ticket.Id,
+                    OrderType = t.Ticket.OriginalOrder != null ? t.Ticket.OriginalOrder.OrderType : OrderType.Ticket,
+                    Name = t.Ticket.EventSchedule.Event.Name,
+                    Location = t.Ticket.EventSchedule.Event.VenueMap.Name,
+                    StartDate = t.Ticket.EventSchedule.StartDateTime,
+                    EventImageFile = t.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    LegacyEventImageUrl = t.Ticket.EventSchedule.Event.PosterImageUrl,
+                    Code = t.Ticket.TicketCode,
+                    Section = t.Ticket.EventSection.BaseSection.Name,
+                    Row = t.Ticket.EventSeat.BaseSeat.BaseRow.RowLabel,
+                    Seat = t.Ticket.EventSeat.BaseSeat.SeatNumber,
                     CanShare = (
-                        t.OriginalClientId == clientId
-                        && t.CurrentClientId == clientId
+                        t.Ticket.OriginalClientId == clientId
+                        && t.Ticket.CurrentClientId == clientId
                     ),
-                    IsOwner = t.OriginalClientId == clientId,
+                    IsOwner = t.Ticket.OriginalClientId == clientId,
                     IsShared = (
-                        t.OriginalClientId != t.CurrentClientId
+                        t.Ticket.OriginalClientId != t.Ticket.CurrentClientId
                     )
                 })
                 .ToListAsync();
@@ -276,8 +302,8 @@ namespace Odasoft.XBOL.Data.Repositories
                 Name = t.Name,
                 Location = t.Location,
                 StartDate = t.StartDate,
-                EventImage = t.EventImageFile != null
-                    ? $"data:{t.EventImageFile.ContentType};base64,{Convert.ToBase64String(t.EventImageFile.Content)}"
+                EventImage = t.EventImageFile != null && t.EventImageFile.Url != null
+                    ? t.EventImageFile.Url
                     : t.LegacyEventImageUrl ?? string.Empty,
                 Code = t.Code,
                 Section = t.Section,
@@ -328,7 +354,6 @@ namespace Odasoft.XBOL.Data.Repositories
                             {
                                 EventId = t.EventSchedule.Event.Id,
                                 EventName = t.EventSchedule.Event.Name,
-                                EventPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
                                 LegacyEventPosterUrl = t.EventSchedule.Event.PosterImageUrl,
                                 VenueName = t.EventSchedule.Event.VenueMap.Name,
 
@@ -337,7 +362,6 @@ namespace Odasoft.XBOL.Data.Repositories
                                     t.EventSchedule.Event.Season.Id,
                                     t.EventSchedule.Event.Season.Name,
                                     t.EventSchedule.Event.Season.ExternalSeasonKey,
-                                    SeasonPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
                                     LegacySeasonPosterUrl = t.EventSchedule.Event.Season.PosterImageUrl,
                                     t.EventSchedule.Event.Season.StartDate
                                 }
@@ -382,6 +406,15 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 var first = orderData.Tickets.First();
 
+                var eventBanner = DbContext.Set<Media>().Where(m =>
+                    m.ReferenceId == first.EventSchedule.Event.EventId &&
+                    m.ReferenceType == ClientSaleType.Event &&
+                    m.MediaType == ClientMediaType.Banner &&
+                    m.DeletedAt == null
+                )
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
                 return new OrderDTO
                 {
                     Id = orderData.Id,
@@ -396,9 +429,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemName = first.EventSchedule.Event.EventName,
                     ItemLocation = first.EventSchedule.Event.VenueName,
                     ItemKey = first.EventSchedule.ExternalEventKey,
-                    ItemPosterImageUrl = first.EventSchedule.Event.EventPosterFile != null
-                        ? $"data:{first.EventSchedule.Event.EventPosterFile.ContentType};base64,{Convert.ToBase64String(first.EventSchedule.Event.EventPosterFile.Content)}"
-                    : first.EventSchedule.Event.LegacyEventPosterUrl ?? string.Empty,
+                    ItemPosterImageUrl = eventBanner != null && eventBanner.Url != null
+                        ? eventBanner.Url
+                        : first.EventSchedule.Event.LegacyEventPosterUrl ?? string.Empty,
                     ItemStartDate = first.EventSchedule.StartDateTime,
 
                     ItemSeats = seats,
@@ -430,6 +463,15 @@ namespace Odasoft.XBOL.Data.Repositories
 
                 var season = seasons.First()!;
 
+                var seasonBanner = DbContext.Set<Media>().Where(m =>
+                    m.ReferenceId == season.Id &&
+                    m.ReferenceType == ClientSaleType.SeasonPass &&
+                    m.MediaType == ClientMediaType.Banner &&
+                    m.DeletedAt == null
+                )
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
                 return new OrderDTO
                 {
                     Id = orderData.Id,
@@ -444,9 +486,9 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemName = season.Name,
                     ItemLocation = venues.First(),
                     ItemKey = season.ExternalSeasonKey,
-                    ItemPosterImageUrl = season.SeasonPosterFile != null
-                        ? $"data:{season.SeasonPosterFile.ContentType};base64,{Convert.ToBase64String(season.SeasonPosterFile.Content)}"
-                    : season.LegacySeasonPosterUrl ?? string.Empty,
+                    ItemPosterImageUrl = seasonBanner != null && seasonBanner.Url != null
+                        ? seasonBanner.Url
+                        : season.LegacySeasonPosterUrl ?? string.Empty,
                     ItemStartDate = season.StartDate,
 
                     ItemSeats = seats,
