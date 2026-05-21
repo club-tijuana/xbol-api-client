@@ -1,3 +1,4 @@
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.Commons.Options;
 
 namespace Odasoft.XBOL.ClientAPI.Extensions;
@@ -23,6 +24,9 @@ public static class OptionsConfiguration
                 options => !string.IsNullOrWhiteSpace(options.ServiceAccountJson)
                     || !string.IsNullOrWhiteSpace(options.ServiceAccountJsonPath),
                 "GcipAuth:ServiceAccountJson or GcipAuth:ServiceAccountJsonPath is required.")
+            .Validate(
+                ValidateGcipAuthCredentialSource,
+                "GcipAuth service account credentials are invalid or unavailable.")
             .ValidateOnStart();
 
         services.AddOptions<TicketingClientOptions>()
@@ -31,5 +35,12 @@ public static class OptionsConfiguration
             .ValidateOnStart();
 
         return services;
+    }
+
+    private static bool ValidateGcipAuthCredentialSource(GcipAuthOptions options)
+    {
+        return GoogleServiceAccountCredentialFactory.Validate(
+            options.ServiceAccountJson,
+            options.ServiceAccountJsonPath);
     }
 }
