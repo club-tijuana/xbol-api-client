@@ -1,5 +1,6 @@
 ﻿using FuzzySharp;
 using Microsoft.EntityFrameworkCore;
+using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
@@ -74,16 +75,26 @@ namespace Odasoft.XBOL.Data.Repositories
             var skip = (page - 1) * pageSize;
 
             var rawEvents = await query
+            .GroupJoin(
+                DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                eventObject => eventObject.EventId,
+                media => media.ReferenceId,
+                (es, m) => new
+                {
+                    EventSchedule = es,
+                    EventImages = m
+                }
+            )
             .Skip(skip)
             .Take(pageSize)
             .Select(es => new
             {
-                es.Id,
-                es.StartDateTime,
-                es.EventId,
-                EventName = es.Event.Name,
-                Location = es.Event.VenueMap.Venue.Name,
-                Categories = es.Event.Categories
+                es.EventSchedule.Id,
+                es.EventSchedule.StartDateTime,
+                es.EventSchedule.EventId,
+                EventName = es.EventSchedule.Event.Name,
+                Location = es.EventSchedule.Event.VenueMap.Venue.Name,
+                Categories = es.EventSchedule.Event.Categories
                     .Select(ec => new EventCategoryDTO
                     {
                         Id = ec.Id,
@@ -91,10 +102,9 @@ namespace Odasoft.XBOL.Data.Repositories
                         DisplayName = ec.DisplayName
                     })
                     .ToList(),
-                BannerFile = es.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.HorizontalPoster).OrderBy(i => i.Order).FirstOrDefault(),
-                PosterFile = es.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
-                LegacyBannerUrl = es.Event.BannerImageUrl,
-                LegacyPosterUrl = es.Event.PosterImageUrl
+                BannerFile = es.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                LegacyBannerUrl = es.EventSchedule.Event.BannerImageUrl,
+                LegacyPosterUrl = es.EventSchedule.Event.PosterImageUrl
             })
             .ToListAsync();
 
@@ -105,11 +115,11 @@ namespace Odasoft.XBOL.Data.Repositories
                 Event = new EventItemDTO
                 {
                     Id = es.EventId,
-                    BannerImageUrl = es.BannerFile != null
-                        ? $"data:{es.BannerFile.ContentType};base64,{Convert.ToBase64String(es.BannerFile.Content)}"
+                    BannerImageUrl = es.BannerFile != null && es.BannerFile.Url != null
+                        ? es.BannerFile.Url
                         : es.LegacyBannerUrl ?? string.Empty,
-                    PosterImageUrl = es.PosterFile != null
-                        ? $"data:{es.PosterFile.ContentType};base64,{Convert.ToBase64String(es.PosterFile.Content)}"
+                    PosterImageUrl = es.BannerFile != null && es.BannerFile.Url != null
+                        ? es.BannerFile.Url
                         : es.LegacyPosterUrl ?? string.Empty,
                     Name = es.EventName,
                     StartDate = es.StartDateTime,

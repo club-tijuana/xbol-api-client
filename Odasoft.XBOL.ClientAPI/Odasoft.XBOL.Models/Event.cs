@@ -33,7 +33,6 @@ namespace Odasoft.XBOL.Models
         public Guid UpdatedBy { get; set; }
 
         public IList<EventSchedule> Schedules { get; set; } = [];
-        public IList<EventImage> EventImages { get; set; } = [];
         public IList<EventMedia> Media { get; set; } = [];
         public IList<EventTag> Tags { get; set; } = [];
         public IList<EventCategory> Categories { get; set; } = new List<EventCategory>();

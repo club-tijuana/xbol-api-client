@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Odasoft.XBOL.Business;
 using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.Commons.Requests.Filters;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.DTO.Results;
@@ -17,12 +18,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         private readonly BookingService _bookingService;
         private readonly IMessageBus _bus;
         private readonly ILogger<BookingController> _logger;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public BookingController(BookingService bookingService, IMessageBus bus, ILogger<BookingController> logger)
+        public BookingController(
+            BookingService bookingService,
+            IMessageBus bus,
+            ILogger<BookingController> logger,
+            IClientIdentityService clientIdentityService)
         {
             _bookingService = bookingService;
             _bus = bus;
             _logger = logger;
+            _clientIdentityService = clientIdentityService;
         }
 
         [HttpGet("zones-by-schedule/{scheduleId}")]
@@ -78,18 +85,11 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetSeasonByScheduleIdAsync")]
         public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync([FromRoute] long seasonId)
         {
-            // TODO: Remove temp token
-            long? idClient = null;
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                idClient = token == "TEST-TOKEN" ? 1 : 2;
-            }
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
 
             try
             {
-                var result = await _bookingService.GetSeasonByIdAsync(seasonId, idClient);
+                var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id);
 
                 if (result != null)
                 {
@@ -131,7 +131,20 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             try
             {
                 var result = await _bus.InvokeAsync<BookingResult?>(new CreateEventBookingCommand(request));
+                if (result is null)
+                {
+                    return UnprocessableEntity("Booking failed. Please check the request details and try again.");
+                }
+
                 return Ok(result);
+            }
+            catch (ApiException ex)
+            {
+                _logger.LogWarning(ex, "Ticketing API error during event booking {Status}", ex.StatusCode);
+
+                return ex.Response != null
+                    ? StatusCode(ex.StatusCode, ex.Response)
+                    : StatusCode(ex.StatusCode, ex.Message);
             }
             catch (Exception ex)
             {
@@ -167,7 +180,20 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             try
             {
                 var result = await _bus.InvokeAsync<BookingResult?>(new CreateSeasonBookingCommand(request));
+                if (result is null)
+                {
+                    return UnprocessableEntity("Booking failed. Please check the request details and try again.");
+                }
+
                 return Ok(result);
+            }
+            catch (ApiException ex)
+            {
+                _logger.LogWarning(ex, "Ticketing API error during season booking {Status}", ex.StatusCode);
+
+                return ex.Response != null
+                    ? StatusCode(ex.StatusCode, ex.Response)
+                    : StatusCode(ex.StatusCode, ex.Message);
             }
             catch (Exception ex)
             {

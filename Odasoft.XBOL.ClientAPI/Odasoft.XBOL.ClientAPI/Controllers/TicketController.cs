@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business.Exceptions;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.DTO;
 
@@ -12,39 +14,35 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     {
         private readonly TicketService _ticketService;
         private readonly ILogger<TicketController> _logger;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public TicketController(TicketService ticketService, ILogger<TicketController> logger)
+        public TicketController(
+            TicketService ticketService,
+            ILogger<TicketController> logger,
+            IClientIdentityService clientIdentityService)
         {
             _ticketService = ticketService;
             _logger = logger;
+            _clientIdentityService = clientIdentityService;
         }
 
         [HttpPost("share")]
+        [Authorize]
         [EndpointName("ShareTicketAsync")]
         public async Task<ActionResult<MyTicketDTO>> ShareTicketAsync([FromBody] ShareTicketRequest request)
         {
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+
             try
             {
-                // TODO: Remove temp token
-                var authHeader = Request.Headers["Authorization"].ToString();
-                if (authHeader.StartsWith("Bearer "))
+                var result = await _ticketService.ShareTicketAsync(request, client.Id);
+
+                if (result == null)
                 {
-                    var token = authHeader.Substring("Bearer ".Length);
-                    long idClient = token == "TEST-TOKEN" ? 1 : 2;
-
-                    var result = await _ticketService.ShareTicketAsync(request, idClient);
-
-                    if (result == null)
-                    {
-                        return NotFound();
-                    }
-
-                    return Ok(result);
+                    return NotFound();
                 }
-                else
-                {
-                    return Unauthorized();
-                }
+
+                return Ok(result);
             }
             catch (ClientNotFoundException)
             {
@@ -62,26 +60,17 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         }
 
         [HttpPost("unshare")]
+        [Authorize]
         [EndpointName("UnshareTicketAsync")]
         public async Task<ActionResult<MyTicketDTO>> UnshareTicketAsync([FromBody] UnshareTicketRequest request)
         {
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+
             try
             {
-                // TODO: Remove temp token
-                var authHeader = Request.Headers["Authorization"].ToString();
-                if (authHeader.StartsWith("Bearer "))
-                {
-                    var token = authHeader.Substring("Bearer ".Length);
-                    long idClient = token == "TEST-TOKEN" ? 1 : 2;
+                var result = await _ticketService.UnshareTicketAsync(request, client.Id);
 
-                    var result = await _ticketService.UnshareTicketAsync(request, idClient);
-
-                    return Ok(result);
-                }
-                else
-                {
-                    return Unauthorized();
-                }
+                return Ok(result);
             }
             catch (TicketNotFoundException)
             {

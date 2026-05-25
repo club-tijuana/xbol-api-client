@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business.Services;
+using Odasoft.XBOL.ClientAPI.Services;
 using Odasoft.XBOL.DTO;
 
 namespace Odasoft.XBOL.ClientAPI.Controllers
@@ -9,25 +10,21 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     public class SeasonController : ControllerBase
     {
         private readonly SeasonService _seasonService;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public SeasonController(SeasonService seasonService)
+        public SeasonController(SeasonService seasonService, IClientIdentityService clientIdentityService)
         {
             _seasonService = seasonService;
+            _clientIdentityService = clientIdentityService;
         }
 
         [HttpGet]
         [EndpointName("GetSeasonBannerAsync")]
         public async Task<ActionResult<SeasonItemDTO?>> GetSeasonBannerAsync()
         {
-            long? idClient = null;
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length);
-                idClient = token == "TEST-TOKEN" ? 1 : 2;
-            }
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
 
-            var result = await _seasonService.GetSeasonBannerAsync(idClient);
+            var result = await _seasonService.GetSeasonBannerAsync(client?.Id);
             return Ok(result);
         }
     }

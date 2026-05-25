@@ -77,7 +77,7 @@ namespace Odasoft.XBOL.Business.Handlers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating event booking for event {EventKey}", command.Request.EventKey);
-                return null;
+                throw;
             }
         }
 
@@ -96,7 +96,7 @@ namespace Odasoft.XBOL.Business.Handlers
                 long? clientId = command.Request.ClientContact.Id;
                 if (clientId == null)
                 {
-                    if (command.Request.ClientContact.Email == null || command.Request.ClientContact.PhoneNumber == null)
+                    if (command.Request.ClientContact.Email == null)
                     {
                         throw new Exception("Client information must be provided");
                     }
@@ -104,7 +104,7 @@ namespace Odasoft.XBOL.Business.Handlers
                     ClientContactRequest contact = new ClientContactRequest
                     {
                         Email = command.Request.ClientContact.Email,
-                        Phone = command.Request.ClientContact.PhoneNumber,
+                        Phone = command.Request.ClientContact.PhoneNumber ?? string.Empty,
                         PhoneCode = ""
                     };
                     var client = await _clientService.GetClientByContactAsync(contact);
@@ -165,13 +165,13 @@ namespace Odasoft.XBOL.Business.Handlers
                         };
                         await _ticketingClient.SetForSaleAsync(setForSaleRequest);
                     }
-                    return null;
+                    throw;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating season booking for season {SeasonKey}", command.Request.SeasonKey);
-                return null;
+                throw;
             }
         }
     }

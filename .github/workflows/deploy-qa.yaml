@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - qa
+  push:
+    branches:
+      - qa
 env:
   IMAGE_VERSION: '0.0.0001'
   IMAGE_NAME: qa-xbol-api-client
