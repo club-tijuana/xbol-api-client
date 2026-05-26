@@ -2,9 +2,10 @@
 {
     public class User
     {
-        public string Username { get; set; }
+        public Guid UserId { get; set; }
+        public string Username { get; set; } = string.Empty;
 
-        public string Password { get; set; }
+        public string Password { get; set; } = string.Empty;
 
         public string? Token { get; set; }
 

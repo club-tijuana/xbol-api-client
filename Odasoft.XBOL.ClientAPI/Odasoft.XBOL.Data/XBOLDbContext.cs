@@ -1,19 +1,21 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Data.Configurations;
 using Odasoft.XBOL.Data.Extensions;
 using Odasoft.XBOL.Models;
 
 namespace Odasoft.XBOL.Data
 {
-    public class XBOLDbContext : IdentityDbContext<User, Role, Guid>
+    public class XBOLDbContext : DbContext
     {
         public DbSet<Season> Seasons => Set<Season>();
         public DbSet<Order> Orders => Set<Order>();
+        public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<SeasonPass> SeasonPasses => Set<SeasonPass>();
         public DbSet<SeasonPassEventTicket> SeasonPassEventTickets => Set<SeasonPassEventTicket>();
+        public DbSet<SeasonSection> SeasonSections => Set<SeasonSection>();
+        public DbSet<SeasonSeat> SeasonSeats => Set<SeasonSeat>();
         public DbSet<BaseSeat> BaseSeats => Set<BaseSeat>();
         public DbSet<BaseRow> BaseRows => Set<BaseRow>();
         public DbSet<BaseSection> BaseSections => Set<BaseSection>();
@@ -25,16 +27,17 @@ namespace Odasoft.XBOL.Data
         public DbSet<EventSchedule> EventSchedules { get; set; }
         public DbSet<InventoryBatch> InventoryBatches { get; set; }
         public DbSet<Performer> Performers { get; set; }
+        public DbSet<EventViews> EventViews { get; set; }
+        public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
+        public DbSet<SequenceTracker> SequenceTrackers { get; set; }
+        public DbSet<EventCategory> EventCategories => Set<EventCategory>();
+        public DbSet<Media> Media => Set<Media>();
+        public DbSet<Role> Roles => Set<Role>();
+        public DbSet<User> Users => Set<User>();
 
-        public XBOLDbContext() : base()
-        {
+        public XBOLDbContext() { }
 
-        }
-
-        public XBOLDbContext(DbContextOptions<XBOLDbContext> options)
-           : base(options)
-        {
-        }
+        public XBOLDbContext(DbContextOptions<XBOLDbContext> options) : base(options) { }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -56,22 +59,20 @@ namespace Odasoft.XBOL.Data
                 }
             }
 
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<Client>()
-                .HasOne(c => c.User)
-                .WithOne(u => u.Client)
-                .HasForeignKey<User>(u => u.ClientId)
-                .IsRequired();
-
             modelBuilder.Entity<SeasonPassEventTicket>()
                 .Property(spet => spet.Id)
                 .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Order>()
+                .HasMany(o => o.Items)
+                .WithOne(i => i.Order)
+                .HasForeignKey(i => i.OrderId);
 
             modelBuilder.RemovePluralizingTableNameConvention();
 
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
+            modelBuilder.ApplyConfiguration(new EventConfiguration());
         }
     }
 }

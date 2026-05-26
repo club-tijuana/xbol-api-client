@@ -3,8 +3,10 @@
     public class Organizer : BaseModel
     {
         public string Name { get; set; } = null!;
-        public string ContactEmail { get; set; } = null!;
-        public string ContactPhone { get; set; } = null!;
+        public string Email { get; set; } = null!;
+        public long? PhoneRegionCodeId { get; set; }
+        public PhoneRegionCode? PhoneRegionCode { get; set; }
+        public string PhoneNumber { get; set; } = null!;
         public string WebsiteUrl { get; set; } = null!;
         public string LogoUrl { get; set; } = null!;
         public string BannerUrl { get; set; } = null!;
