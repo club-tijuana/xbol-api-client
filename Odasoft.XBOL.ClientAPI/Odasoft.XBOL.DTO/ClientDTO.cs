@@ -3,7 +3,7 @@
     public class ClientDTO
     {
         public long Id { get; set; }
-        public string UserId { get; set; } = string.Empty;
+        public string FirebaseUid { get; set; } = string.Empty;
         public string FullName { get; set; } = null!;
         public string? BusinessName { get; set; }
 

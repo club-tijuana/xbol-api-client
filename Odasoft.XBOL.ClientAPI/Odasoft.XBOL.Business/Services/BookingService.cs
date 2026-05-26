@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests.Filters;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
@@ -11,6 +12,7 @@ namespace Odasoft.XBOL.Business.Services
     {
         private readonly EventSectionRepository _eventSectionRepository;
         private readonly EventScheduleRepository _eventScheduleRepository;
+        private readonly MediaRepository _mediaRepository;
         private readonly SeasonRepository _seasonRepository;
         private readonly SeasonPassRepository _seasonPassRepository;
         private readonly OrderRepository _orderRepository;
@@ -18,6 +20,7 @@ namespace Odasoft.XBOL.Business.Services
 
         public BookingService(EventSectionRepository eventSectionRepository,
             EventScheduleRepository eventScheduleRepository,
+            MediaRepository mediaRepository,
             SeasonRepository seasonRepository,
             SeasonPassRepository seasonPassRepository,
             OrderRepository orderRepository,
@@ -25,6 +28,7 @@ namespace Odasoft.XBOL.Business.Services
         {
             _eventSectionRepository = eventSectionRepository;
             _eventScheduleRepository = eventScheduleRepository;
+            _mediaRepository = mediaRepository;
             _seasonRepository = seasonRepository;
             _orderRepository = orderRepository;
             _clientService = clientService;
@@ -55,7 +59,6 @@ namespace Odasoft.XBOL.Business.Services
                 .Include(s => s.Event)
                     .ThenInclude(e => e.Categories)
                 .Include(s => s.Event)
-                    .ThenInclude(e => e.EventImages)
                 .FirstOrDefaultAsync();
 
             if (schedule == null)
@@ -69,24 +72,23 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(canReserve.Message);
             }
 
-            var banner = schedule.Event.EventImages
-                .Where(i => i.ImageType == Commons.Enums.ImageType.HorizontalPoster)
-                .OrderBy(i => i.Order)
-                .FirstOrDefault();
-
-            var poster = schedule.Event.EventImages
-                .Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster)
-                .OrderBy(i => i.Order)
+            var banner = _mediaRepository
+                .Get(m =>
+                    m.ReferenceId == schedule.EventId &&
+                    m.ReferenceType == ClientSaleType.Event &&
+                    m.MediaType == ClientMediaType.Banner &&
+                    m.DeletedAt == null
+                )
                 .FirstOrDefault();
 
             return new EventItemDTO
             {
                 Id = schedule.Id,
-                BannerImageUrl = banner != null
-                    ? $"data:{banner.ContentType};base64,{Convert.ToBase64String(banner.Content)}"
+                BannerImageUrl = banner != null && banner.Url != null
+                    ? banner.Url
                     : schedule.Event.BannerImageUrl ?? string.Empty,
-                PosterImageUrl = poster != null
-                    ? $"data:{poster.ContentType};base64,{Convert.ToBase64String(poster.Content)}"
+                PosterImageUrl = banner != null && banner.Url != null
+                    ? banner.Url
                     : schedule.Event.PosterImageUrl ?? string.Empty,
                 Name = schedule.Event.Name,
                 StartDate = schedule.StartDateTime,
