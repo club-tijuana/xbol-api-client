@@ -316,36 +316,45 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Where(i => i.MediaType == ClientMediaType.Gallery)
                 .OrderBy(i => i.Order);
 
+            var bannerUrl = banner?.Url;
+
             EventImagesDTO? images = null;
             if (includeImages)
             {
                 images = new EventImagesDTO
                 {
-                    Horizontal = banner != null && banner.Url != null
-                        ? banner.Url
+                    Horizontal = bannerUrl != null
+                        ? bannerUrl
                         : eventEntity.BannerImageUrl,
-                    Vertical = banner != null && banner.Url != null
-                        ? banner.Url
+                    Vertical = bannerUrl != null
+                        ? bannerUrl
                         : eventEntity.PosterImageUrl
                 };
             }
 
+            var fallbackGallery = new[]
+                {
+                    bannerUrl,
+                    eventEntity.BannerImageUrl,
+                    eventEntity.PosterImageUrl
+                }
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Select(url => url!)
+                .Distinct()
+                .ToList();
+
             EventDetailDTO? eventDetail = new EventDetailDTO
             {
                 Id = eventEntity.Id,
-                Image = banner != null && banner.Url != null
-                    ? banner.Url
+                Image = bannerUrl != null
+                    ? bannerUrl
                     : eventEntity.BannerImageUrl ?? string.Empty,
                 Gallery = gallery != null && gallery.Any(i => i.Url != null)
                     ? gallery
                         .Where(i => i.Url != null)
                         .Select(i => i.Url!)
                         .ToList()
-                    : new()
-                    {
-                        eventEntity.BannerImageUrl ?? string.Empty,
-                        eventEntity.PosterImageUrl ?? string.Empty
-                    },
+                    : fallbackGallery,
                 Name = eventEntity.Name,
                 LongDescription = eventEntity.LongDescription,
                 ShortDescription = eventEntity.ShortDescription,

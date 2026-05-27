@@ -32,6 +32,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<SequenceTracker> SequenceTrackers { get; set; }
         public DbSet<EventCategory> EventCategories => Set<EventCategory>();
         public DbSet<Media> Media => Set<Media>();
+        public DbSet<BlobAsset> BlobAssets => Set<BlobAsset>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<User> Users => Set<User>();
 
@@ -73,6 +74,8 @@ namespace Odasoft.XBOL.Data
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfiguration(new EventConfiguration());
+            modelBuilder.ApplyConfiguration(new BlobAssetConfiguration());
+            modelBuilder.ApplyConfiguration(new MediaConfiguration());
         }
     }
 }
