@@ -11,6 +11,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Client> Clients => Set<Client>();
+        public DbSet<ClientLoginIdentifier> ClientLoginIdentifiers => Set<ClientLoginIdentifier>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<SeasonPass> SeasonPasses => Set<SeasonPass>();
         public DbSet<SeasonPassEventTicket> SeasonPassEventTickets => Set<SeasonPassEventTicket>();
@@ -71,6 +72,7 @@ namespace Odasoft.XBOL.Data
 
             modelBuilder.RemovePluralizingTableNameConvention();
 
+            modelBuilder.ApplyConfiguration(new ClientLoginIdentifierConfiguration());
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfiguration(new EventConfiguration());

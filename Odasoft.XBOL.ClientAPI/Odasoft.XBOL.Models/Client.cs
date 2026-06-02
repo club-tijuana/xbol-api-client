@@ -37,6 +37,7 @@ namespace Odasoft.XBOL.Models
         public IList<ClientCreditAccount> ClientCreditAccounts { get; set; } = [];
         public IList<SeatHold> SeatHolds { get; set; } = [];
         public IList<Ticket> Tickets { get; set; } = [];
+        public IList<ClientLoginIdentifier> LoginIdentifiers { get; set; } = [];
         public LegalRepresentative? LegalRepresentative { get; set; }
     }
 }

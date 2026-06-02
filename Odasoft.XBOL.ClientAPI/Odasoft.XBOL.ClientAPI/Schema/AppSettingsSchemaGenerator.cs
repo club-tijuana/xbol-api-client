@@ -272,7 +272,7 @@ public static class AppSettingsSchemaGenerator
         [Description("Cross-origin policy registered in the HTTP pipeline.")]
         public CorsOptions? Cors { get; set; }
 
-        [Description("Firebase Admin SDK authentication settings for the client tenant.")]
+        [Description("Firebase Admin SDK authentication settings for Client root authentication.")]
         public GcipAuthOptionsSchema? GcipAuth { get; set; }
 
         [Description("Ticketing API client settings.")]
@@ -287,10 +287,6 @@ public static class AppSettingsSchemaGenerator
 
     public sealed class GcipAuthOptionsSchema
     {
-        [Required]
-        [Description("Firebase Auth tenant ID for client users.")]
-        public string? TenantId { get; set; }
-
         [Required]
         [Description("Firebase project ID.")]
         public string? ProjectId { get; set; }

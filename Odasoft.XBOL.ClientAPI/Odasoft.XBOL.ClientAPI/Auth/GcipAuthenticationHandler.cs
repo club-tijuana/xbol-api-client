@@ -1,8 +1,8 @@
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using FirebaseAdmin.Auth;
-using FirebaseAdmin.Auth.Multitenancy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -18,16 +18,16 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
     public const string EmailVerifiedClaimType = "firebase.email_verified";
     public const string SignInProviderClaimType = "firebase.sign_in_provider";
 
-    private readonly TenantAwareFirebaseAuth _tenantAuth;
+    private readonly IFirebaseTokenVerifier _tokenVerifier;
 
     public GcipAuthenticationHandler(
         IOptionsMonitor<GcipAuthenticationOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        TenantAwareFirebaseAuth tenantAuth)
+        IFirebaseTokenVerifier tokenVerifier)
         : base(options, logger, encoder)
     {
-        _tenantAuth = tenantAuth;
+        _tokenVerifier = tokenVerifier;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -48,18 +48,19 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
             return AuthenticateResult.Fail("Authorization header with Bearer scheme requires a token value.");
         }
 
-        FirebaseToken decoded;
+        VerifiedFirebaseToken decoded;
         try
         {
-            decoded = await _tenantAuth.VerifyIdTokenAsync(token, Context.RequestAborted);
-        }
-        catch (FirebaseAuthException ex) when (ex.AuthErrorCode == AuthErrorCode.TenantIdMismatch)
-        {
-            return AuthenticateResult.Fail($"Token tenant does not match expected tenant '{Options.TenantId}'.");
+            decoded = await _tokenVerifier.VerifyIdTokenAsync(token, Context.RequestAborted);
         }
         catch (FirebaseAuthException ex)
         {
             return AuthenticateResult.Fail($"Firebase ID token verification failed: {ex.Message}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(decoded.TenantId))
+        {
+            return AuthenticateResult.Fail("Client API requires a root Firebase ID token, not a tenant-scoped token.");
         }
 
         var claims = BuildClaims(decoded);
@@ -79,14 +80,14 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
         {
             Status = StatusCodes.Status401Unauthorized,
             Title = "Unauthorized",
-            Detail = "A valid Firebase client-tenant ID token is required.",
+            Detail = "A valid root Firebase client ID token is required.",
             Type = "https://tools.ietf.org/html/rfc9110#section-15.5.2"
         };
 
         await Response.WriteAsJsonAsync(problem);
     }
 
-    private static List<Claim> BuildClaims(FirebaseToken token)
+    private static List<Claim> BuildClaims(VerifiedFirebaseToken token)
     {
         var claims = new List<Claim>
         {
@@ -134,12 +135,56 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
 
         if (firebaseClaim is IReadOnlyDictionary<string, object> firebaseClaims
             && firebaseClaims.TryGetValue("sign_in_provider", out var value)
-            && value is string stringValue)
+            && TryReadString(value, out var dictionaryValue))
         {
-            signInProvider = stringValue;
+            signInProvider = dictionaryValue;
             return true;
         }
 
-        return false;
+        if (firebaseClaim is JsonElement jsonElement)
+        {
+            return TryReadJsonSignInProvider(jsonElement, out signInProvider);
+        }
+
+        var json = firebaseClaim.ToString();
+        if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith('{'))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return TryReadJsonSignInProvider(document.RootElement, out signInProvider);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryReadJsonSignInProvider(JsonElement firebaseClaim, out string signInProvider)
+    {
+        signInProvider = string.Empty;
+
+        return firebaseClaim.ValueKind == JsonValueKind.Object
+            && firebaseClaim.TryGetProperty("sign_in_provider", out var value)
+            && TryReadString(value, out signInProvider);
+    }
+
+    private static bool TryReadString(object value, out string result)
+    {
+        result = string.Empty;
+
+        if (value is string stringValue)
+        {
+            result = stringValue;
+        }
+        else if (value is JsonElement { ValueKind: JsonValueKind.String } jsonString)
+        {
+            result = jsonString.GetString() ?? string.Empty;
+        }
+
+        return !string.IsNullOrWhiteSpace(result);
     }
 }

@@ -138,6 +138,19 @@ namespace Odasoft.XBOL.Business.Services
 
                 request.ClientContact.Id = client.Id;
 
+                if (request.ReferenceOrderId.HasValue)
+                {
+                    var ownsReferenceOrder = await _orderRepository
+                        .Get(order => order.Id == request.ReferenceOrderId.Value
+                            && order.ClientId == client.Id)
+                        .AnyAsync();
+
+                    if (!ownsReferenceOrder)
+                    {
+                        throw new InvalidOperationException("Reference order does not belong to the verified client.");
+                    }
+                }
+
                 // TODO: Temporarily create tickets for season passes to support ticket sharing.
                 // Season passes should eventually handle sharing natively without relying on ticket entities.
                 // Remove this workaround once sharing is implemented for season passes.
@@ -202,58 +215,20 @@ namespace Odasoft.XBOL.Business.Services
 
             var effectiveFullName = ResolveFullName(clientInfo);
 
-            var client = await FindClientByContactAsync(clientInfo);
-            if (client is not null)
+            if (clientInfo.Id.HasValue)
             {
-                if (client.FirebaseUid is not null)
+                var existingClient = await _clientRepository.GetByIdAsync(clientInfo.Id.Value);
+                if (existingClient is null)
                 {
-                    return client;
+                    throw new InvalidOperationException("Client not found.");
                 }
 
-                ApplyOrderContact(client, clientInfo, effectiveFullName);
-                await _clientRepository.UpdateAsync(client);
-                return client;
+                ApplyOrderContact(existingClient, clientInfo, effectiveFullName);
+                await _clientRepository.UpdateAsync(existingClient);
+                return existingClient;
             }
 
-            client = await CreateClientAsync(clientInfo, effectiveFullName);
-            return client;
-        }
-
-        private static void EnsureUsableContact(ClientInfoRequest clientInfo)
-        {
-            var hasEmail = !string.IsNullOrWhiteSpace(clientInfo.Email);
-            var hasPhone = !string.IsNullOrWhiteSpace(clientInfo.PhoneNumber)
-                && NormalizePhoneNumber(clientInfo.PhoneNumber).Length > 0;
-
-            if (!hasEmail && !hasPhone)
-            {
-                throw new InvalidOperationException("Client email or phone number must be provided.");
-            }
-        }
-
-        private async Task<Client?> FindClientByContactAsync(ClientInfoRequest clientInfo)
-        {
-            if (!string.IsNullOrWhiteSpace(clientInfo.Email))
-            {
-                var email = clientInfo.Email.Trim().ToUpperInvariant();
-                var client = await _clientRepository
-                    .Get(filter: client => client.Email != null && client.Email.ToUpper().Equals(email))
-                    .OrderByDescending(client => client.FirebaseUid != null)
-                    .ThenByDescending(client => client.Id)
-                    .FirstOrDefaultAsync();
-
-                if (client is not null)
-                {
-                    return client;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(clientInfo.PhoneNumber))
-            {
-                return await _clientRepository.GetByContactPhoneNumberAsync(clientInfo.PhoneNumber);
-            }
-
-            return null;
+            return await CreateClientAsync(clientInfo, effectiveFullName);
         }
 
         private static void ApplyOrderContact(Client client, ClientInfoRequest clientInfo, string? effectiveFullName)
@@ -290,6 +265,18 @@ namespace Odasoft.XBOL.Business.Services
             client.IsActive = true;
             client.UpdatedAt = DateTime.UtcNow;
             client.UpdatedBy = Guid.Empty;
+        }
+
+        private static void EnsureUsableContact(ClientInfoRequest clientInfo)
+        {
+            var hasEmail = !string.IsNullOrWhiteSpace(clientInfo.Email);
+            var hasPhone = !string.IsNullOrWhiteSpace(clientInfo.PhoneNumber)
+                && NormalizePhoneNumber(clientInfo.PhoneNumber).Length > 0;
+
+            if (!hasEmail && !hasPhone)
+            {
+                throw new InvalidOperationException("Client email or phone number must be provided.");
+            }
         }
 
         private async Task<Client> CreateClientAsync(ClientInfoRequest clientInfo, string? effectiveFullName)

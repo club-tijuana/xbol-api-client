@@ -26,7 +26,8 @@ namespace Odasoft.XBOL.Business.Services
             {
                 Email = shareTicket.Email,
                 Phone = shareTicket.Phone,
-                PhoneCode = shareTicket.PhoneCode
+                PhoneCode = shareTicket.PhoneCode,
+                PhoneIsoCode = shareTicket.PhoneIsoCode
             });
 
             if (client == null)
