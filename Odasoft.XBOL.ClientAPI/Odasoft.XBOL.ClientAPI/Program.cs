@@ -1,6 +1,6 @@
+using FirebaseAdmin;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using FirebaseAdmin;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Business.Extensions;
 using Odasoft.XBOL.Business.Messages;

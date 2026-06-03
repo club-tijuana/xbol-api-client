@@ -72,11 +72,11 @@ namespace Odasoft.XBOL.Business.Services
 
                 request.ClientContact.Id = client.Id;
 
-                List<Ticket> tickets = await CreateTicketsAsync(request.Seats, schedule.EventId, client);
+                List<Ticket> tickets = await CreateTicketsAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), schedule.EventId, client);
 
                 var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
                                 ? 0
-                                : request.Seats.Sum(x => x.Value);
+                                : request.Seats.Sum(x => x.SeatPrice);
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
@@ -154,13 +154,13 @@ namespace Odasoft.XBOL.Business.Services
                 // TODO: Temporarily create tickets for season passes to support ticket sharing.
                 // Season passes should eventually handle sharing natively without relying on ticket entities.
                 // Remove this workaround once sharing is implemented for season passes.
-                List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats, season.Id, client);
-                List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats, season.Id, client);
+                List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), season.Id, client);
+                List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), season.Id, client);
                 await CreateSeasonPassEventTicketsAsync(seasonPasses, tickets);
 
                 var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
                                 ? 0
-                                : request.Seats.Sum(x => x.Value);
+                                : request.Seats.Sum(x => x.SeatPrice);
                 var newOrder = new Order
                 {
                     ClientId = client.Id,
@@ -475,7 +475,9 @@ namespace Odasoft.XBOL.Business.Services
             foreach (var ticket in tickets)
             {
                 if (!passByCode.TryGetValue(ticket.TicketCode, out var pass))
+                {
                     continue;
+                }
 
                 var join = new SeasonPassEventTicket
                 {

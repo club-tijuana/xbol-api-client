@@ -1,6 +1,3 @@
-using System.Security.Claims;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -8,6 +5,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Odasoft.XBOL.ClientAPI.Auth;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using Xunit;
 
 namespace Odasoft.XBOL.ClientAPI.Tests.Auth;

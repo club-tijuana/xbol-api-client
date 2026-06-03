@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.Business.Services;
-using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.DTO.Results;
 
 namespace Odasoft.XBOL.Business.Handlers
@@ -118,7 +117,7 @@ namespace Odasoft.XBOL.Business.Handlers
                     {
                         EventKey = command.Request.SeasonKey,
                         ForSale = true,
-                        SeatKeys = command.Request.Seats.Select(s => s.Key).ToList()
+                        SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
                     };
                     await _ticketingClient.SetForSaleAsync(setForSaleRequest);
                 }
@@ -146,7 +145,7 @@ namespace Odasoft.XBOL.Business.Handlers
                         {
                             EventKey = command.Request.SeasonKey,
                             ForSale = false,
-                            SeatKeys = command.Request.Seats.Select(s => s.Key).ToList()
+                            SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
                         };
                         await _ticketingClient.SetForSaleAsync(setForSaleRequest);
                     }

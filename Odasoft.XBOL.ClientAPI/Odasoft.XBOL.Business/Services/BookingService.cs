@@ -17,6 +17,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonPassRepository _seasonPassRepository;
         private readonly OrderRepository _orderRepository;
         private readonly ClientService _clientService;
+        private readonly ITicketingClient _ticketingClient;
 
         public BookingService(EventSectionRepository eventSectionRepository,
             EventScheduleRepository eventScheduleRepository,
@@ -24,7 +25,8 @@ namespace Odasoft.XBOL.Business.Services
             SeasonRepository seasonRepository,
             SeasonPassRepository seasonPassRepository,
             OrderRepository orderRepository,
-            ClientService clientService)
+            ClientService clientService,
+            ITicketingClient ticketingClient)
         {
             _eventSectionRepository = eventSectionRepository;
             _eventScheduleRepository = eventScheduleRepository;
@@ -33,6 +35,7 @@ namespace Odasoft.XBOL.Business.Services
             _orderRepository = orderRepository;
             _clientService = clientService;
             _seasonPassRepository = seasonPassRepository;
+            _ticketingClient = ticketingClient;
         }
 
         public async Task<IList<ZoneDTO>> GetZonesByEventIdAsync(long scheduleId)
@@ -47,7 +50,32 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
         {
-            return await _eventSectionRepository.GetSeatAvailabilityAsync(filters);
+            SeatAvailabilityResponse response = await _ticketingClient.GetSeatAvailabilityAsync(new ReservationFiltersRequest
+            {
+                MinimumPrice = filters.PriceRange?.Min,
+                MaximumPrice = filters.PriceRange?.Max,
+                ScheduleId = filters.ScheduleId,
+                SeasonId = filters.SeasonId,
+                SectionId = filters.SectionId,
+                ZoneId = filters.ZoneId
+            });
+
+            return new SeatAvailabilityDTO
+            {
+                Sections = response.Sections.Select(x => new SectionDTO
+                {
+                    Id = x.Id.HasValue ? x.Id.Value : 0,
+                    Name = x.Name,
+                    DisplayName = x.DisplayName,
+                    Price = x.Price
+                }).ToList(),
+                SeatOverrides = response.SeatOverrides.Select(x => new SeatDTO
+                {
+                    Id = x.Id.HasValue ? x.Id.Value : 0,
+                    ExternalSeatObjectKey = x.ExternalSeatObjectKey,
+                    PriceOverride = x.PriceOverride
+                }).ToList()
+            };
         }
 
         public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)

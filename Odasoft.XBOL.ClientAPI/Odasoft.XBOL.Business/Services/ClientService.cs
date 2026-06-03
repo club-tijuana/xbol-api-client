@@ -1,12 +1,11 @@
-﻿using System.Net.Mail;
-using Microsoft.EntityFrameworkCore;
-using Odasoft.XBOL.Commons.Enums;
+﻿using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 using PhoneNumbers;
+using System.Net.Mail;
 
 namespace Odasoft.XBOL.Business.Services
 {

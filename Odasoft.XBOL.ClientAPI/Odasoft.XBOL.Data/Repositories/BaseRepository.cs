@@ -236,7 +236,9 @@ namespace Odasoft.XBOL.Data.Repositories
         {
             var connection = GetConnection(connectionString);
             if (connection.State != ConnectionState.Open)
+            {
                 connection.Open();
+            }
 
             return await connection.QueryAsync<N>(
                 query,
@@ -266,7 +268,9 @@ namespace Odasoft.XBOL.Data.Repositories
         {
             var connection = GetConnection(connectionString);
             if (connection.State != ConnectionState.Open)
+            {
                 connection.Open();
+            }
 
             return connection.Query<N>(
                 query,
@@ -282,7 +286,9 @@ namespace Odasoft.XBOL.Data.Repositories
         {
             var connection = GetConnection(connectionString);
             if (connection.State != ConnectionState.Open)
+            {
                 connection.Open();
+            }
 
             connection.Execute(query, commandTimeout: commandTimeout);
         }

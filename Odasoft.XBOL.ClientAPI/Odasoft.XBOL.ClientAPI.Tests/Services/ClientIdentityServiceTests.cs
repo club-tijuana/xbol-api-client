@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +9,7 @@ using Odasoft.XBOL.Data;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO.Requests;
 using Odasoft.XBOL.Models;
+using System.Security.Claims;
 using Xunit;
 
 namespace Odasoft.XBOL.ClientAPI.Tests.Services;

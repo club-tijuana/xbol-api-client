@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Odasoft.XBOL.Business.Configs;
 using Odasoft.XBOL.Commons.Options;
 using System.ComponentModel;

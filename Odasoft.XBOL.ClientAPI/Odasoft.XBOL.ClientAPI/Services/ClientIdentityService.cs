@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using System.Net.Mail;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +10,8 @@ using Odasoft.XBOL.DTO.Requests;
 using Odasoft.XBOL.DTO.Responses;
 using Odasoft.XBOL.Models;
 using PhoneNumbers;
+using System.Net.Mail;
+using System.Security.Claims;
 
 namespace Odasoft.XBOL.ClientAPI.Services;
 

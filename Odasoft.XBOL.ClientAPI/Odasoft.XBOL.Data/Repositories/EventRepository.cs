@@ -370,16 +370,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         {
                             Id = s.Id,
                             Date = s.StartDateTime,
-                            Location = s.Event.VenueMap.Name,
-                            SectionPrices = s.Sections // TODO: Mapper
-                                .GroupBy(es => es.Price)
-                                .Select(g => new EventScheduleSectionPricesDTO
-                                {
-                                    Price = g.Key,
-                                    Objects = g.Select(es => es.BaseSection.Name).ToList(),
-                                    Currency = "MXN", // TODO: Add currency support for totals
-                                })
-                                .ToList()
+                            Location = s.Event.VenueMap.Name
                         }).ToList(),
                 Categories = eventEntity.Categories
                         .Select(ec => new EventCategoryDTO

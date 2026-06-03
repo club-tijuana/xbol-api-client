@@ -16,6 +16,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SearchSettings _searchSettings;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
         private readonly ILogger<EventService> _logger;
+        private readonly ITicketingClient _ticketingClient;
 
         private const int MIN_PAGE = 1;
         private const int MAX_PAGE = 50;
@@ -29,8 +30,8 @@ namespace Odasoft.XBOL.Business.Services
             EventViewRepository eventViewRepository,
             SearchSettings searchSettings,
             EventsTrackingSettings eventsTrackingSettings,
-            ILogger<EventService> logger
-        )
+            ILogger<EventService> logger,
+            ITicketingClient ticketingClient)
         {
             _eventRepository = eventRepository;
             _eventCategoryRepository = eventCategoryRepository;
@@ -39,6 +40,7 @@ namespace Odasoft.XBOL.Business.Services
             _searchSettings = searchSettings;
             _eventsTrackingSettings = eventsTrackingSettings;
             _logger = logger;
+            _ticketingClient = ticketingClient;
         }
 
         public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(long? clientId)
@@ -89,7 +91,27 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient, bool includeImages = false)
         {
-            return await _eventRepository.GetEventDetailAsync(eventId, idClient, includeImages);
+            EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, idClient, includeImages);
+
+            if (eventDetail != null)
+            {
+                ICollection<SectionPriceResponse> eventPrices = await _ticketingClient.GetSectionPricesAsync(SaleType.Event, eventId);
+
+                // Currently the event only have one schedule.
+                List<EventScheduleSectionPricesDTO> sectionPrices = eventPrices.Select(x => new EventScheduleSectionPricesDTO
+                {
+                    Objects = x.Objects.ToList(),
+                    Price = x.Price,
+                    Currency = x.Currency ?? "MXN" // TODO: Add currency support for totals
+                }).ToList();
+
+                foreach (var schedule in eventDetail.Schedules)
+                {
+                    schedule.SectionPrices = sectionPrices;
+                }
+            }
+
+            return eventDetail;
         }
 
         public async Task<List<EventCategoryDTO>> GetEventCategories()
