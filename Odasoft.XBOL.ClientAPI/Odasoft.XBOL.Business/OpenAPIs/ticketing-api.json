@@ -2031,47 +2031,56 @@
         ],
         "summary": "Gets the seat availability based on the provided filters. This endpoint is used to determine which seats are available for reservation based on the specified criteria such as season, schedule, section, zone, and price range.",
         "operationId": "GetSeatAvailabilityAsync",
-        "requestBody": {
-          "description": "",
-          "content": {
-            "application/json-patch+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ReservationFiltersRequest"
-                  }
-                ]
-              }
-            },
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ReservationFiltersRequest"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ReservationFiltersRequest"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/ReservationFiltersRequest"
-                  }
-                ]
-              }
+        "parameters": [
+          {
+            "name": "SeasonId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "ScheduleId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "SectionId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "ZoneId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "MinimumPrice",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            }
+          },
+          {
+            "name": "MaximumPrice",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "decimal"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -6386,9 +6395,25 @@
               }
             ]
           },
+          "paymentLinkRequest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkRequest"
+              }
+            ],
+            "nullable": true
+          },
           "localizer": {
             "type": "string",
             "nullable": true
+          },
+          "userProfileId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "isPaymentLink": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -7290,6 +7315,27 @@
         },
         "additionalProperties": false
       },
+      "PaymentLinkRequest": {
+        "type": "object",
+        "properties": {
+          "expirationDays": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "expirationHours": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "expirationMinutes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -7370,42 +7416,6 @@
         },
         "additionalProperties": false
       },
-      "ReservationFiltersRequest": {
-        "type": "object",
-        "properties": {
-          "seasonId": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "scheduleId": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "sectionId": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "zoneId": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "minimumPrice": {
-            "type": "number",
-            "format": "decimal",
-            "nullable": true
-          },
-          "maximumPrice": {
-            "type": "number",
-            "format": "decimal",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "SaleType": {
         "enum": [
           "Event",
@@ -7481,9 +7491,25 @@
               }
             ]
           },
+          "paymentLinkRequest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkRequest"
+              }
+            ],
+            "nullable": true
+          },
           "localizer": {
             "type": "string",
             "nullable": true
+          },
+          "userProfileId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "isPaymentLink": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
