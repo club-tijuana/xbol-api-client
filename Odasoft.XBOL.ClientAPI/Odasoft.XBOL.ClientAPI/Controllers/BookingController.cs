@@ -62,11 +62,13 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("event-by-schedule/{scheduleId}")]
         [EndpointName("GetEventItemByScheduleIdAsync")]
-        public async Task<ActionResult<EventItemDTO>> GetEventItemByScheduleIdAsync([FromRoute] long scheduleId)
+        public async Task<ActionResult<EventItemDTO>> GetEventItemByScheduleIdAsync(
+            [FromRoute] long scheduleId,
+            [FromQuery] bool includeMedia = false)
         {
             try
             {
-                var result = await _bookingService.GetEventItemByScheduleIdAsync(scheduleId);
+                var result = await _bookingService.GetEventItemByScheduleIdAsync(scheduleId, includeMedia);
 
                 if (result == null)
                 {
@@ -84,13 +86,15 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("season-by-id/{seasonId}")]
         [EndpointName("GetSeasonByScheduleIdAsync")]
-        public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync([FromRoute] long seasonId)
+        public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync(
+            [FromRoute] long seasonId,
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
 
             try
             {
-                var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id);
+                var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id, includeMedia);
 
                 if (result != null)
                 {

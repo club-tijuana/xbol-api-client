@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Odasoft.XBOL.Commons.Enums;
+
 using Odasoft.XBOL.Models;
 
 namespace Odasoft.XBOL.Data.Configurations

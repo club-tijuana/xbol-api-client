@@ -32,10 +32,11 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("main")]
         [EndpointName("GetMainEventsAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync()
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync(
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetMainEventsAsync(client?.Id);
+            var result = await _eventService.GetMainEventsAsync(client?.Id, includeMedia);
 
             return Ok(result);
         }
@@ -55,10 +56,11 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetTrendingEventsAsync(
             [FromQuery] int? page,
-            [FromQuery] int? pageSize)
+            [FromQuery] int? pageSize,
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, client?.Id);
+            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, client?.Id, includeMedia);
 
             return Ok(result);
         }
@@ -70,10 +72,11 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? page,
             [FromQuery] int? pageSize,
             [FromQuery] long? eventCategoryId,
-            [FromQuery] string? searchTerm)
+            [FromQuery] string? searchTerm,
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, client?.Id);
+            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, client?.Id, includeMedia);
 
             return Ok(result);
         }
@@ -89,7 +92,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] string? searchTerm,
             [FromQuery] long? performerId,
             [FromQuery] List<long>? eventCategoryIds,
-            [FromQuery] bool? trendingEvents)
+            [FromQuery] bool? trendingEvents,
+            [FromQuery] bool includeMedia = false)
         {
             var result = await _eventService.GetFilteredEventsAsync(
                 page,
@@ -99,7 +103,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 searchTerm,
                 performerId,
                 eventCategoryIds,
-                trendingEvents);
+                trendingEvents,
+                includeMedia);
 
             return Ok(result);
         }
@@ -108,16 +113,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         /// Retrieves the full detail for a single event.
         /// </summary>
         /// <param name="eventId">Event identifier.</param>
-        /// <param name="includeImages">When true, populates the <c>images</c> map with data URIs for uploaded HorizontalPoster / VerticalPoster rows (legacy URL fallback when an upload is missing). Default false to keep the response small.</param>
+        /// <param name="includeImages">When true, populates the legacy <c>images</c> map. Default false to keep the response small.</param>
+        /// <param name="includeMedia">When true, populates the read-only <c>media</c> object from available shared media rows.</param>
         [HttpGet("{eventId}")]
         [EndpointName("GetEventDetailAsync")]
         [ProducesResponseType(typeof(EventDetailDTO), StatusCodes.Status200OK)]
         public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync(
             [FromRoute] long eventId,
-            [FromQuery] bool includeImages = false)
+            [FromQuery] bool includeImages = false,
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetEventDetailAsync(eventId, client?.Id, includeImages);
+            var result = await _eventService.GetEventDetailAsync(eventId, client?.Id, includeImages, includeMedia);
 
             return Ok(result);
         }

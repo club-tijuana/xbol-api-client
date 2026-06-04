@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 
@@ -111,11 +112,13 @@ namespace Odasoft.XBOL.Data.Repositories
                     renewableSeasonIds.Contains(currentSchedule.SeasonId.Value) &&
                     !alreadyRenewed;
 
-                var banner = DbContext.Set<Media>().Where(m =>
+                var banner = DbContext.Set<Media>()
+                .Include(m => m.BlobAsset)
+                .AvailableBlobMedia()
+                .Where(m =>
                     m.ReferenceId == currentSchedule.EventId &&
                     m.ReferenceType == ClientSaleType.Event &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.MediaType == ClientMediaType.Banner
                 )
                 .OrderBy(m => m.Order)
                 .FirstOrDefault();
@@ -198,11 +201,13 @@ namespace Odasoft.XBOL.Data.Repositories
                 })
                 .FirstOrDefaultAsync();
 
-            var banner = DbContext.Set<Media>().Where(m =>
+            var banner = DbContext.Set<Media>()
+                .Include(m => m.BlobAsset)
+                .AvailableBlobMedia()
+                .Where(m =>
                     m.ReferenceId == eventId &&
                     m.ReferenceType == ClientSaleType.Event &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.MediaType == ClientMediaType.Banner
                 )
                 .OrderBy(m => m.Order)
                 .FirstOrDefault();
@@ -260,7 +265,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var tickets = await query
                 .GroupJoin(
-                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                     eventObject => eventObject.EventSchedule.EventId,
                     media => media.ReferenceId,
                     (t, m) => new
@@ -278,7 +283,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     Name = t.Ticket.EventSchedule.Event.Name,
                     Location = t.Ticket.EventSchedule.Event.VenueMap.Name,
                     StartDate = t.Ticket.EventSchedule.StartDateTime,
-                    EventImageFile = t.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    EventImageUrl = t.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                     LegacyEventImageUrl = t.Ticket.EventSchedule.Event.PosterImageUrl,
                     Code = t.Ticket.TicketCode,
                     Section = t.Ticket.EventSection.BaseSection.Name,
@@ -302,8 +307,8 @@ namespace Odasoft.XBOL.Data.Repositories
                 Name = t.Name,
                 Location = t.Location,
                 StartDate = t.StartDate,
-                EventImage = t.EventImageFile != null && t.EventImageFile.Url != null
-                    ? t.EventImageFile.Url
+                EventImage = t.EventImageUrl != null
+                    ? t.EventImageUrl
                     : t.LegacyEventImageUrl ?? string.Empty,
                 Code = t.Code,
                 Section = t.Section,
@@ -406,11 +411,13 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 var first = orderData.Tickets.First();
 
-                var eventBanner = DbContext.Set<Media>().Where(m =>
+                var eventBanner = DbContext.Set<Media>()
+                .Include(m => m.BlobAsset)
+                .AvailableBlobMedia()
+                .Where(m =>
                     m.ReferenceId == first.EventSchedule.Event.EventId &&
                     m.ReferenceType == ClientSaleType.Event &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.MediaType == ClientMediaType.Banner
                 )
                 .OrderBy(m => m.Order)
                 .FirstOrDefault();
@@ -463,11 +470,13 @@ namespace Odasoft.XBOL.Data.Repositories
 
                 var season = seasons.First()!;
 
-                var seasonBanner = DbContext.Set<Media>().Where(m =>
+                var seasonBanner = DbContext.Set<Media>()
+                .Include(m => m.BlobAsset)
+                .AvailableBlobMedia()
+                .Where(m =>
                     m.ReferenceId == season.Id &&
                     m.ReferenceType == ClientSaleType.SeasonPass &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.MediaType == ClientMediaType.Banner
                 )
                 .OrderBy(m => m.Order)
                 .FirstOrDefault();

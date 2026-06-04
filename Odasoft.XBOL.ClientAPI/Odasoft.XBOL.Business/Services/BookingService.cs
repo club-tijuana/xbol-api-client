@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests.Filters;
+using Odasoft.XBOL.Data.Mapping;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.DTO.Results;
@@ -76,7 +78,7 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
+        public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId, bool includeMedia = false)
         {
             var schedule = await _eventScheduleRepository.Get(
                 s => s.Id == scheduleId)
@@ -98,13 +100,18 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(canReserve.Message);
             }
 
-            var banner = _mediaRepository
-                .Get(m =>
+            var eventMedia = await _mediaRepository
+                .Get(filter: m =>
                     m.ReferenceId == schedule.EventId &&
-                    m.ReferenceType == ClientSaleType.Event &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.ReferenceType == ClientSaleType.Event,
+                    includedProperties: "BlobAsset"
                 )
+                .AvailableBlobMedia()
+                .ToListAsync();
+
+            var banner = eventMedia
+                .Where(m => m.MediaType == ClientMediaType.Banner)
+                .OrderBy(m => m.Order)
                 .FirstOrDefault();
 
             return new EventItemDTO
@@ -126,11 +133,14 @@ namespace Odasoft.XBOL.Business.Services
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                EventKey = schedule.ExternalEventKey
+                EventKey = schedule.ExternalEventKey,
+                Media = includeMedia
+                    ? EventMediaSetMapper.CreateMediaSet(eventMedia.Select(EventMediaSetMapper.CreateMediaResponse))
+                    : null
             };
         }
 
-        public async Task<SeasonItemDTO?> GetSeasonByIdAsync(long seasonId, long? clientId)
+        public async Task<SeasonItemDTO?> GetSeasonByIdAsync(long seasonId, long? clientId, bool includeMedia = false)
         {
             var now = DateTimeOffset.UtcNow;
 
@@ -149,7 +159,7 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(result.Message);
             }
 
-            return Map(season);
+            return await MapSeasonItemAsync(season, includeMedia);
         }
 
         public async Task<ReservationAvailabilityResult> CanReserveSeasonAsync(Season season, long? clientId)
@@ -279,14 +289,33 @@ namespace Odasoft.XBOL.Business.Services
             return new ReservationAvailabilityResult { CanReserve = true };
         }
 
-        private static SeasonItemDTO Map(Season season)
+        private async Task<SeasonItemDTO> MapSeasonItemAsync(Season season, bool includeMedia)
         {
+            var media = await _mediaRepository
+                .Get(filter: m =>
+                    m.ReferenceId == season.Id &&
+                    m.ReferenceType == ClientSaleType.SeasonPass,
+                    includedProperties: "BlobAsset"
+                )
+                .AvailableBlobMedia()
+                .ToListAsync();
+
+            var banner = media
+                .Where(m => m.MediaType == ClientMediaType.Banner)
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
             return new SeasonItemDTO
             {
                 Id = season.Id,
-                BannerImageUrl = season.BannerImageUrl,
+                BannerImageUrl = banner != null && banner.Url != null
+                    ? banner.Url
+                    : season.BannerImageUrl,
                 StartDate = season.StartDate,
-                ExternalSeasonKey = season.ExternalSeasonKey
+                ExternalSeasonKey = season.ExternalSeasonKey,
+                Media = includeMedia
+                    ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
+                    : null
             };
         }
     }

@@ -43,9 +43,9 @@ namespace Odasoft.XBOL.Business.Services
             _ticketingClient = ticketingClient;
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(long? clientId)
+        public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(long? clientId, bool includeMedia = false)
         {
-            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE, clientId);
+            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE, clientId, includeMedia);
 
             return new PagedResponse<EventItemDTO>
             {
@@ -57,14 +57,14 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize, long? clientId)
+        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize, long? clientId, bool includeMedia = false)
         {
-            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId);
+            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId, includeMedia);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm, long? clientId = null)
+        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm, long? clientId = null, bool includeMedia = false)
         {
-            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, clientId);
+            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, clientId, includeMedia);
         }
 
         public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(
@@ -75,7 +75,8 @@ namespace Odasoft.XBOL.Business.Services
             string? searchTerm,
             long? performerId,
             List<long>? eventCategoryIds,
-            bool? trendingEvents)
+            bool? trendingEvents,
+            bool includeMedia = false)
         {
             return await _eventScheduleRepository.GetFilteredEventsAsync(
                 page ?? MIN_PAGE,
@@ -86,10 +87,11 @@ namespace Odasoft.XBOL.Business.Services
                 performerId,
                 eventCategoryIds,
                 trendingEvents,
-                _searchSettings.MatchRatio);
+                _searchSettings.MatchRatio,
+                includeMedia);
         }
 
-        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient, bool includeImages = false)
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient, bool includeImages = false, bool includeMedia = false)
         {
             EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, idClient, includeImages);
 

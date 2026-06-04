@@ -9,6 +9,7 @@ namespace Odasoft.XBOL.Business.Extensions
         {
             services.AddScoped<AccountService>();
             services.AddScoped<EventService>();
+            services.AddScoped<EventCatalogService>();
             services.AddScoped<ClientService>();
             services.AddScoped<BookingService>();
             services.AddScoped<OrderService>();

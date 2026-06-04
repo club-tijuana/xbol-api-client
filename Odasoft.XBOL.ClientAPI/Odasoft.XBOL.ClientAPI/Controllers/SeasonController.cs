@@ -20,11 +20,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet]
         [EndpointName("GetSeasonBannerAsync")]
-        public async Task<ActionResult<SeasonItemDTO?>> GetSeasonBannerAsync()
+        public async Task<ActionResult<SeasonItemDTO?>> GetSeasonBannerAsync(
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
 
-            var result = await _seasonService.GetSeasonBannerAsync(client?.Id);
+            var result = await _seasonService.GetSeasonBannerAsync(client?.Id, includeMedia);
             return Ok(result);
         }
     }

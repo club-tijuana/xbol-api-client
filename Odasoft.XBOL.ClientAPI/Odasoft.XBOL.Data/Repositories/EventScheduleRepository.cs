@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
+using Odasoft.XBOL.Data.Mapping;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 
@@ -18,7 +20,8 @@ namespace Odasoft.XBOL.Data.Repositories
             long? performerId,
             List<long>? eventCategoryIds,
             bool? trendingEvents,
-            long matchRatio)
+            long matchRatio,
+            bool includeMedia = false)
         {
             var query = DbContext.Set<Models.EventSchedule>()
                 .Include(es => es.Event)
@@ -76,7 +79,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var rawEvents = await query
             .GroupJoin(
-                DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                 eventObject => eventObject.EventId,
                 media => media.ReferenceId,
                 (es, m) => new
@@ -102,7 +105,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         DisplayName = ec.DisplayName
                     })
                     .ToList(),
-                BannerFile = es.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                BannerUrl = es.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                 LegacyBannerUrl = es.EventSchedule.Event.BannerImageUrl,
                 LegacyPosterUrl = es.EventSchedule.Event.PosterImageUrl
             })
@@ -115,11 +118,11 @@ namespace Odasoft.XBOL.Data.Repositories
                 Event = new EventItemDTO
                 {
                     Id = es.EventId,
-                    BannerImageUrl = es.BannerFile != null && es.BannerFile.Url != null
-                        ? es.BannerFile.Url
+                    BannerImageUrl = es.BannerUrl != null
+                        ? es.BannerUrl
                         : es.LegacyBannerUrl ?? string.Empty,
-                    PosterImageUrl = es.BannerFile != null && es.BannerFile.Url != null
-                        ? es.BannerFile.Url
+                    PosterImageUrl = es.BannerUrl != null
+                        ? es.BannerUrl
                         : es.LegacyPosterUrl ?? string.Empty,
                     Name = es.EventName,
                     StartDate = es.StartDateTime,
@@ -127,6 +130,17 @@ namespace Odasoft.XBOL.Data.Repositories
                     Categories = es.Categories
                 }
             }).ToList();
+
+            if (includeMedia && events.Count > 0)
+            {
+                var eventIds = events.Select(x => x.Event.Id).Distinct().ToList();
+                var mediaSets = await EventMediaSetMapper.GetEventMediaSetsAsync(DbContext, eventIds);
+
+                foreach (var schedule in events)
+                {
+                    schedule.Event.Media = mediaSets.GetValueOrDefault(schedule.Event.Id) ?? new EventMediaSetResponse();
+                }
+            }
 
             var performerQuery = DbContext.Set<Performer>().AsQueryable();
 
@@ -177,5 +191,6 @@ namespace Odasoft.XBOL.Data.Repositories
                 }
             };
         }
+
     }
 }
