@@ -50,15 +50,13 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
         {
-            SeatAvailabilityResponse response = await _ticketingClient.GetSeatAvailabilityAsync(new ReservationFiltersRequest
-            {
-                MinimumPrice = filters.PriceRange?.Min,
-                MaximumPrice = filters.PriceRange?.Max,
-                ScheduleId = filters.ScheduleId,
-                SeasonId = filters.SeasonId,
-                SectionId = filters.SectionId,
-                ZoneId = filters.ZoneId
-            });
+            SeatAvailabilityResponse response = await _ticketingClient.GetSeatAvailabilityAsync(
+                filters.SeasonId,
+                filters.ScheduleId,
+                filters.SectionId,
+                filters.ZoneId,
+                filters.PriceRange?.Min,
+                filters.PriceRange?.Max);
 
             return new SeatAvailabilityDTO
             {
