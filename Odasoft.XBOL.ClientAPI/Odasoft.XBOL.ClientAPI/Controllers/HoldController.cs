@@ -16,32 +16,32 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             _bus = bus;
         }
 
-        [HttpPost("hold-token")]
-        [EndpointName("HoldSeatsAsync")]
-        [ProducesResponseType(typeof(HoldToken), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status422UnprocessableEntity)]
-        public async Task<ActionResult<HoldToken>> HoldSeatsAsync()
+        [HttpPost("release")]
+        [EndpointName("ReleaseHoldSeatsAsync")]
+        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(HoldToken))]
+        public async Task<ActionResult<ICollection<string>?>> ReleaseHoldSeatsAsync([FromBody] ReleaseSeatsByKeyRequest request)
         {
-            var result = await _bus.InvokeAsync<HoldToken>(new HoldTokenCommand());
+            var result = await _bus.InvokeAsync<ICollection<string>?>(new ReleaseSeatsActionCommand(request));
 
             if (result is null)
             {
-                return UnprocessableEntity("Unable to hold the selected seats. They may no longer be available.");
+                return UnprocessableEntity("Unable to release the hold on the seats. It may have already expired or is invalid.");
             }
 
             return Ok(result);
         }
 
-        [HttpDelete]
-        [EndpointName("ReleaseHoldSeatsAsync")]
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(HoldToken))]
-        public async Task<ActionResult<HoldToken>> ReleaseHoldSeatsAsync([FromQuery] string holdToken)
+        [HttpPost("hold")]
+        [EndpointName("HoldSeatsActionAsync")]
+        [ProducesResponseType(typeof(HoldToken), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status422UnprocessableEntity)]
+        public async Task<ActionResult<HoldToken>> HoldSeatsActionAsync([FromBody] HoldSeatsActionRequest request)
         {
-            var result = await _bus.InvokeAsync<HoldToken>(new ReleaseHoldSeatsCommand(holdToken));
+            var result = await _bus.InvokeAsync<HoldToken>(new HoldSeatsActionCommand(request));
 
             if (result is null)
             {
-                return UnprocessableEntity("Unable to release the hold on the seats. It may have already expired or is invalid.");
+                return UnprocessableEntity("Unable to hold the selected seats. They may no longer be available.");
             }
 
             return Ok(result);

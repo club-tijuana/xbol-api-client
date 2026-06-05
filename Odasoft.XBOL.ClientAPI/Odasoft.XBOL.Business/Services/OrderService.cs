@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Commons.Enums;
+using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
@@ -10,8 +11,13 @@ namespace Odasoft.XBOL.Business.Services
 {
     public class OrderService
     {
+        private const int MIN_PAGE = 1;
+        private const int MAX_PAGE = 50;
+        private const string SEASONPASS = "SEASONPASS";
+
         private readonly OrderRepository _orderRepository;
         private readonly ClientRepository _clientRepository;
+        private readonly ClientService _clientService;
         private readonly EventScheduleRepository _eventScheduleRepository;
         private readonly EventSeatRepository _eventSeatRepository;
         private readonly TicketRepository _ticketRepository;
@@ -22,11 +28,14 @@ namespace Odasoft.XBOL.Business.Services
         private readonly EventRepository _eventRepository;
         private readonly SeasonService _seasonService;
         private readonly EventScheduleService _eventScheduleService;
+        private readonly ITicketingClient _ticketingClient;
         private readonly ILogger<OrderService> _logger;
+        private readonly ClientCreditTransactionService _clientCreditTransactionService;
 
         public OrderService(
             OrderRepository orderRepository,
             ClientRepository clientRepository,
+            ClientService clientService,
             EventScheduleRepository eventScheduleRepository,
             EventSeatRepository eventSeatRepository,
             TicketRepository ticketRepository,
@@ -37,11 +46,14 @@ namespace Odasoft.XBOL.Business.Services
             EventRepository eventRepository,
             SeasonService seasonService,
             EventScheduleService eventScheduleService,
-            ILogger<OrderService> logger
+            ITicketingClient ticketingClient,
+            ILogger<OrderService> logger,
+            ClientCreditTransactionService clientCreditTransactionService
         )
         {
             _orderRepository = orderRepository;
             _clientRepository = clientRepository;
+            _clientService = clientService;
             _eventScheduleRepository = eventScheduleRepository;
             _eventSeatRepository = eventSeatRepository;
             _ticketRepository = ticketRepository;
@@ -52,12 +64,14 @@ namespace Odasoft.XBOL.Business.Services
             _eventRepository = eventRepository;
             _seasonService = seasonService;
             _eventScheduleService = eventScheduleService;
+            _ticketingClient = ticketingClient;
             _logger = logger;
+            _clientCreditTransactionService = clientCreditTransactionService;
         }
 
-        public async Task<OrderDTO?> GetOrderAsync(long clientId, long orderId)
+        public async Task<OrderDTO?> GetOrderAsync(long? clientId, long orderId, bool? isPaymentLink = false)
         {
-            return await _orderRepository.GetOrderAsync(clientId, orderId);
+            return await _orderRepository.GetOrderAsync(clientId, orderId, isPaymentLink);
         }
 
         public async Task<long> CreateEventOrderAsync(EventBookingRequest request)
@@ -66,40 +80,80 @@ namespace Odasoft.XBOL.Business.Services
 
             try
             {
-                EventSchedule schedule = await _eventScheduleRepository.Get(x => x.ExternalEventKey == request.EventKey).FirstAsync();
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                EventSchedule schedule = await _eventScheduleRepository.Get(x =>
+                    x.ExternalEventKey == request.EventKey,
+                    includedProperties: ["Event"]
+                ).FirstAsync();
 
                 var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
-
                 request.ClientContact.Id = client.Id;
 
                 List<Ticket> tickets = await CreateTicketsAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), schedule.EventId, client);
 
-                var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
-                                ? 0
-                                : request.Seats.Sum(x => x.SeatPrice);
+                // TODO: Retrieve Fee and Tax once dynamic pricing is implemented
+                decimal Subtotal = request.Seats.Sum(x => x.SeatPrice);
+                decimal Fee = 0;
+                decimal Tax = 0;
+                decimal Discount = 0;
+                decimal Total = (Subtotal + Fee + Tax) - Discount;
+
+                PaymentInfoRequest? paymentInfo = request.PaymentInfoRequest;
+                List<Payment> payments = [];
+                bool hasPayments = paymentInfo == null ? false :
+                    (
+                        paymentInfo.CardAmount > 0
+                    );
+
+                if (!hasPayments)
+                {
+                    throw new Exception("No payments have been specified.");
+                }
+
+                payments = await PaymentInfoToPayments(
+                        request.PaymentInfoRequest,
+                        Total,
+                        Guid.Empty // TODO: Temporary implementation. Review the new user relationship structure.
+                    );
+
                 var newOrder = new Order
                 {
-                    ClientId = client.Id,
+                    ClientId = request.ClientContact.Id.Value,
                     UserId = null,
                     Reference = request.Localizer,
                     Status = OrderStatus.Paid,
-                    SubTotal = subtotal,
-                    TotalFees = 0,
-                    TotalTaxes = 0,
-                    Total = subtotal,
+                    PaidAt = now,
+                    SubTotal = Subtotal,
+                    TotalFees = Fee,
+                    TotalTaxes = Tax,
+                    Discount = Discount,
+                    Total = Total,
                     OrderType = OrderType.Ticket,
-                    PayformType = PayformType.BoxOffice,
-                    CreatedAt = DateTime.UtcNow,
+                    SaleChannel = SaleChannel.Online,
+                    CreatedAt = now,
                     CreatedBy = Guid.Empty,
-                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedAt = now,
                     UpdatedBy = Guid.Empty,
                     Items = [.. tickets.Select(x => new OrderItem
                     {
                         ItemType = Commons.Enums.ItemType.Ticket,
                         ItemReferenceId = x.Id,
                         Price = x.PricePaid,
-                        IsCourtesy = request.PaymentInfoRequest.IsCourtesy ?? false
-                    })]
+                        IsCourtesy = false
+                    })],
+                    Fees = [
+                        new OrderFee {
+                            FeeType = "test_type",
+                            Amount = Fee
+                        }
+                    ],
+                    Taxes = [
+                        new OrderTax {
+                            TaxType = "test_type",
+                            Amount = Tax
+                        }
+                    ],
+                    Payments = payments
                 };
 
                 await _orderRepository.InsertAsync(newOrder);
@@ -111,6 +165,15 @@ namespace Odasoft.XBOL.Business.Services
                 }
 
                 await _ticketRepository.UpdateRangeAsync(tickets);
+                await _ticketRepository.CommitAsync();
+
+                //// We should validate in the request that the client has credit before even processing the payment
+                //if (request.PaymentInfoRequest.CreditAmount > 0
+                //    && client.ClientCreditAccount != null
+                //    && client.IsActive)
+                //{
+                //    await CreateClientCreditTransactionAsync(client, request.PaymentInfoRequest.CreditAmount.Value, newOrder.Reference);
+                //}
 
                 await transaction.CommitAsync();
 
@@ -130,6 +193,7 @@ namespace Odasoft.XBOL.Business.Services
 
             try
             {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
                 Season? season = await _seasonRepository
                     .Get(x => x.ExternalSeasonKey == request.SeasonKey)
                     .SingleOrDefaultAsync();
@@ -158,32 +222,69 @@ namespace Odasoft.XBOL.Business.Services
                 List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), season.Id, client);
                 await CreateSeasonPassEventTicketsAsync(seasonPasses, tickets);
 
-                var subtotal = (request.PaymentInfoRequest.IsCourtesy ?? false)
-                                ? 0
-                                : request.Seats.Sum(x => x.SeatPrice);
+                // TODO: Retrieve Fee and Tax once dynamic pricing is implemented
+                decimal Subtotal = request.Seats.Sum(x => x.SeatPrice);
+                decimal Fee = 0;
+                decimal Tax = 0;
+                decimal Discount = 0;
+                decimal Total = (Subtotal + Fee + Tax) - Discount;
+
+                PaymentInfoRequest? paymentInfo = request.PaymentInfoRequest;
+                List<Payment> payments = [];
+                bool hasPayments = paymentInfo == null ? false :
+                    (
+                        paymentInfo.CardAmount > 0
+                    );
+
+                if (!hasPayments)
+                {
+                    throw new Exception("No payments have been specified.");
+                }
+
+                payments = await PaymentInfoToPayments(
+                        request.PaymentInfoRequest,
+                        Total,
+                        Guid.Empty // TODO: Temporary implementation. Review the new user relationship structure.
+                    );
+
                 var newOrder = new Order
                 {
-                    ClientId = client.Id,
+                    ClientId = request.ClientContact.Id.Value,
                     UserId = null,
                     Reference = request.Localizer,
                     Status = OrderStatus.Paid,
-                    SubTotal = subtotal,
-                    TotalFees = 0,
-                    TotalTaxes = 0,
-                    Total = subtotal,
+                    PaidAt = now,
+                    SubTotal = Subtotal,
+                    TotalFees = Fee,
+                    TotalTaxes = Tax,
+                    Discount = Discount,
+                    Total = Total,
                     OrderType = OrderType.SeasonPass,
-                    PayformType = PayformType.BoxOffice,
-                    CreatedAt = DateTime.UtcNow,
+                    SaleChannel = SaleChannel.Online,
+                    CreatedAt = now,
                     CreatedBy = Guid.Empty,
-                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedAt = now,
                     UpdatedBy = Guid.Empty,
                     Items = [.. seasonPasses.Select(x => new OrderItem
                     {
                         ItemType = Commons.Enums.ItemType.SeasonPass,
                         ItemReferenceId = x.Id,
                         Price = x.Price,
-                        IsCourtesy = request.PaymentInfoRequest.IsCourtesy ?? false
+                        IsCourtesy = false
                     })],
+                    Fees = [
+                        new OrderFee {
+                            FeeType = "test_type",
+                            Amount = Fee
+                        }
+                    ],
+                    Taxes = [
+                        new OrderTax {
+                            TaxType = "test_type",
+                            Amount = Tax
+                        }
+                    ],
+                    Payments = payments,
                     RelatedOrderId = request.ReferenceOrderId
                 };
 
@@ -196,6 +297,7 @@ namespace Odasoft.XBOL.Business.Services
                 }
 
                 await _ticketRepository.UpdateRangeAsync(tickets);
+                await _ticketRepository.CommitAsync();
 
                 await transaction.CommitAsync();
 
@@ -554,6 +656,11 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception("Season not found");
             }
 
+            if (season.ExternalSeasonKey == null)
+            {
+                throw new Exception("Season has no key");
+            }
+
             if (season.EndDate < now)
             {
                 throw new Exception("The season is no longer available");
@@ -567,6 +674,20 @@ namespace Odasoft.XBOL.Business.Services
             if (!tickets.Any())
             {
                 throw new Exception("No tickets found for the specified order");
+            }
+
+            if (season.RenewalEndDate < now)
+            {
+                var availableSeats = await CheckSeatStatus(season.ExternalSeasonKey, tickets.Select(t => t.SeatLabelSnapshot).ToList());
+
+                tickets = tickets
+                    .Where(t => availableSeats.Contains(t.SeatLabelSnapshot))
+                    .ToList();
+
+                if (!tickets.Any())
+                {
+                    throw new Exception("The seats are no longer available for renewal");
+                }
             }
 
             List<SeatDTO>? prevSeatPrices = null;
@@ -602,6 +723,8 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<CanRenewOrderResponse> CanOrderBeRenewedAsync(string referenceId)
         {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
             Order? order = await _orderRepository.Get()
                                 .Include(x => x.Items)
                                 .AsNoTracking()
@@ -610,49 +733,466 @@ namespace Odasoft.XBOL.Business.Services
 
             if (order == null)
             {
-                return new() { OrderId = null, CanRenew = false, NewSeasonId = null, Reference = null };
+                return new CanRenewOrderResponse
+                {
+                    OrderId = null,
+                    CanRenew = false,
+                    NewSeasonId = null,
+                    Reference = null,
+                    RenewableSeats = 0,
+                    TotalSeats = 0
+                };
             }
 
-            CanRenewOrderResponse response = new() { OrderId = order.Id, CanRenew = false, NewSeasonId = null, Reference = order.Reference };
-
-            if (order.OrderType == OrderType.SeasonPass)
+            CanRenewOrderResponse response = new()
             {
-                var passIds = order.Items.Select(oi => oi.ItemReferenceId).ToList();
+                OrderId = order.Id,
+                CanRenew = false,
+                NewSeasonId = null,
+                Reference = order.Reference,
+                RenewableSeats = 0,
+                TotalSeats = 0
+            };
 
-                var passData = await _seasonPassRepository.Get()
-                    .Where(sp => passIds.Contains(sp.Id))
-                    .Select(sp => new { sp.SeasonId, sp.TrackingCode })
-                    .ToListAsync();
+            if (order.OrderType != OrderType.SeasonPass)
+            {
+                return response;
+            }
 
-                if (!passData.Any())
-                {
-                    return response;
-                }
+            var passIds = order.Items.Select(oi => oi.ItemReferenceId).ToList();
 
-                long originalSeasonId = passData.First().SeasonId;
-                var passTrackingCodes = passData.Select(p => p.TrackingCode).ToList();
+            var passData = await _seasonPassRepository.Get()
+                .Where(sp => passIds.Contains(sp.Id))
+                .Select(sp => new { sp.Id, sp.SeasonId, sp.TrackingCode })
+                .ToListAsync();
 
-                Season? latestSeason = await _seasonService.GetLatestSeasonAsync(originalSeasonId);
+            if (!passData.Any())
+            {
+                return response;
+            }
 
-                if (latestSeason == null || originalSeasonId == latestSeason.Id)
-                {
-                    return response;
-                }
+            long originalSeasonId = passData.First().SeasonId;
+            var passTrackingCodes = passData.Select(p => p.TrackingCode).Distinct().ToList();
 
-                response.NewSeasonId = latestSeason.Id;
+            response.TotalSeats = passTrackingCodes.Count;
 
-                var soldCount = await _seasonPassRepository.Get()
-                    .Where(sp => sp.SeasonId == latestSeason.Id && passTrackingCodes.Contains(sp.TrackingCode))
-                    .CountAsync();
+            Season? latestSeason = await _seasonService.GetLatestSeasonAsync(originalSeasonId);
 
-                response.CanRenew = soldCount < passTrackingCodes.Count;
+            if (latestSeason == null || originalSeasonId == latestSeason.Id)
+            {
+                return response;
+            }
+
+            response.NewSeasonId = latestSeason.Id;
+
+            bool isRenewalWindow =
+                latestSeason.RenewalStartDate <= now &&
+                latestSeason.RenewalEndDate >= now;
+
+            bool isPreSaleWindow =
+                latestSeason.PreSaleDate <= now &&
+                latestSeason.OnSaleDate > now;
+
+            bool isOnSaleWindow =
+                latestSeason.OnSaleDate <= now;
+
+            bool isWithinRenewableWindow =
+                isRenewalWindow ||
+                isPreSaleWindow ||
+                isOnSaleWindow;
+
+            if (!isWithinRenewableWindow)
+            {
+                return response;
+            }
+
+            List<string>? renewedTrackingCodes;
+            List<string>? remainingTrackingCodes;
+            if (isRenewalWindow)
+            {
+                renewedTrackingCodes = await _seasonPassRepository.Get()
+                .Where(sp =>
+                    sp.SeasonId == latestSeason.Id &&
+                    passTrackingCodes.Contains(sp.TrackingCode)
+                )
+                .Select(sp => sp.TrackingCode)
+                .Distinct()
+                .ToListAsync();
+
+                remainingTrackingCodes = passTrackingCodes
+                    .Except(renewedTrackingCodes)
+                    .ToList();
+
+                response.RenewableSeats = remainingTrackingCodes.Count;
+                response.CanRenew = remainingTrackingCodes.Any();
 
                 return response;
             }
+
+            renewedTrackingCodes = await _seasonPassRepository.Get()
+                .Where(sp =>
+                    sp.SeasonId == latestSeason.Id &&
+                    passTrackingCodes.Contains(sp.TrackingCode)
+                )
+                .Select(sp => sp.TrackingCode)
+                .Distinct()
+                .ToListAsync();
+
+            remainingTrackingCodes = passTrackingCodes
+                .Except(renewedTrackingCodes)
+                .ToList();
+
+            if (!remainingTrackingCodes.Any())
+            {
+                response.RenewableSeats = 0;
+                response.CanRenew = false;
+
+                return response;
+            }
+
+            var availableTickets = await CheckSeatStatus(latestSeason.ExternalSeasonKey, remainingTrackingCodes);
+
+            response.RenewableSeats = availableTickets.Count;
+            response.CanRenew = availableTickets.Any();
+
+            return response;
+
+            //long renewedSeatCount = await _orderRepository.Get()
+            //    .Where(o => o.RelatedOrderId == order.Id)
+            //    .SelectMany(o => o.Items)
+            //    .LongCountAsync();
+
+            //response.RenewableSeats =
+            //    Math.Max(0L, (response.TotalSeats ?? 0L) - renewedSeatCount);
+
+            //response.CanRenew =
+            //    response.RenewableSeats > 0;
+
+            //return response;
+        }
+
+        public async Task<SeoMetadataDTO> GetOrderMetadataAsync(long orderId)
+        {
+            Order? order = await _orderRepository.Get(
+                    filter: order => order.Id == orderId,
+                    includedProperties: [
+                        "Items"
+                    ]
+                )
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order == null)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            var referenceIds = order.Items.Select(oi => oi.ItemReferenceId);
+            if (order.OrderType == OrderType.Ticket)
+            {
+                var ticket = await _ticketRepository.Get(
+                        filter: ticket => referenceIds.Contains(ticket.Id)
+                    )
+                    .FirstOrDefaultAsync();
+
+                if (ticket == null)
+                {
+                    return new SeoMetadataDTO();
+                }
+
+                var schedule = await _eventScheduleRepository.Get(
+                        filter: schedule => schedule.Id == ticket.EventScheduleId,
+                        includedProperties: [
+                            "Event"
+                        ]
+                    ).FirstOrDefaultAsync();
+
+                if (schedule == null)
+                {
+                    return new SeoMetadataDTO();
+                }
+
+                var evnt = await _eventRepository.GetByIdAsync(schedule.EventId);
+
+                if (evnt == null)
+                {
+                    return new SeoMetadataDTO();
+                }
+
+                return new SeoMetadataDTO
+                {
+                    Title = evnt.Name,
+                    Description = evnt.ShortDescription,
+                    ImageUrl = evnt.PosterImageUrl ?? ""
+                };
+            }
+            else if (order.OrderType == OrderType.SeasonPass)
+            {
+                var seasonPass = await _seasonPassRepository.Get(
+                        filter: sp => referenceIds.Contains(sp.Id)
+                    )
+                    .FirstOrDefaultAsync();
+
+                if (seasonPass == null)
+                {
+                    return new SeoMetadataDTO();
+                }
+
+                var season = await _seasonRepository.GetByIdAsync(seasonPass.SeasonId);
+
+                if (season == null)
+                {
+                    return new SeoMetadataDTO();
+                }
+
+                return new SeoMetadataDTO
+                {
+                    Title = season.Name,
+                    Description = season.Description,
+                    ImageUrl = season.PosterImageUrl
+                };
+            }
             else
             {
-                return new() { OrderId = order.Id, CanRenew = false, NewSeasonId = null, Reference = order.Reference };
+                return new SeoMetadataDTO();
             }
+        }
+
+        public async Task<SeoMetadataDTO> GetRenovationMetadataAsync(long orderId)
+        {
+            Order? order = await _orderRepository.Get(
+                    filter: order => order.Id == orderId,
+                    includedProperties: [
+                        "Items"
+                    ]
+                )
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order == null)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            if (order.OrderType == OrderType.Ticket)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            var referenceIds = order.Items.Select(oi => oi.ItemReferenceId);
+
+            var seasonPass = await _seasonPassRepository.Get(
+                        filter: sp => referenceIds.Contains(sp.Id)
+                    )
+                    .FirstOrDefaultAsync();
+
+            if (seasonPass == null)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            var season = await _seasonRepository.GetByIdAsync(seasonPass.SeasonId);
+
+            if (season == null)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            var nextSeason = await _seasonRepository.Get(
+                    filter: s => s.PreviousSeasonId == season.Id
+                ).FirstOrDefaultAsync();
+
+            if (nextSeason == null)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            return new SeoMetadataDTO
+            {
+                Title = nextSeason.Name,
+                Description = nextSeason.Description,
+                ImageUrl = nextSeason.PosterImageUrl
+            };
+        }
+
+        public async Task<PagedResponse<MyEventDTO>> GetMyEventsAsync(
+            int? page,
+            int? pageSize,
+            OrderType orderType,
+            long idClient)
+        {
+            int currentPage = page ?? MIN_PAGE;
+            int currentPageSize = pageSize ?? MAX_PAGE;
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var result = await _orderRepository.GetMyEventsAsync(
+                currentPage,
+                currentPageSize,
+                orderType,
+                idClient);
+
+            List<MyEventDTO> events = [];
+
+            foreach (var order in result.Orders)
+            {
+                bool isSeason = order.Tickets.Any(t =>
+                    t.TicketType.ToUpper().Trim() == SEASONPASS
+                );
+
+                var currentSchedule = order.Tickets
+                    .GroupBy(t => t.EventScheduleId)
+                    .Select(g => g.First())
+                    .OrderBy(t => t.StartDateTime < now)
+                    .ThenByDescending(t => t.StartDateTime)
+                    .First();
+
+                bool isPastEvent;
+
+                if (isSeason)
+                {
+                    isPastEvent = order.Tickets.All(t => t.EndDateTime < now);
+                }
+                else
+                {
+                    isPastEvent = currentSchedule.StartDateTime < now;
+                }
+
+                bool canRenovateSeasonPass = false;
+
+                if (isSeason)
+                {
+                    var renewalResult = await CanOrderBeRenewedAsync(order.Reference);
+                    canRenovateSeasonPass = renewalResult.CanRenew;
+                }
+
+                events.Add(new MyEventDTO
+                {
+                    OrderId = order.Id,
+                    EventId = currentSchedule.EventId,
+                    EventImage = !string.IsNullOrWhiteSpace(currentSchedule.BannerUrl)
+                        ? currentSchedule.BannerUrl
+                        : currentSchedule.LegacyPosterUrl ?? string.Empty,
+                    Name = isSeason
+                        ? currentSchedule.SeasonName
+                        : currentSchedule.EventName,
+                    StartDate = currentSchedule.StartDateTime,
+                    Location = currentSchedule.Location,
+                    IsSeasonPass = isSeason,
+                    IsPastEvent = isPastEvent,
+                    CanRenovateSeasonPass = canRenovateSeasonPass
+                });
+            }
+
+            return new PagedResponse<MyEventDTO>
+            {
+                Items = events,
+                TotalCount = result.TotalCount,
+                Page = currentPage,
+                PageSize = currentPageSize,
+                TotalPages = (int)Math.Ceiling(
+                    result.TotalCount / (double)currentPageSize)
+            };
+        }
+
+        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId, long orderId)
+        {
+            return await _orderRepository.GetMyEventDetailAsync(clientId, eventId, orderId);
+        }
+
+        public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByOrderAsync(
+            int? page,
+            int? pageSize,
+            long eventId,
+            long orderId,
+            long clientId)
+        {
+            return await _orderRepository.GetMyTicketsByOrderAsync(
+                page ?? MIN_PAGE,
+                pageSize ?? MAX_PAGE,
+                eventId,
+                orderId,
+                clientId);
+        }
+
+        public async Task PayOrderAsync(long orderId)
+        {
+            var order = await _orderRepository.GetByIdAsync(orderId);
+
+            if (order == null)
+            {
+                throw new Exception("Order not found.");
+            }
+
+            order.Status = OrderStatus.Paid;
+            order.PaidAt = DateTimeOffset.UtcNow;
+
+            await _orderRepository.UpdateAsync(order);
+            await _orderRepository.CommitAsync();
+        }
+
+        private async Task<HashSet<string?>> CheckSeatStatus(string seasonKey, List<string> seatLabels)
+        {
+            if (!seatLabels.Any())
+            {
+                return [];
+            }
+
+            var response = await _ticketingClient.GetSeatsInfoAsync(seasonKey, seatLabels);
+
+            if (response == null)
+            {
+                return [];
+            }
+
+            return response
+                .Where(r => r.Value.IsAvailable == true)
+                .Select(r => r.Value.Label)
+                .ToHashSet();
+        }
+
+        private async Task<List<Payment>> PaymentInfoToPayments(
+            PaymentInfoRequest paymentInfo,
+            decimal Total,
+            Guid userId
+        )
+        {
+            List<Payment> payments = new List<Payment>();
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            decimal cardAmount = paymentInfo.CardAmount ?? 0;
+            decimal _total = Total;
+
+            decimal totalPaid = cardAmount;
+
+            if (totalPaid < Total)
+            {
+                throw new Exception("The payment amount is insufficient to pay for the order.");
+            }
+
+            if (cardAmount > 0)
+            {
+                payments.Add(new Payment
+                {
+                    Currency = CurrencyType.MXN,
+                    Amount = Total,
+                    AmountMXN = Total,
+                    ReceivedAmount = cardAmount,
+                    ReceivedAmountMXN = cardAmount,
+                    ExchangeRateId = 0,
+                    ExchangeRate = 0,
+                    PaymentType = PaymentType.Card,
+                    Provider = "",
+                    ProviderReference = "",
+                    TransactionReference = Guid.NewGuid(),
+                    AppliedAt = now,
+                    CreatedAt = now,
+                    CreatedBy = userId,
+                    UpdatedBy = userId,
+                });
+
+                _total = Total - cardAmount;
+            }
+
+            return payments;
         }
     }
 }

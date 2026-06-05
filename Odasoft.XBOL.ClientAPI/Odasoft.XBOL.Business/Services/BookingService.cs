@@ -62,19 +62,19 @@ namespace Odasoft.XBOL.Business.Services
 
             return new SeatAvailabilityDTO
             {
-                Sections = response.Sections.Select(x => new SectionDTO
+                Zones = response.Zones?.Select(x => new ZoneDTO
                 {
                     Id = x.Id.HasValue ? x.Id.Value : 0,
-                    Name = x.Name,
-                    DisplayName = x.DisplayName,
+                    Name = x.Name ?? string.Empty,
+                    DisplayName = x.DisplayName ?? string.Empty,
                     Price = x.Price
-                }).ToList(),
-                SeatOverrides = response.SeatOverrides.Select(x => new SeatDTO
+                }).ToList() ?? [],
+                SeatOverrides = response.SeatOverrides?.Select(x => new SeatDTO
                 {
                     Id = x.Id.HasValue ? x.Id.Value : 0,
-                    ExternalSeatObjectKey = x.ExternalSeatObjectKey,
+                    ExternalSeatObjectKey = x.ExternalSeatObjectKey ?? string.Empty,
                     PriceOverride = x.PriceOverride
-                }).ToList()
+                }).ToList() ?? []
             };
         }
 
@@ -170,7 +170,7 @@ namespace Odasoft.XBOL.Business.Services
             var isPreSale = now >= season.PreSaleDate && now < season.OnSaleDate;
             var isGeneral = now >= season.OnSaleDate && now < season.OffSaleDate;
 
-            var hasStarted = now >= season.RenewalStartDate;
+            var hasStarted = season.RenewalStartDate == null ? true : now >= season.RenewalStartDate;
             var isExpired = now >= season.OffSaleDate;
 
             if (isExpired)
@@ -305,6 +305,8 @@ namespace Odasoft.XBOL.Business.Services
                 .OrderBy(m => m.Order)
                 .FirstOrDefault();
 
+            var now = DateTimeOffset.UtcNow;
+
             return new SeasonItemDTO
             {
                 Id = season.Id,
@@ -315,7 +317,10 @@ namespace Odasoft.XBOL.Business.Services
                 ExternalSeasonKey = season.ExternalSeasonKey,
                 Media = includeMedia
                     ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
-                    : null
+                    : null,
+                IsRenewal = now >= season.RenewalStartDate && now < season.RenewalEndDate,
+                IsPreSale = now >= season.PreSaleDate && now < season.OnSaleDate,
+                IsGeneralSale = now >= season.OnSaleDate
             };
         }
     }

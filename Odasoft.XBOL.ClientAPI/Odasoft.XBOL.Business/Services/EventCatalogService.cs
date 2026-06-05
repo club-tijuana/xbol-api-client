@@ -113,7 +113,7 @@ namespace Odasoft.XBOL.Business.Services
                 .Select(item => new
                 {
                     item.ReferenceId,
-                    Media = new MediaResponse
+                    Media = new DTO.MediaResponse
                     {
                         Id = item.Id,
                         Url = item.BlobAsset.Url,
@@ -144,7 +144,7 @@ namespace Odasoft.XBOL.Business.Services
             {
                 Id = eventItem.Id,
                 ItemType = EventCatalogItemType.Event,
-                Status = eventItem.Status,
+                Status = (EventStatus)eventItem.Status,
                 ScheduledStartDate = schedule?.StartDateTime ?? eventItem.CreatedAt,
                 Name = eventItem.Name,
                 Categories = Categories(eventItem.Categories),
@@ -153,7 +153,6 @@ namespace Odasoft.XBOL.Business.Services
                 ExternalEventKey = schedule?.ExternalEventKey,
                 AvailableSeats = schedule?.Sections.Sum(section => section.AvailableSeats) ?? 0,
                 TotalSeats = schedule?.Sections.Sum(section => section.TotalSeats) ?? 0,
-                Media = mediaSet,
                 PosterImageUrl = bannerImageUrl ?? eventItem.PosterImageUrl,
                 BannerImageUrl = bannerImageUrl ?? eventItem.BannerImageUrl
             };
@@ -174,8 +173,8 @@ namespace Odasoft.XBOL.Business.Services
             {
                 Id = bundle.Id,
                 ItemType = EventCatalogItemType.Bundle,
-                BundleType = bundle.BundleType,
-                Status = bundle.Status,
+                BundleType = (BundleType?)bundle.BundleType,
+                Status = (EventStatus)bundle.Status,
                 ScheduledStartDate = schedule?.StartDateTime ?? bundle.StartDate ?? bundle.CreatedAt,
                 Name = bundle.Name,
                 Code = bundle.Code,
@@ -184,10 +183,9 @@ namespace Odasoft.XBOL.Business.Services
                 ExternalEventKey = bundle.ExternalKey,
                 AvailableSeats = bundle.BundleSections.Sum(section => section.AvailableSeats),
                 TotalSeats = bundle.BundleSections.Sum(section => section.TotalSeats),
-                Media = mediaSet,
                 PosterImageUrl = posterImageUrl ?? bundle.PosterImageUrl,
                 BannerImageUrl = bannerImageUrl ?? bundle.BannerImageUrl,
-                IsSeason = bundle.BundleType == BundleType.SeasonPass
+                IsSeason = bundle.BundleType == Commons.Enums.BundleType.SeasonPass
             };
         }
 
@@ -212,9 +210,9 @@ namespace Odasoft.XBOL.Business.Services
                    ordered.LastOrDefault();
         }
 
-        private static List<EventCategoryDTO> Categories(IEnumerable<Odasoft.XBOL.Models.EventCategory> categories)
+        private static List<EventCategoryResult> Categories(IEnumerable<Odasoft.XBOL.Models.EventCategory> categories)
         {
-            return categories.Select(category => new EventCategoryDTO
+            return categories.Select(category => new Business.EventCategoryResult
             {
                 Id = category.Id,
                 Name = category.Name,
@@ -229,17 +227,17 @@ namespace Odasoft.XBOL.Business.Services
                 return false;
             }
 
-            if (queryParams.ItemType is not null && item.ItemType != queryParams.ItemType)
+            if (queryParams.ItemType is not null && item.ItemType != (EventCatalogItemType)queryParams.ItemType)
             {
                 return false;
             }
 
-            if (queryParams.BundleType is not null && item.BundleType != queryParams.BundleType)
+            if (queryParams.BundleType is not null && item.BundleType != (BundleType)queryParams.BundleType)
             {
                 return false;
             }
 
-            if (queryParams.Status is not null && item.Status != queryParams.Status)
+            if (queryParams.Status is not null && item.Status != (EventStatus)queryParams.Status)
             {
                 return false;
             }

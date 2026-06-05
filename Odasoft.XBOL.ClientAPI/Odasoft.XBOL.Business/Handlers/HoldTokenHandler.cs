@@ -11,14 +11,15 @@ namespace Odasoft.XBOL.Business.Handlers
             _ticketingClient = ticketingClient;
         }
 
-        public async Task<HoldToken> Handle(HoldTokenCommand _)
+        public async Task<ICollection<string>> Handle(ReleaseSeatsActionCommand message)
         {
-            return await _ticketingClient.ClientHoldSeatsAsync();
+            var releasedSeats = await _ticketingClient.ReleaseSeatsActionAsync(message.Request);
+            return releasedSeats;
         }
 
-        public async Task<HoldToken> Handle(ReleaseHoldSeatsCommand message)
+        public async Task<HoldToken> Handle(HoldSeatsActionCommand message)
         {
-            HoldToken holdToken = await _ticketingClient.ReleaseHoldSeatsAsync(message.Request);
+            HoldToken holdToken = await _ticketingClient.HoldSeatsActionAsync(message.Request);
             return holdToken;
         }
     }

@@ -5,6 +5,7 @@ using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
+using System.Threading.Tasks;
 
 namespace Odasoft.XBOL.Business.Services
 {
@@ -155,6 +156,23 @@ namespace Odasoft.XBOL.Business.Services
                 Media = includeMedia
                     ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
                     : null
+            };
+        }
+
+        public async Task<SeoMetadataDTO> GetSeasonMetadataAsync(long seasonId)
+        {
+            var season = await _seasonRepository.GetByIdAsync(seasonId);
+
+            if (season == null)
+            {
+                return new SeoMetadataDTO();
+            }
+
+            return new SeoMetadataDTO
+            {
+                Title = season.Name,
+                Description = season.Description,
+                ImageUrl = season.PosterImageUrl
             };
         }
     }

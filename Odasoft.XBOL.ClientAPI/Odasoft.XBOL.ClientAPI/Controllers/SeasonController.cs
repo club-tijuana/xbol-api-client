@@ -28,5 +28,16 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             var result = await _seasonService.GetSeasonBannerAsync(client?.Id, includeMedia);
             return Ok(result);
         }
+
+        [HttpGet("{seasonId}/metadata")]
+        [EndpointName("GetSeasonMetadataAsync")]
+        [ProducesResponseType(typeof(SeoMetadataDTO), StatusCodes.Status200OK)]
+        public async Task<ActionResult<SeoMetadataDTO>> GetSeasonMetadataAsync(
+            [FromRoute] long seasonId)
+        {
+            var result = await _seasonService.GetSeasonMetadataAsync(seasonId);
+
+            return Ok(result);
+        }
     }
 }

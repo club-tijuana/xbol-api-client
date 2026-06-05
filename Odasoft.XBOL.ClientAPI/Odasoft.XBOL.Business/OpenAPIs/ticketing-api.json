@@ -7517,10 +7517,10 @@
       "SeatAvailabilityResponse": {
         "type": "object",
         "properties": {
-          "sections": {
+          "zones": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SectionResponse"
+              "$ref": "#/components/schemas/ZoneResponse"
             }
           },
           "seatOverrides": {
@@ -7693,32 +7693,6 @@
           },
           "currency": {
             "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
-      "SectionResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "name": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "price": {
-            "type": "number",
-            "format": "decimal",
-            "nullable": true
-          },
-          "priceListItemId": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -7947,6 +7921,32 @@
           "extraData": {
             "type": "object",
             "additionalProperties": { }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ZoneResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "priceListItemId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
           }
         },
         "additionalProperties": false

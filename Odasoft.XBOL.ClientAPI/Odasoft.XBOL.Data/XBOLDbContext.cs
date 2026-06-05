@@ -37,7 +37,6 @@ namespace Odasoft.XBOL.Data
         public DbSet<EventCategory> EventCategories => Set<EventCategory>();
         public DbSet<BlobAsset> BlobAssets => Set<BlobAsset>();
         public DbSet<Media> Media => Set<Media>();
-        public DbSet<BlobAsset> BlobAssets => Set<BlobAsset>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<User> Users => Set<User>();
 

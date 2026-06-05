@@ -1,6 +1,6 @@
 ﻿using Odasoft.XBOL.Commons.Enums;
+using Odasoft.XBOL.Commons.Helpers;
 using Odasoft.XBOL.Commons.Requests;
-using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
@@ -11,7 +11,6 @@ namespace Odasoft.XBOL.Business.Services
 {
     public class ClientService
     {
-        private readonly OrderRepository _orderRepository;
         private readonly ClientRepository _clientRepository;
         private readonly ClientLoginIdentifierRepository _clientLoginIdentifierRepository;
 
@@ -24,7 +23,6 @@ namespace Odasoft.XBOL.Business.Services
             ClientRepository clientRepository,
             ClientLoginIdentifierRepository clientLoginIdentifierRepository)
         {
-            _orderRepository = orderRepository;
             _clientRepository = clientRepository;
             _clientLoginIdentifierRepository = clientLoginIdentifierRepository;
         }
@@ -49,39 +47,6 @@ namespace Odasoft.XBOL.Business.Services
             }
 
             return ToDto(matches.First(x => x.ClientId == clientIds[0]).Client);
-        }
-
-        public async Task<PagedResponse<MyEventDTO>> GetMyEventsAsync(
-            int? page,
-            int? pageSize,
-            OrderType orderType,
-            long idClient)
-        {
-            return await _orderRepository.GetMyEventsAsync(
-                page ?? MIN_PAGE,
-                pageSize ?? MAX_PAGE,
-                orderType,
-                idClient);
-        }
-
-        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId, long orderId)
-        {
-            return await _orderRepository.GetMyEventDetailAsync(clientId, eventId, orderId);
-        }
-
-        public async Task<PagedResponse<MyTicketDTO>> GetMyTicketsByOrderAsync(
-            int? page,
-            int? pageSize,
-            long eventId,
-            long orderId,
-            long clientId)
-        {
-            return await _orderRepository.GetMyTicketsByOrderAsync(
-                page ?? MIN_PAGE,
-                pageSize ?? MAX_PAGE,
-                eventId,
-                orderId,
-                clientId);
         }
 
         private static IReadOnlyList<ClientLoginIdentifierLookup> BuildLoginIdentifierLookups(ClientContactRequest request)
