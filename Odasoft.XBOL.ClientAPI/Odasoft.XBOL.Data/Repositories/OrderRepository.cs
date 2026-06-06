@@ -10,140 +10,6 @@ namespace Odasoft.XBOL.Data.Repositories
 {
     public class OrderRepository(XBOLDbContext dbContext) : BaseRepository<Order>(dbContext)
     {
-        private const string SEASONPASS = "SEASONPASS";
-
-        //public async Task<PagedResponse<MyEventDTO>> GetMyEventsAsync(
-        //    int page,
-        //    int pageSize,
-        //    OrderType orderType,
-        //    long idClient)
-        //{
-        //    DateTimeOffset now = DateTimeOffset.UtcNow;
-
-        //    var renewableSeasonIds = await DbContext.Set<Season>()
-        //        .Where(s =>
-        //            s.PreviousSeasonId != null &&
-        //            (
-        //                (s.RenewalStartDate <= now && s.RenewalEndDate >= now)
-        //                ||
-        //                (s.PreSaleDate <= now && s.OnSaleDate > now)
-        //                ||
-        //                (s.OnSaleDate <= now)
-        //            ) &&
-        //            !DbContext.Set<Season>().Any(s2 => s2.PreviousSeasonId == s.Id)
-        //        )
-        //        .Select(s => s.PreviousSeasonId!.Value)
-        //        .ToHashSetAsync();
-
-        //    var query = DbContext.Set<Models.Order>()
-        //        .Where(o =>
-        //            o.Tickets.Any()
-        //            && o.Tickets.Any(t =>
-        //                t.OriginalClientId == idClient
-        //                || t.CurrentClientId == idClient
-        //            )
-        //            && o.OrderType == orderType
-        //        );
-
-        //    int totalCount = await query.CountAsync();
-        //    var skip = (page - 1) * pageSize;
-
-        //    var orders = await query
-        //        .OrderBy(o => o.Id)
-        //        .Skip(skip)
-        //        .Take(pageSize)
-        //        .Select(o => new
-        //        {
-        //            o.Id,
-        //            Tickets = o.Tickets
-        //                .Where(t =>
-        //                    t.OriginalClientId == idClient ||
-        //                    t.CurrentClientId == idClient
-        //                )
-        //                .Select(t => new
-        //                {
-        //                    t.EventScheduleId,
-        //                    t.EventSchedule.StartDateTime,
-        //                    t.EventSchedule.EndDateTime,
-        //                    EventId = t.EventSchedule.EventId,
-        //                    EventName = t.EventSchedule.Event.Name,
-        //                    EventPosterFile = t.EventSchedule.Event.EventImages.Where(i => i.ImageType == Commons.Enums.ImageType.VerticalPoster).OrderBy(i => i.Order).FirstOrDefault(),
-        //                    LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
-        //                    Location = t.EventSchedule.Event.VenueMap.Name,
-        //                    TicketType = t.TicketType,
-        //                    SeasonId = t.EventSchedule.Event.SeasonId,
-        //                    SeasonName = t.EventSchedule.Event.Season != null ? t.EventSchedule.Event.Season.Name : ""
-        //                })
-        //                .ToList()
-        //        })
-        //        .ToListAsync();
-
-        //    var orderIds = orders.Select(o => o.Id).ToHashSet();
-
-        //    var renewedOrderIds = await DbContext.Set<Models.Order>()
-        //        .Where(o =>
-        //            o.RelatedOrderId != null &&
-        //            orderIds.Contains(o.RelatedOrderId.Value)
-        //        )
-        //        .Select(o => o.RelatedOrderId!.Value)
-        //        .ToHashSetAsync();
-
-        //    var events = orders.Select(o =>
-        //    {
-        //        bool isSeason = o.Tickets.Any(t => t.TicketType.ToUpper().Trim() == SEASONPASS);
-
-        //        var currentSchedule = o.Tickets
-        //            .GroupBy(t => t.EventScheduleId)
-        //            .Select(g => g.First())
-        //            .OrderBy(t => t.StartDateTime < now)
-        //            .ThenByDescending(t => t.StartDateTime)
-        //            .First();
-
-        //        bool isPastEvent;
-
-        //        if (isSeason)
-        //        {
-        //            isPastEvent = o.Tickets.All(t => t.EndDateTime < now);
-        //        }
-        //        else
-        //        {
-        //            isPastEvent = currentSchedule.StartDateTime < now;
-        //        }
-
-        //        bool alreadyRenewed = renewedOrderIds.Contains(o.Id);
-
-        //        bool canRenovateSeasonPass =
-        //            isSeason &&
-        //            currentSchedule.SeasonId.HasValue &&
-        //            renewableSeasonIds.Contains(currentSchedule.SeasonId.Value) &&
-        //            !alreadyRenewed;
-
-        //        return new MyEventDTO
-        //        {
-        //            OrderId = o.Id,
-        //            EventId = currentSchedule.EventId,
-        //            EventImage = currentSchedule.EventPosterFile != null
-        //                ? $"data:{currentSchedule.EventPosterFile.ContentType};base64,{Convert.ToBase64String(currentSchedule.EventPosterFile.Content)}"
-        //                : currentSchedule.LegacyPosterUrl ?? string.Empty,
-        //            Name = isSeason ? currentSchedule.SeasonName : currentSchedule.EventName,
-        //            StartDate = currentSchedule.StartDateTime,
-        //            Location = currentSchedule.Location,
-        //            IsSeasonPass = isSeason,
-        //            IsPastEvent = isPastEvent,
-        //            CanRenovateSeasonPass = canRenovateSeasonPass
-        //        };
-        //    }).ToList();
-
-        //    return new PagedResponse<MyEventDTO>
-        //    {
-        //        Items = events,
-        //        TotalCount = totalCount,
-        //        Page = page,
-        //        PageSize = pageSize,
-        //        TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-        //    };
-        //}
-
         public async Task<PagedOrdersProjection> GetMyEventsAsync(
             int page,
             int pageSize,
@@ -186,10 +52,8 @@ namespace Odasoft.XBOL.Data.Repositories
                             EventId = t.EventSchedule.EventId,
                             EventName = t.EventSchedule.Event.Name,
                             BannerUrl = DbContext.Set<Media>()
-                                .Include(m => m.BlobAsset)
-                                .AvailableBlobMedia()
                                 .Where(m =>
-                                    m.ReferenceId == t.EventSchedule.EventId &&
+                                    m.ReferenceId == t.EventSchedule.Event.Id &&
                                     m.ReferenceType == ClientSaleType.Event &&
                                     m.MediaType == ClientMediaType.Banner
                                 )
@@ -208,75 +72,6 @@ namespace Odasoft.XBOL.Data.Repositories
                         .ToList()
                 })
                 .ToListAsync();
-
-            // TODO: REMOVE
-            //var orderIds = orders.Select(o => o.Id).ToHashSet();
-
-            //var renewedOrderIds = await DbContext.Set<Models.Order>()
-            //    .Where(o =>
-            //        o.RelatedOrderId != null &&
-            //        orderIds.Contains(o.RelatedOrderId.Value)
-            //    )
-            //    .Select(o => o.RelatedOrderId!.Value)
-            //    .ToHashSetAsync();
-
-            //var events = orders.Select(o =>
-            //{
-            //    bool isSeason = o.Tickets.Any(t => t.TicketType.ToUpper().Trim() == SEASONPASS);
-
-            //    var currentSchedule = o.Tickets
-            //        .GroupBy(t => t.EventScheduleId)
-            //        .Select(g => g.First())
-            //        .OrderBy(t => t.StartDateTime < now)
-            //        .ThenByDescending(t => t.StartDateTime)
-            //        .First();
-
-            //    bool isPastEvent;
-
-            //    if (isSeason)
-            //    {
-            //        isPastEvent = o.Tickets.All(t => t.EndDateTime < now);
-            //    }
-            //    else
-            //    {
-            //        isPastEvent = currentSchedule.StartDateTime < now;
-            //    }
-
-            //    bool alreadyRenewed = renewedOrderIds.Contains(o.Id);
-
-            //    bool canRenovateSeasonPass =
-            //        isSeason &&
-            //        isPastEvent &&
-            //        currentSchedule.SeasonId.HasValue &&
-            //        renewableSeasonIds.Contains(currentSchedule.SeasonId.Value) &&
-            //        !alreadyRenewed;
-
-            //    var banner = DbContext.Set<Media>()
-            //    .Include(m => m.BlobAsset)
-            //    .AvailableBlobMedia()
-            //    .Where(m =>
-            //        m.ReferenceId == currentSchedule.EventId &&
-            //        m.ReferenceType == ClientSaleType.Event &&
-            //        m.MediaType == ClientMediaType.Banner
-            //    )
-            //    .OrderBy(m => m.Order)
-            //    .FirstOrDefault();
-
-            //    return new MyEventDTO
-            //    {
-            //        OrderId = o.Id,
-            //        EventId = currentSchedule.EventId,
-            //        EventImage = banner != null && banner.Url != null
-            //            ? banner.Url
-            //            : currentSchedule.LegacyPosterUrl ?? string.Empty,
-            //        Name = isSeason ? currentSchedule.SeasonName : currentSchedule.EventName,
-            //        StartDate = currentSchedule.StartDateTime,
-            //        Location = currentSchedule.Location,
-            //        IsSeasonPass = isSeason,
-            //        IsPastEvent = isPastEvent,
-            //        CanRenovateSeasonPass = canRenovateSeasonPass
-            //    };
-            //}).ToList();
 
             return new PagedOrdersProjection
             {

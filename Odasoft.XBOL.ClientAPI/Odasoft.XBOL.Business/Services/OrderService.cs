@@ -313,12 +313,15 @@ namespace Odasoft.XBOL.Business.Services
 
         private async Task<Client> UpsertClientFromOrderContactAsync(ClientInfoRequest clientInfo)
         {
-            EnsureUsableContact(clientInfo);
+            var updatClient = !string.IsNullOrEmpty(clientInfo.Email);
+            string? effectiveFullName;
 
-            var effectiveFullName = ResolveFullName(clientInfo);
-
-            if (clientInfo.Id.HasValue)
+            if (clientInfo.Id.HasValue && updatClient)
             {
+                EnsureUsableContact(clientInfo);
+
+                effectiveFullName = ResolveFullName(clientInfo);
+
                 var existingClient = await _clientRepository.GetByIdAsync(clientInfo.Id.Value);
                 if (existingClient is null)
                 {
@@ -329,7 +332,17 @@ namespace Odasoft.XBOL.Business.Services
                 await _clientRepository.UpdateAsync(existingClient);
                 return existingClient;
             }
+            else if (clientInfo.Id.HasValue && !updatClient)
+            {
+                var existingClient = await _clientRepository.GetByIdAsync(clientInfo.Id.Value);
+                if (existingClient is null)
+                {
+                    throw new InvalidOperationException("Client not found.");
+                }
+                return existingClient;
+            }
 
+            effectiveFullName = ResolveFullName(clientInfo);
             return await CreateClientAsync(clientInfo, effectiveFullName);
         }
 
@@ -692,9 +705,40 @@ namespace Odasoft.XBOL.Business.Services
 
             List<SeatDTO>? prevSeatPrices = null;
             var seatLabels = tickets.Select(t => t.SeatLabelSnapshot);
+
+            var renewedObjects = await _orderRepository.Get(
+                    filter: o => o.RelatedOrderId == orderId,
+                    includedProperties: [
+                        "Items"
+                    ]
+                )
+                .SelectMany(o => o.Items.Select(oi => oi.ItemReferenceId))
+                .ToListAsync();
+
+            if (renewedObjects != null)
+            {
+                var renewedTickets = await _seasonPassEventTicketRepository.Get(
+                        filter: sp => renewedObjects.Contains(sp.SeasonPassId),
+                        includedProperties: ["Ticket"]
+                    )
+                    .Select(spet => spet.Ticket.SeatLabelSnapshot)
+                    .ToListAsync();
+
+                seatLabels = seatLabels.Except(renewedTickets);
+            }
+
             if (seatLabels != null)
             {
                 prevSeatPrices = await _seasonSeatRepository.GetSeasonSeatPricesAsync(season.Id, seatLabels.ToList());
+                //var seasonPrices = await _ticketingClient.GetSeatsIoPricesAsync(SaleType.SeasonPass, season.Id);
+
+                // TODO: Populate prevSeatPrices using the current season pricing returned by GetSeatsIoPricesAsync.
+                //
+                // Previously, seatt pricing followed this precedence:
+                // 1. Use the seat-specific price when one is assigned.
+                // 2. Otherwise, fall back to the zone price.
+                //
+                // Verify whether this rule still applies with the new dynamic pricing model.
             }
 
             return new SeasonToRenovateDTO

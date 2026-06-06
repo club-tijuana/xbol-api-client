@@ -14,9 +14,11 @@ namespace Odasoft.XBOL.DTO
         public string Code { get; set; } = string.Empty;
         public TicketType Type { get; set; }
         public decimal PricePaid { get; set; }
+        public decimal AdditionalCharges { get; set; }
         public string Section { get; set; } = string.Empty;
         public string Row { get; set; } = string.Empty;
         public string Seat { get; set; } = string.Empty;
+        public string MainGate { get; set; } = string.Empty;
         public string QR { get; set; } = string.Empty;
         public bool CanShare { get; set; }
         public bool IsShared { get; set; }

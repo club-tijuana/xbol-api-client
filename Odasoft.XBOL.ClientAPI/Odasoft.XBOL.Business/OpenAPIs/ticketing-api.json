@@ -2170,6 +2170,70 @@
         "deprecated": true
       }
     },
+    "/api/client-prices/zone-prices": {
+      "get": {
+        "tags": [
+          "ClientPrices"
+        ],
+        "summary": "Gets the prices for the specified zones based on their sale type and reference ID.",
+        "operationId": "GetZonePricesAsync",
+        "parameters": [
+          {
+            "name": "saleType",
+            "in": "query",
+            "description": "",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/SaleType"
+                }
+              ]
+            }
+          },
+          {
+            "name": "referenceId",
+            "in": "query",
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ZonePriceResponse"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ZonePriceResponse"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ZonePriceResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
     "/api/event-catalog": {
       "get": {
         "tags": [
@@ -7921,6 +7985,26 @@
           "extraData": {
             "type": "object",
             "additionalProperties": { }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ZonePriceResponse": {
+        "type": "object",
+        "properties": {
+          "objects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "price": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string"
           }
         },
         "additionalProperties": false

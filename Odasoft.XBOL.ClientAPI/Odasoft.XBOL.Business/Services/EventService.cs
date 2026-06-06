@@ -4,7 +4,6 @@ using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
-using System.Threading.Tasks;
 
 namespace Odasoft.XBOL.Business.Services
 {
@@ -103,7 +102,7 @@ namespace Odasoft.XBOL.Business.Services
 
             if (eventDetail != null)
             {
-                ICollection<SectionPriceResponse> eventPrices = await _ticketingClient.GetSectionPricesAsync(SaleType.Event, eventId);
+                ICollection<ZonePriceResponse> eventPrices = await _ticketingClient.GetZonePricesAsync(SaleType.Event, eventId);
 
                 // Currently the event only have one schedule.
                 List<EventScheduleSectionPricesDTO> sectionPrices = eventPrices.Select(x => new EventScheduleSectionPricesDTO

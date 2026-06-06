@@ -104,23 +104,23 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX, season.Id);
 
-                if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
-                {
-                    if (!command.VerifiedClientId.HasValue)
-                    {
-                        throw new Exception("Season renewal requires a verified client identity.");
-                    }
+                //if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
+                //{
+                //    if (!command.VerifiedClientId.HasValue)
+                //    {
+                //        throw new Exception("Season renewal requires a verified client identity.");
+                //    }
 
-                    command.Request.HoldToken = "";
+                //    command.Request.HoldToken = "";
 
-                    SetForSaleRequest setForSaleRequest = new SetForSaleRequest
-                    {
-                        EventKey = command.Request.SeasonKey,
-                        ForSale = true,
-                        SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
-                    };
-                    await _ticketingClient.SetForSaleAsync(setForSaleRequest);
-                }
+                //    SetForSaleRequest setForSaleRequest = new SetForSaleRequest
+                //    {
+                //        EventKey = command.Request.SeasonKey,
+                //        ForSale = true,
+                //        SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
+                //    };
+                //    await _ticketingClient.SetForSaleAsync(setForSaleRequest);
+                //}
 
                 try
                 {
@@ -139,16 +139,16 @@ namespace Odasoft.XBOL.Business.Handlers
                 }
                 catch
                 {
-                    if (command.Request.ReferenceOrderId != null)
-                    {
-                        SetForSaleRequest setForSaleRequest = new SetForSaleRequest
-                        {
-                            EventKey = command.Request.SeasonKey,
-                            ForSale = false,
-                            SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
-                        };
-                        await _ticketingClient.SetForSaleAsync(setForSaleRequest);
-                    }
+                    //if (command.Request.ReferenceOrderId != null)
+                    //{
+                    //    SetForSaleRequest setForSaleRequest = new SetForSaleRequest
+                    //    {
+                    //        EventKey = command.Request.SeasonKey,
+                    //        ForSale = false,
+                    //        SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
+                    //    };
+                    //    await _ticketingClient.SetForSaleAsync(setForSaleRequest);
+                    //}
                     throw;
                 }
             }
