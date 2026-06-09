@@ -112,18 +112,18 @@ var app = builder.Build();
 app.Services.GetRequiredService<FirebaseApp>();
 
 // Enable middleware to serve generated OpenAPI as a JSON endpoint and the Swagger UI.
+app.UseSwagger(c =>
+{
+    c.RouteTemplate = "swagger/{documentName}/client-api.json";
+});
+
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/client-api.json", "Client API");
+});
+
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger(c =>
-    {
-        c.RouteTemplate = "swagger/{documentName}/client-api.json";
-    });
-
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/client-api.json", "Client API");
-    });
-
     app.MapGet(
         "/",
         context =>

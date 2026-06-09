@@ -282,6 +282,7 @@ public static class AppSettingsSchemaGenerator
 
         [Description("Events view-tracking rate limits and deduplication.")]
         public EventsTrackingSettings? EventsTrackingSettings { get; set; }
+
     }
 
     public sealed class GcipAuthOptionsSchema
