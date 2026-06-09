@@ -67,13 +67,15 @@ namespace Odasoft.XBOL.Business.Services
                     Id = x.Id.HasValue ? x.Id.Value : 0,
                     Name = x.Name ?? string.Empty,
                     DisplayName = x.DisplayName ?? string.Empty,
-                    Price = x.Price
+                    Price = x.Price,
+                    PriceListItemId = x.PriceListItemId
                 }).ToList() ?? [],
                 SeatOverrides = response.SeatOverrides?.Select(x => new SeatDTO
                 {
                     Id = x.Id.HasValue ? x.Id.Value : 0,
                     ExternalSeatObjectKey = x.ExternalSeatObjectKey ?? string.Empty,
-                    PriceOverride = x.PriceOverride
+                    PriceOverride = x.PriceOverride,
+                    PriceListItemId = x.PriceListItemId
                 }).ToList() ?? []
             };
         }
@@ -253,10 +255,14 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var isPreSale = now >= eventSchedule.PreSaleStartDate && now <= eventSchedule.PreSaleEndDate;
+            var isPreSale =
+                eventSchedule.PreSaleStartDate is not null &&
+                eventSchedule.PreSaleEndDate is not null &&
+                now >= eventSchedule.PreSaleStartDate &&
+                now <= eventSchedule.PreSaleEndDate;
             var isGeneral = now >= eventSchedule.OnSaleDate && now < eventSchedule.OffSaleDate;
 
-            var hasStarted = now >= eventSchedule.PreSaleStartDate;
+            var hasStarted = now >= (eventSchedule.PreSaleStartDate ?? eventSchedule.OnSaleDate);
             var isExpired = now >= eventSchedule.OffSaleDate;
 
             if (isExpired)

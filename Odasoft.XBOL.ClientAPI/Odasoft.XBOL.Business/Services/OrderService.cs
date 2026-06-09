@@ -89,7 +89,7 @@ namespace Odasoft.XBOL.Business.Services
                 var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
                 request.ClientContact.Id = client.Id;
 
-                List<Ticket> tickets = await CreateTicketsAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), schedule.EventId, client);
+                List<Ticket> tickets = await CreateTicketsAsync(request.Seats, schedule.EventId, client);
 
                 // TODO: Retrieve Fee and Tax once dynamic pricing is implemented
                 decimal Subtotal = request.Seats.Sum(x => x.SeatPrice);
@@ -139,7 +139,8 @@ namespace Odasoft.XBOL.Business.Services
                         ItemType = Commons.Enums.ItemType.Ticket,
                         ItemReferenceId = x.Id,
                         Price = x.PricePaid,
-                        IsCourtesy = false
+                        IsCourtesy = false,
+                        PriceListItemId = request.Seats.FirstOrDefault(s => s.SeatKey == x.SeatLabelSnapshot)?.PriceListItemId
                     })],
                     Fees = [
                         new OrderFee {
@@ -198,6 +199,11 @@ namespace Odasoft.XBOL.Business.Services
                     .Get(x => x.ExternalSeasonKey == request.SeasonKey)
                     .SingleOrDefaultAsync();
 
+                var seatRequestLookup = request.Seats.ToDictionary(
+                    x => x.SeatKey,
+                    x => x
+                );
+
                 var client = await UpsertClientFromOrderContactAsync(request.ClientContact);
 
                 request.ClientContact.Id = client.Id;
@@ -219,7 +225,7 @@ namespace Odasoft.XBOL.Business.Services
                 // Season passes should eventually handle sharing natively without relying on ticket entities.
                 // Remove this workaround once sharing is implemented for season passes.
                 List<SeasonPass> seasonPasses = await CreateSeasonPassesAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), season.Id, client);
-                List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats.ToDictionary(s => s.SeatKey, s => s.SeatPrice), season.Id, client);
+                List<Ticket> tickets = await CreateSeasonTicketsAsync(request.Seats, season.Id, client);
                 await CreateSeasonPassEventTicketsAsync(seasonPasses, tickets);
 
                 // TODO: Retrieve Fee and Tax once dynamic pricing is implemented
@@ -270,7 +276,8 @@ namespace Odasoft.XBOL.Business.Services
                         ItemType = Commons.Enums.ItemType.SeasonPass,
                         ItemReferenceId = x.Id,
                         Price = x.Price,
-                        IsCourtesy = false
+                        IsCourtesy = false,
+                        PriceListItemId = seatRequestLookup[x.TrackingCode].PriceListItemId
                     })],
                     Fees = [
                         new OrderFee {
@@ -436,12 +443,15 @@ namespace Odasoft.XBOL.Business.Services
             return new string(value.Where(char.IsDigit).ToArray());
         }
 
-        private async Task<List<Ticket>> CreateTicketsAsync(IDictionary<string, decimal> seats, long eventId, Client client)
+        private async Task<List<Ticket>> CreateTicketsAsync(ICollection<BookingSeatRequest> seats, long eventId, Client client)
         {
             List<Ticket> tickets = new List<Ticket>();
 
-            var seatKeys = seats.Keys.ToList();
-            var seatKeysSet = seatKeys.ToHashSet();
+            var seatLookup = seats.ToDictionary(
+                x => x.SeatKey,
+                x => x
+            );
+            var seatKeysSet = seatLookup.Keys.ToHashSet();
 
             var eventSeats = await _eventSeatRepository
                                     .Get()
@@ -458,6 +468,8 @@ namespace Odasoft.XBOL.Business.Services
 
             foreach (var seat in eventSeats)
             {
+                var bookingSeat = seatLookup[seat.ExternalSeatObjectKey];
+
                 var ticket = new Ticket
                 {
                     EventScheduleId = seat.EventSection.EventScheduleId,
@@ -468,7 +480,7 @@ namespace Odasoft.XBOL.Business.Services
                     TicketCode = seat.ExternalSeatObjectKey,
                     TicketType = "General Admission", // TODO: Define how to manage different ticket types
                     PrivateToken = Guid.NewGuid().ToString("N"), // TODO: Define the logic for the private token
-                    PricePaid = seats[seat.ExternalSeatObjectKey],
+                    PricePaid = bookingSeat.SeatPrice,
                     Status = TicketStatus.Issued,
                     SeatLabelSnapshot = seat.ExternalSeatObjectKey,
                     SectionLabelSnapshot = seat.EventSection.DisplayName,
@@ -486,12 +498,15 @@ namespace Odasoft.XBOL.Business.Services
             return tickets;
         }
 
-        private async Task<List<Ticket>> CreateSeasonTicketsAsync(IDictionary<string, decimal> seats, long seasonId, Client client)
+        private async Task<List<Ticket>> CreateSeasonTicketsAsync(ICollection<BookingSeatRequest> seats, long seasonId, Client client)
         {
             List<Ticket> tickets = new List<Ticket>();
 
-            var seatKeys = seats.Keys.ToList();
-            var seatKeysSet = seatKeys.ToHashSet();
+            var seatLookup = seats.ToDictionary(
+                x => x.SeatKey,
+                x => x
+            );
+            var seatKeysSet = seatLookup.Keys.ToHashSet();
 
             var seasonSeats = await _eventSeatRepository
                 .Get()
@@ -509,6 +524,8 @@ namespace Odasoft.XBOL.Business.Services
 
             foreach (var seat in seasonSeats)
             {
+                var bookingSeat = seatLookup[seat.ExternalSeatObjectKey];
+
                 var ticket = new Ticket
                 {
                     EventScheduleId = seat.EventSection.EventScheduleId,
@@ -519,7 +536,7 @@ namespace Odasoft.XBOL.Business.Services
                     TicketCode = seat.ExternalSeatObjectKey,
                     TicketType = "SeasonPass", // TODO: Define how to manage different ticket types
                     PrivateToken = Guid.NewGuid().ToString("N"), // TODO: Define the logic for the private token
-                    PricePaid = seats[seat.ExternalSeatObjectKey],
+                    PricePaid = bookingSeat.SeatPrice,
                     Status = TicketStatus.Issued,
                     SeatLabelSnapshot = seat.ExternalSeatObjectKey,
                     SectionLabelSnapshot = seat.EventSection.DisplayName,
@@ -571,7 +588,7 @@ namespace Odasoft.XBOL.Business.Services
                     CreatedAt = now,
                     CreatedBy = Guid.Empty,
                     UpdatedAt = now,
-                    UpdatedBy = Guid.Empty
+                    UpdatedBy = Guid.Empty,
                 };
 
                 await _seasonPassRepository.InsertAsync(seasonPass);
@@ -680,8 +697,10 @@ namespace Odasoft.XBOL.Business.Services
             }
 
             List<Ticket> tickets = await _ticketRepository.Get(
-                    filter: ticket =>
-                        ticket.OriginalOrderId == order.Id
+                    filter: ticket => ticket.OriginalOrderId == order.Id,
+                    includedProperties: [
+                        "EventSeat.BaseSeat.BaseRow.BaseSection.BaseZone"
+                    ]
                 ).ToListAsync();
 
             if (!tickets.Any())
@@ -725,20 +744,75 @@ namespace Odasoft.XBOL.Business.Services
                     .ToListAsync();
 
                 seatLabels = seatLabels.Except(renewedTickets);
+
+                tickets = tickets
+                    .Where(t => !renewedTickets.Contains(t.SeatLabelSnapshot))
+                    .ToList();
             }
 
             if (seatLabels != null)
             {
-                prevSeatPrices = await _seasonSeatRepository.GetSeasonSeatPricesAsync(season.Id, seatLabels.ToList());
-                //var seasonPrices = await _ticketingClient.GetSeatsIoPricesAsync(SaleType.SeasonPass, season.Id);
+                var seasonPrices = await _ticketingClient.GetSeatsIoPricesAsync(SaleType.SeasonPass, season.Id);
 
-                // TODO: Populate prevSeatPrices using the current season pricing returned by GetSeatsIoPricesAsync.
-                //
-                // Previously, seatt pricing followed this precedence:
-                // 1. Use the seat-specific price when one is assigned.
-                // 2. Otherwise, fall back to the zone price.
-                //
-                // Verify whether this rule still applies with the new dynamic pricing model.
+                var seatOverrides = seasonPrices
+                    .Where(x => x.Objects != null)
+                    .SelectMany(x => x.Objects!.Select(seat => new
+                    {
+                        Seat = seat,
+                        Price = x.Price,
+                        PriceListItemId = x.PriceListItemId
+                    }))
+                    .ToDictionary(x => x.Seat);
+
+                var zonePrices = seasonPrices
+                    .Where(x => x.Category.HasValue)
+                    .ToDictionary(
+                        x => x.Category!.Value,
+                        x => new
+                        {
+                            x.Price,
+                            x.PriceListItemId
+                        });
+
+                prevSeatPrices = tickets
+                    .Select(ticket =>
+                    {
+                        if (seatOverrides.TryGetValue(
+                                ticket.SeatLabelSnapshot,
+                                out var overridePrice))
+                        {
+                            return new SeatDTO
+                            {
+                                ExternalSeatObjectKey = ticket.SeatLabelSnapshot,
+                                PriceOverride = overridePrice.Price,
+                                PriceListItemId = overridePrice.PriceListItemId
+                            };
+                        }
+
+                        var zoneKey = ticket.EventSeat
+                            .BaseSeat
+                            .BaseRow
+                            .BaseSection
+                            .BaseZone
+                            .ExternalZoneKey;
+
+                        if (zoneKey.HasValue &&
+                            zonePrices.TryGetValue(zoneKey.Value, out var zonePrice))
+                        {
+                            return new SeatDTO
+                            {
+                                ExternalSeatObjectKey = ticket.SeatLabelSnapshot,
+                                PriceOverride = zonePrice.Price,
+                                PriceListItemId = zonePrice.PriceListItemId
+                            };
+                        }
+
+                        return new SeatDTO
+                        {
+                            ExternalSeatObjectKey = ticket.SeatLabelSnapshot
+                        };
+                    })
+                    .ToList();
             }
 
             return new SeasonToRenovateDTO
@@ -762,6 +836,9 @@ namespace Odasoft.XBOL.Business.Services
                     })
                     .ToList(),
                 PreviousSeatPrices = prevSeatPrices
+                    .GroupBy(x => x.ExternalSeatObjectKey)
+                    .Select(g => g.First())
+                    .ToList()
             };
         }
 
@@ -1097,7 +1174,7 @@ namespace Odasoft.XBOL.Business.Services
                 }
                 else
                 {
-                    isPastEvent = currentSchedule.StartDateTime < now;
+                    isPastEvent = currentSchedule.EndDateTime < now;
                 }
 
                 bool canRenovateSeasonPass = false;

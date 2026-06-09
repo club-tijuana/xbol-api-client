@@ -284,6 +284,49 @@ namespace Odasoft.XBOL.Data.Repositories
 
         public async Task<OrderDTO?> GetOrderAsync(long? clientId, long orderId, bool? isPaymentLink = false)
         {
+            Dictionary<long, long?> ticketPriceListLookup;
+
+            var orderInfo = await DbContext.Set<Order>()
+                .Where(o => o.Id == orderId)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.OrderType
+                })
+                .FirstOrDefaultAsync();
+
+            if (orderInfo == null)
+            {
+                throw new Exception("Order not found");
+            }
+
+            if (orderInfo.OrderType == OrderType.Ticket)
+            {
+                ticketPriceListLookup = await DbContext.Set<OrderItem>()
+                    .Where(oi => oi.OrderId == orderId)
+                    .ToDictionaryAsync(
+                        oi => oi.ItemReferenceId,
+                        oi => oi.PriceListItemId
+                    );
+            }
+            else
+            {
+                ticketPriceListLookup = await (
+                    from oi in DbContext.Set<OrderItem>()
+                    join spet in DbContext.Set<SeasonPassEventTicket>()
+                        on oi.ItemReferenceId equals spet.SeasonPassId
+                    where oi.OrderId == orderId
+                    select new
+                    {
+                        spet.TicketId,
+                        oi.PriceListItemId
+                    })
+                    .ToDictionaryAsync(
+                        x => x.TicketId,
+                        x => x.PriceListItemId
+                    );
+            }
+
             var orderData = await DbContext.Set<Order>()
                 .Where(o => o.Id == orderId)
                 .Select(o => new
@@ -326,7 +369,8 @@ namespace Odasoft.XBOL.Data.Repositories
                                     t.EventSchedule.Event.Season.StartDate
                                 }
                             }
-                        }
+                        },
+                        PriceListItemId = ticketPriceListLookup.GetValueOrDefault(t.Id)
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();
@@ -364,7 +408,8 @@ namespace Odasoft.XBOL.Data.Repositories
                 {
                     Id = t.EventSeatId,
                     ExternalSeatObjectKey = t.SeatLabelSnapshot,
-                    PriceOverride = t.SeatPricePaid
+                    PriceOverride = t.SeatPricePaid,
+                    PriceListItemId = t.PriceListItemId
                 })
                 .GroupBy(s => new { s.ExternalSeatObjectKey, s.PriceOverride })
                 .Select(g => g.First())
