@@ -7,7 +7,6 @@ using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 using System.Data;
-using System.Threading.Tasks;
 
 namespace Odasoft.XBOL.Data.Repositories
 {
@@ -426,7 +425,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         {
                             Id = s.Id,
                             Date = s.StartDateTime,
-                            Location = s.Event.VenueMap.Name
+                            Location = s.Event.VenueMap.Venue.Name
                         }).ToList(),
                 Categories = eventEntity.Categories
                         .Select(ec => new EventCategoryDTO
