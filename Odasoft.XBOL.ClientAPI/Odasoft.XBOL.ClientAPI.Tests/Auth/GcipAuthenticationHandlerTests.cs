@@ -21,7 +21,6 @@ public sealed class GcipAuthenticationHandlerTests
         verifier.VerifyIdTokenAsync("root-token", Arg.Any<CancellationToken>())
             .Returns(new VerifiedFirebaseToken(
                 "root-uid",
-                null,
                 new Dictionary<string, object>
                 {
                     ["email"] = "buyer@example.com",
@@ -43,8 +42,6 @@ public sealed class GcipAuthenticationHandlerTests
             .Should().Be("+526641234567");
         result.Principal.FindFirst(GcipAuthenticationHandler.SignInProviderClaimType)!.Value
             .Should().Be("phone");
-        result.Principal.FindFirst(GcipAuthenticationHandler.TenantClaimType)
-            .Should().BeNull();
     }
 
     [Fact]
@@ -64,7 +61,6 @@ public sealed class GcipAuthenticationHandlerTests
         verifier.VerifyIdTokenAsync("root-token", Arg.Any<CancellationToken>())
             .Returns(new VerifiedFirebaseToken(
                 "root-uid",
-                null,
                 new Dictionary<string, object>
                 {
                     ["phone_number"] = "+526641234567",
@@ -77,23 +73,6 @@ public sealed class GcipAuthenticationHandlerTests
         result.Succeeded.Should().BeTrue();
         result.Principal!.FindFirst(GcipAuthenticationHandler.SignInProviderClaimType)!.Value
             .Should().Be("phone");
-    }
-
-    [Fact]
-    public async Task AuthenticateAsync_rejects_tenant_scoped_firebase_token()
-    {
-        var verifier = Substitute.For<IFirebaseTokenVerifier>();
-        verifier.VerifyIdTokenAsync("tenant-token", Arg.Any<CancellationToken>())
-            .Returns(new VerifiedFirebaseToken(
-                "tenant-uid",
-                "client-44m3w",
-                new Dictionary<string, object>()));
-        var handler = CreateHandler(verifier, "Bearer tenant-token");
-
-        var result = await handler.AuthenticateAsync();
-
-        result.Succeeded.Should().BeFalse();
-        result.Failure!.Message.Should().Contain("root Firebase");
     }
 
     private static GcipAuthenticationHandler CreateHandler(
