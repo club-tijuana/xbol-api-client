@@ -23,5 +23,6 @@ namespace Odasoft.XBOL.DTO
         public List<EventScheduleDTO> Schedules { get; set; } = new List<EventScheduleDTO>();
         public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
         public EventImagesDTO? Images { get; set; }
+        public EventMediaSetResponse? Media { get; set; }
     }
 }

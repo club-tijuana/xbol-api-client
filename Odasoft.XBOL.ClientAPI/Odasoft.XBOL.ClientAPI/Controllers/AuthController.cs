@@ -19,7 +19,17 @@ public class AuthController(IClientIdentityService clientIdentityService) : Cont
         [FromBody] RegisterRequest request,
         CancellationToken cancellationToken)
     {
-        return Ok(await clientIdentityService.RegisterAsync(request, cancellationToken));
+        return Ok(await clientIdentityService.RegisterAsync(request, User, cancellationToken));
+    }
+
+    [Authorize]
+    [HttpPost("complete-login")]
+    [ProducesResponseType(typeof(AuthMeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<AuthMeResponse>> CompleteLoginAsync(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await clientIdentityService.CompleteLoginAsync(User, cancellationToken));
     }
 
     [Authorize]

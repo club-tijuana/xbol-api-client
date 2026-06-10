@@ -12,5 +12,6 @@ namespace Odasoft.XBOL.Models
 
         public bool IsCourtesy { get; set; }
         public decimal Price { get; set; }
+        public long? PriceListItemId { get; set; }
     }
 }

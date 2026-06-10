@@ -4,6 +4,7 @@
     {
         Event,
         SeasonPass,
-        EventGroup
+        EventGroup,
+        Bundle
     }
 }

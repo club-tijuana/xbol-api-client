@@ -3,8 +3,10 @@
     public enum PaymentType
     {
         Cash,
-        CreditCard,
-        DebitCard,
-        Spei
+        Card,
+        WireTransfer,
+        ClientCredit,
+        Other,
+        Courtesy
     }
 }

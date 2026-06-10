@@ -1,5 +1,5 @@
 ﻿namespace Odasoft.XBOL.Business.Messages
 {
-    public record HoldTokenCommand();
-    public record ReleaseHoldSeatsCommand(string Request);
+    public record ReleaseSeatsActionCommand(ReleaseSeatsByKeyRequest Request);
+    public record HoldSeatsActionCommand(HoldSeatsActionRequest Request);
 }

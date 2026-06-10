@@ -13,5 +13,6 @@ namespace Odasoft.XBOL.DTO
         public string? EventKey { get; set; }
         public bool IsFavorite { get; set; } = false;
         public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
+        public EventMediaSetResponse? Media { get; set; }
     }
 }

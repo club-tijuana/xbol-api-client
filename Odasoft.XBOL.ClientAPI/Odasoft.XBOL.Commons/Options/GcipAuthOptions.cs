@@ -9,11 +9,6 @@ public sealed class GcipAuthOptions
 
     [Required]
     [MinLength(1)]
-    [Description("Firebase Auth tenant ID for client users.")]
-    public string TenantId { get; init; } = string.Empty;
-
-    [Required]
-    [MinLength(1)]
     [Description("Firebase project ID.")]
     public string ProjectId { get; init; } = string.Empty;
 

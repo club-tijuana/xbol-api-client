@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Odasoft.XBOL.Business;
 using Odasoft.XBOL.Business.Messages;
@@ -61,11 +62,13 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("event-by-schedule/{scheduleId}")]
         [EndpointName("GetEventItemByScheduleIdAsync")]
-        public async Task<ActionResult<EventItemDTO>> GetEventItemByScheduleIdAsync([FromRoute] long scheduleId)
+        public async Task<ActionResult<EventItemDTO>> GetEventItemByScheduleIdAsync(
+            [FromRoute] long scheduleId,
+            [FromQuery] bool includeMedia = false)
         {
             try
             {
-                var result = await _bookingService.GetEventItemByScheduleIdAsync(scheduleId);
+                var result = await _bookingService.GetEventItemByScheduleIdAsync(scheduleId, includeMedia);
 
                 if (result == null)
                 {
@@ -83,13 +86,15 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("season-by-id/{seasonId}")]
         [EndpointName("GetSeasonByScheduleIdAsync")]
-        public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync([FromRoute] long seasonId)
+        public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync(
+            [FromRoute] long seasonId,
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
 
             try
             {
-                var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id);
+                var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id, includeMedia);
 
                 if (result != null)
                 {
@@ -130,7 +135,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             try
             {
-                var result = await _bus.InvokeAsync<BookingResult?>(new CreateEventBookingCommand(request));
+                var verifiedClientId = await TryResolveVerifiedClientIdAsync();
+                var result = await _bus.InvokeAsync<BookingResult?>(
+                    new CreateEventBookingCommand(request, verifiedClientId));
                 if (result is null)
                 {
                     return UnprocessableEntity("Booking failed. Please check the request details and try again.");
@@ -179,7 +186,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             try
             {
-                var result = await _bus.InvokeAsync<BookingResult?>(new CreateSeasonBookingCommand(request));
+                var verifiedClientId = await TryResolveVerifiedClientIdAsync();
+                var result = await _bus.InvokeAsync<BookingResult?>(
+                    new CreateSeasonBookingCommand(request, verifiedClientId));
                 if (result is null)
                 {
                     return UnprocessableEntity("Booking failed. Please check the request details and try again.");
@@ -202,6 +211,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         }
 
         [HttpPost("season/renovate-season")]
+        [Authorize]
         [EndpointName("RenovateSeasonSeatsAsync")]
         [ProducesResponseType(typeof(BookingResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ModelStateDictionary), StatusCodes.Status400BadRequest)]
@@ -220,7 +230,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                     return BadRequest("Renovation must contain a previous order to reference.");
                 }
 
-                var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request));
+                var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+                request.ClientContact.Id = client.Id;
+
+                var result = await _bus.InvokeAsync<BookingResult>(new CreateSeasonBookingCommand(request, client.Id));
 
                 if (result is null)
                 {
@@ -247,6 +260,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 _logger.LogError(ex, "Failed to renovate season seats");
                 return BadRequest(ex.Message);
             }
+        }
+
+        private async Task<long?> TryResolveVerifiedClientIdAsync()
+        {
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            return client?.Id;
         }
     }
 }

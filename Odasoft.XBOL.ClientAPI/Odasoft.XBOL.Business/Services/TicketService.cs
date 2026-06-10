@@ -2,6 +2,7 @@
 using Odasoft.XBOL.Business.Exceptions;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 
@@ -26,7 +27,7 @@ namespace Odasoft.XBOL.Business.Services
             {
                 Email = shareTicket.Email,
                 Phone = shareTicket.Phone,
-                PhoneCode = shareTicket.PhoneCode
+                PhoneRegionCodeId = shareTicket.PhoneRegionCodeId
             });
 
             if (client == null)
@@ -79,12 +80,13 @@ namespace Odasoft.XBOL.Business.Services
             }
 
             var banner = _mediaRepository
-                .Get(m =>
+                .Get(filter: m =>
                     m.ReferenceId == ticket.EventSchedule.EventId &&
                     m.ReferenceType == ClientSaleType.Event &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.MediaType == ClientMediaType.Banner,
+                    includedProperties: "BlobAsset"
                 )
+                .AvailableBlobMedia()
                 .FirstOrDefault();
             var legacyPoster = ticket.EventSchedule.Event.PosterImageUrl;
 

@@ -25,12 +25,45 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         }
 
         [HttpGet("{orderId}")]
-        [Authorize]
         [EndpointName("GetOrderAsync")]
         public async Task<ActionResult<OrderDTO>> GetOrderAsync([FromRoute] long orderId)
         {
-            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
-            var result = await _orderService.GetOrderAsync(client.Id, orderId);
+            long? clientId = null;
+
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+
+                if (client != null)
+                {
+                    clientId = client.Id;
+                }
+            }
+
+            var result = await _orderService.GetOrderAsync(clientId, orderId);
+
+            if (result == null)
+            {
+                return NotFound("Order not found");
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("{orderId}/metadata")]
+        [EndpointName("GetOrderMetadataAsync")]
+        public async Task<ActionResult<SeoMetadataDTO?>> GetOrderMetadataAsync([FromRoute] long orderId)
+        {
+            var result = await _orderService.GetOrderMetadataAsync(orderId);
+
+            return Ok(result);
+        }
+
+        [HttpGet("renovate/{orderId}/metadata")]
+        [EndpointName("GetRenovationMetadataAsync")]
+        public async Task<ActionResult<SeoMetadataDTO?>> GetRenovationMetadataAsync([FromRoute] long orderId)
+        {
+            var result = await _orderService.GetRenovationMetadataAsync(orderId);
 
             return Ok(result);
         }

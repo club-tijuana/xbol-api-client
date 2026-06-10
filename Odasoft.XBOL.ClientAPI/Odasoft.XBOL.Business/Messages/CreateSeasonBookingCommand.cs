@@ -1,4 +1,4 @@
 ﻿namespace Odasoft.XBOL.Business.Messages
 {
-    public record CreateSeasonBookingCommand(SeasonBookingRequest Request);
+    public record CreateSeasonBookingCommand(SeasonBookingRequest Request, long? VerifiedClientId = null);
 }

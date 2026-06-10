@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests.Filters;
+using Odasoft.XBOL.Data.Mapping;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.DTO.Results;
@@ -17,6 +19,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonPassRepository _seasonPassRepository;
         private readonly OrderRepository _orderRepository;
         private readonly ClientService _clientService;
+        private readonly ITicketingClient _ticketingClient;
 
         public BookingService(EventSectionRepository eventSectionRepository,
             EventScheduleRepository eventScheduleRepository,
@@ -24,7 +27,8 @@ namespace Odasoft.XBOL.Business.Services
             SeasonRepository seasonRepository,
             SeasonPassRepository seasonPassRepository,
             OrderRepository orderRepository,
-            ClientService clientService)
+            ClientService clientService,
+            ITicketingClient ticketingClient)
         {
             _eventSectionRepository = eventSectionRepository;
             _eventScheduleRepository = eventScheduleRepository;
@@ -33,6 +37,7 @@ namespace Odasoft.XBOL.Business.Services
             _orderRepository = orderRepository;
             _clientService = clientService;
             _seasonPassRepository = seasonPassRepository;
+            _ticketingClient = ticketingClient;
         }
 
         public async Task<IList<ZoneDTO>> GetZonesByEventIdAsync(long scheduleId)
@@ -47,10 +52,35 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
         {
-            return await _eventSectionRepository.GetSeatAvailabilityAsync(filters);
+            SeatAvailabilityResponse response = await _ticketingClient.GetSeatAvailabilityAsync(
+                filters.SeasonId,
+                filters.ScheduleId,
+                filters.SectionId,
+                filters.ZoneId,
+                filters.PriceRange?.Min,
+                filters.PriceRange?.Max);
+
+            return new SeatAvailabilityDTO
+            {
+                Zones = response.Zones?.Select(x => new ZoneDTO
+                {
+                    Id = x.Id.HasValue ? x.Id.Value : 0,
+                    Name = x.Name ?? string.Empty,
+                    DisplayName = x.DisplayName ?? string.Empty,
+                    Price = x.Price,
+                    PriceListItemId = x.PriceListItemId
+                }).ToList() ?? [],
+                SeatOverrides = response.SeatOverrides?.Select(x => new SeatDTO
+                {
+                    Id = x.Id.HasValue ? x.Id.Value : 0,
+                    ExternalSeatObjectKey = x.ExternalSeatObjectKey ?? string.Empty,
+                    PriceOverride = x.PriceOverride,
+                    PriceListItemId = x.PriceListItemId
+                }).ToList() ?? []
+            };
         }
 
-        public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId)
+        public async Task<EventItemDTO> GetEventItemByScheduleIdAsync(long scheduleId, bool includeMedia = false)
         {
             var schedule = await _eventScheduleRepository.Get(
                 s => s.Id == scheduleId)
@@ -72,13 +102,18 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(canReserve.Message);
             }
 
-            var banner = _mediaRepository
-                .Get(m =>
+            var eventMedia = await _mediaRepository
+                .Get(filter: m =>
                     m.ReferenceId == schedule.EventId &&
-                    m.ReferenceType == ClientSaleType.Event &&
-                    m.MediaType == ClientMediaType.Banner &&
-                    m.DeletedAt == null
+                    m.ReferenceType == ClientSaleType.Event,
+                    includedProperties: "BlobAsset"
                 )
+                .AvailableBlobMedia()
+                .ToListAsync();
+
+            var banner = eventMedia
+                .Where(m => m.MediaType == ClientMediaType.Banner)
+                .OrderBy(m => m.Order)
                 .FirstOrDefault();
 
             return new EventItemDTO
@@ -100,11 +135,14 @@ namespace Odasoft.XBOL.Business.Services
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                EventKey = schedule.ExternalEventKey
+                EventKey = schedule.ExternalEventKey,
+                Media = includeMedia
+                    ? EventMediaSetMapper.CreateMediaSet(eventMedia.Select(EventMediaSetMapper.CreateMediaResponse))
+                    : null
             };
         }
 
-        public async Task<SeasonItemDTO?> GetSeasonByIdAsync(long seasonId, long? clientId)
+        public async Task<SeasonItemDTO?> GetSeasonByIdAsync(long seasonId, long? clientId, bool includeMedia = false)
         {
             var now = DateTimeOffset.UtcNow;
 
@@ -123,7 +161,7 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception(result.Message);
             }
 
-            return Map(season);
+            return await MapSeasonItemAsync(season, includeMedia);
         }
 
         public async Task<ReservationAvailabilityResult> CanReserveSeasonAsync(Season season, long? clientId)
@@ -134,7 +172,7 @@ namespace Odasoft.XBOL.Business.Services
             var isPreSale = now >= season.PreSaleDate && now < season.OnSaleDate;
             var isGeneral = now >= season.OnSaleDate && now < season.OffSaleDate;
 
-            var hasStarted = now >= season.RenewalStartDate;
+            var hasStarted = season.RenewalStartDate == null ? true : now >= season.RenewalStartDate;
             var isExpired = now >= season.OffSaleDate;
 
             if (isExpired)
@@ -217,10 +255,14 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var isPreSale = now >= eventSchedule.PreSaleStartDate && now <= eventSchedule.PreSaleEndDate;
+            var isPreSale =
+                eventSchedule.PreSaleStartDate is not null &&
+                eventSchedule.PreSaleEndDate is not null &&
+                now >= eventSchedule.PreSaleStartDate &&
+                now <= eventSchedule.PreSaleEndDate;
             var isGeneral = now >= eventSchedule.OnSaleDate && now < eventSchedule.OffSaleDate;
 
-            var hasStarted = now >= eventSchedule.PreSaleStartDate;
+            var hasStarted = now >= (eventSchedule.PreSaleStartDate ?? eventSchedule.OnSaleDate);
             var isExpired = now >= eventSchedule.OffSaleDate;
 
             if (isExpired)
@@ -253,14 +295,38 @@ namespace Odasoft.XBOL.Business.Services
             return new ReservationAvailabilityResult { CanReserve = true };
         }
 
-        private static SeasonItemDTO Map(Season season)
+        private async Task<SeasonItemDTO> MapSeasonItemAsync(Season season, bool includeMedia)
         {
+            var media = await _mediaRepository
+                .Get(filter: m =>
+                    m.ReferenceId == season.Id &&
+                    m.ReferenceType == ClientSaleType.SeasonPass,
+                    includedProperties: "BlobAsset"
+                )
+                .AvailableBlobMedia()
+                .ToListAsync();
+
+            var banner = media
+                .Where(m => m.MediaType == ClientMediaType.Banner)
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
+            var now = DateTimeOffset.UtcNow;
+
             return new SeasonItemDTO
             {
                 Id = season.Id,
-                BannerImageUrl = season.BannerImageUrl,
+                BannerImageUrl = banner != null && banner.Url != null
+                    ? banner.Url
+                    : season.BannerImageUrl,
                 StartDate = season.StartDate,
-                ExternalSeasonKey = season.ExternalSeasonKey
+                ExternalSeasonKey = season.ExternalSeasonKey,
+                Media = includeMedia
+                    ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
+                    : null,
+                IsRenewal = now >= season.RenewalStartDate && now < season.RenewalEndDate,
+                IsPreSale = now >= season.PreSaleDate && now < season.OnSaleDate,
+                IsGeneralSale = now >= season.OnSaleDate
             };
         }
     }

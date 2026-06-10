@@ -96,9 +96,9 @@ namespace Odasoft.XBOL.Business.Services
 
             return response;
         }
-        public async Task<PagedResponse<EventItemDTO>> GetFavoritesByClientIdAsync(int? page, int? pageSize, long clientId)
+        public async Task<PagedResponse<EventItemDTO>> GetFavoritesByClientIdAsync(int? page, int? pageSize, long clientId, bool includeMedia = false)
         {
-            return await _clientFavoriteEventRepository.GetFavoritesByClientIdAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId);
+            return await _clientFavoriteEventRepository.GetFavoritesByClientIdAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId, includeMedia);
         }
 
         public async Task<List<long>> GetFavoritesIdsByClientIdAsync(long clientId)

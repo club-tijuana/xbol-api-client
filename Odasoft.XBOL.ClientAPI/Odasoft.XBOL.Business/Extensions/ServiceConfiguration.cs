@@ -9,6 +9,7 @@ namespace Odasoft.XBOL.Business.Extensions
         {
             services.AddScoped<AccountService>();
             services.AddScoped<EventService>();
+            services.AddScoped<EventCatalogService>();
             services.AddScoped<ClientService>();
             services.AddScoped<BookingService>();
             services.AddScoped<OrderService>();
@@ -17,6 +18,9 @@ namespace Odasoft.XBOL.Business.Extensions
             services.AddScoped<ClientFavoriteEventService>();
             services.AddScoped<SequenceTrackerService>();
             services.AddScoped<EventScheduleService>();
+            services.AddScoped<PhoneRegionCodesService>();
+            services.AddScoped<ClientCreditTransactionService>();
+            services.AddScoped<PaymentLinkService>();
 
             return services;
         }

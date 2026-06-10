@@ -54,11 +54,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetFavoritesByClientIdAsync(
             [FromQuery] int? page,
-            [FromQuery] int? pageSize)
+            [FromQuery] int? pageSize,
+            [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
 
-            var result = await _clientFavoriteEventService.GetFavoritesByClientIdAsync(page, pageSize, client.Id);
+            var result = await _clientFavoriteEventService.GetFavoritesByClientIdAsync(page, pageSize, client.Id, includeMedia);
 
             return Ok(result);
         }

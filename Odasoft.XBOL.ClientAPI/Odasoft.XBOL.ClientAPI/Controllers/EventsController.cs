@@ -14,17 +14,20 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     public class EventsController : ControllerBase
     {
         private readonly EventService _eventService;
+        private readonly EventScheduleService _eventScheduleService;
         private readonly IMemoryCache _memoryCache;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
         private readonly IClientIdentityService _clientIdentityService;
 
         public EventsController(
             EventService eventService,
+            EventScheduleService eventScheduleService,
             IMemoryCache memoryCache,
             EventsTrackingSettings eventsTrackingSettings,
             IClientIdentityService clientIdentityService)
         {
             _eventService = eventService;
+            _eventScheduleService = eventScheduleService;
             _memoryCache = memoryCache;
             _eventsTrackingSettings = eventsTrackingSettings;
             _clientIdentityService = clientIdentityService;
@@ -32,10 +35,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
         [HttpGet("main")]
         [EndpointName("GetMainEventsAsync")]
-        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync()
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsAsync(
+            [FromQuery] bool includeMedia = false)
         {
-            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetMainEventsAsync(client?.Id);
+            var result = await _eventService.GetMainEventsAsync(includeMedia);
 
             return Ok(result);
         }
@@ -55,10 +58,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetTrendingEventsAsync(
             [FromQuery] int? page,
-            [FromQuery] int? pageSize)
+            [FromQuery] int? pageSize,
+            [FromQuery] bool includeMedia = false)
         {
-            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, client?.Id);
+            var result = await _eventService.GetTrendingEventsAsync(page, pageSize, includeMedia);
 
             return Ok(result);
         }
@@ -70,10 +73,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] int? page,
             [FromQuery] int? pageSize,
             [FromQuery] long? eventCategoryId,
-            [FromQuery] string? searchTerm)
+            [FromQuery] string? searchTerm,
+            [FromQuery] bool includeMedia = false)
         {
-            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, client?.Id);
+            var result = await _eventService.GetEventsAsync(page, pageSize, eventCategoryId, searchTerm, includeMedia);
 
             return Ok(result);
         }
@@ -89,7 +92,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] string? searchTerm,
             [FromQuery] long? performerId,
             [FromQuery] List<long>? eventCategoryIds,
-            [FromQuery] bool? trendingEvents)
+            [FromQuery] bool? trendingEvents,
+            [FromQuery] bool includeMedia = false)
         {
             var result = await _eventService.GetFilteredEventsAsync(
                 page,
@@ -99,7 +103,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                 searchTerm,
                 performerId,
                 eventCategoryIds,
-                trendingEvents);
+                trendingEvents,
+                includeMedia);
 
             return Ok(result);
         }
@@ -108,16 +113,17 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         /// Retrieves the full detail for a single event.
         /// </summary>
         /// <param name="eventId">Event identifier.</param>
-        /// <param name="includeImages">When true, populates the <c>images</c> map with data URIs for uploaded HorizontalPoster / VerticalPoster rows (legacy URL fallback when an upload is missing). Default false to keep the response small.</param>
+        /// <param name="includeImages">When true, populates the legacy <c>images</c> map. Default false to keep the response small.</param>
+        /// <param name="includeMedia">When true, populates the read-only <c>media</c> object from available shared media rows.</param>
         [HttpGet("{eventId}")]
         [EndpointName("GetEventDetailAsync")]
         [ProducesResponseType(typeof(EventDetailDTO), StatusCodes.Status200OK)]
         public async Task<ActionResult<EventDetailDTO>> GetEventDetailAsync(
             [FromRoute] long eventId,
-            [FromQuery] bool includeImages = false)
+            [FromQuery] bool includeImages = false,
+            [FromQuery] bool includeMedia = false)
         {
-            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
-            var result = await _eventService.GetEventDetailAsync(eventId, client?.Id, includeImages);
+            var result = await _eventService.GetEventDetailAsync(eventId, includeImages, includeMedia);
 
             return Ok(result);
         }
@@ -161,6 +167,29 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             await _eventService.RegisterView(request);
 
             return Ok();
+        }
+
+        [HttpGet("{scheduleId}/metadata")]
+        [EndpointName("GetEventMetadataByScheduleIdAsync")]
+        [ProducesResponseType(typeof(SeoMetadataDTO), StatusCodes.Status200OK)]
+        public async Task<ActionResult<SeoMetadataDTO?>> GetEventMetadataByScheduleIdAsync(
+            [FromRoute] long scheduleId)
+        {
+            var result = await _eventScheduleService.GetEventMetadataByScheduleIdAsync(scheduleId);
+
+            return Ok(result);
+        }
+
+        [HttpGet("upcoming-events")]
+        [EndpointName("GetUpcomingEventsAsync")]
+        [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetUpcomingEventsAsync(
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize)
+        {
+            var result = await _eventService.GetUpcomingEventsAsync(page, pageSize);
+
+            return Ok(result);
         }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
+using Odasoft.XBOL.Data.Mapping;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 
@@ -13,7 +15,7 @@ namespace Odasoft.XBOL.Data.Repositories
             await DbSet.AddRangeAsync(entities);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetFavoritesByClientIdAsync(int page, int pageSize, long clientId)
+        public async Task<PagedResponse<EventItemDTO>> GetFavoritesByClientIdAsync(int page, int pageSize, long clientId, bool includeMedia = false)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
@@ -25,7 +27,7 @@ namespace Odasoft.XBOL.Data.Repositories
                 //&& e.Schedules.All(es => es.StartDateTime > now) // TODO: Commented for testing purposes
                 )
                 .GroupJoin(
-                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                     eventObject => eventObject.Id,
                     media => media.ReferenceId,
                     (e, m) => new
@@ -60,7 +62,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             DisplayName = ec.DisplayName
                         }).ToList(),
                     IsFavorite = true,
-                    BannerFile = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    BannerUrl = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                     LegacyBannerUrl = e.Event.BannerImageUrl,
                     LegacyPosterUrl = e.Event.PosterImageUrl
                 })
@@ -74,13 +76,23 @@ namespace Odasoft.XBOL.Data.Repositories
                 Location = e.Location,
                 Categories = e.Categories,
                 IsFavorite = e.IsFavorite,
-                BannerImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                BannerImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyBannerUrl ?? string.Empty,
-                PosterImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                PosterImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyPosterUrl ?? string.Empty
             }).ToList();
+
+            if (includeMedia && result.Count > 0)
+            {
+                var mediaSets = await EventMediaSetMapper.GetEventMediaSetsAsync(DbContext, result.Select(e => e.Id).Distinct().ToList());
+
+                foreach (var eventItem in result)
+                {
+                    eventItem.Media = mediaSets.GetValueOrDefault(eventItem.Id) ?? new EventMediaSetResponse();
+                }
+            }
 
             return new PagedResponse<EventItemDTO>
             {

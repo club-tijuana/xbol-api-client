@@ -14,11 +14,13 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     {
         private readonly ClientService _clientService;
         private readonly IClientIdentityService _clientIdentityService;
+        private readonly OrderService _orderService;
 
-        public ClientController(ClientService clientService, IClientIdentityService clientIdentityService)
+        public ClientController(ClientService clientService, IClientIdentityService clientIdentityService, OrderService orderService)
         {
             _clientService = clientService;
             _clientIdentityService = clientIdentityService;
+            _orderService = orderService;
         }
 
         /// <summary>
@@ -38,7 +40,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             [FromQuery] OrderType orderType)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
-            var result = await _clientService.GetMyEventsAsync(page, pageSize, orderType, client.Id);
+            var result = await _orderService.GetMyEventsAsync(page, pageSize, orderType, client.Id);
 
             return Ok(result);
         }
@@ -49,7 +51,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         public async Task<ActionResult<MyEventDetailDTO>> GetMyEventDetailAsync(long eventId, long orderId)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
-            var result = await _clientService.GetMyEventDetailAsync(client.Id, eventId, orderId);
+            var result = await _orderService.GetMyEventDetailAsync(client.Id, eventId, orderId);
 
             if (result == null)
             {
@@ -87,7 +89,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         )
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
-            var result = await _clientService.GetMyTicketsByOrderAsync(page, pageSize, eventId, orderId, client.Id);
+            var result = await _orderService.GetMyTicketsByOrderAsync(page, pageSize, eventId, orderId, client.Id);
 
             return Ok(result);
         }

@@ -2,23 +2,20 @@
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Responses;
 using Odasoft.XBOL.Data.Extensions.Domain;
+using Odasoft.XBOL.Data.Mapping;
+using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 using System.Data;
+using System.Threading.Tasks;
 
 namespace Odasoft.XBOL.Data.Repositories
 {
     public class EventRepository(XBOLDbContext dbContext) : BaseRepository<Event>(dbContext)
     {
-        public async Task<(List<EventItemDTO> Items, int TotalCount)> GetMainEventsAsync(int pageSize, long? clientId)
+        public async Task<(List<EventItemDTO> Items, int TotalCount)> GetMainEventsAsync(int pageSize, bool includeMedia = false)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
-
-            var favoriteEventIds = clientId != null
-                ? await DbContext.Set<Models.ClientFavoriteEvent>()
-                    .Where(f => f.ClientId == clientId)
-                    .Select(f => f.EventId)
-                    .ToListAsync() : new List<long>();
 
             var mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
@@ -26,7 +23,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
                 )
                 .GroupJoin(
-                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                     eventObject => eventObject.Id,
                     media => media.ReferenceId,
                     (e, m) => new
@@ -56,8 +53,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Event.Id),
-                    BannerFile = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    BannerUrl = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                     LegacyBannerUrl = e.Event.BannerImageUrl,
                     LegacyPosterUrl = e.Event.PosterImageUrl
                 })
@@ -70,29 +66,25 @@ namespace Odasoft.XBOL.Data.Repositories
                 StartDate = e.StartDate,
                 Location = e.Location,
                 Categories = e.Categories,
-                IsFavorite = e.IsFavorite,
-                BannerImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                BannerImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyBannerUrl ?? string.Empty,
-                PosterImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                PosterImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyPosterUrl ?? string.Empty
             }).ToList();
+
+            await AttachEventMediaSetsAsync(result, includeMedia);
 
             return (result, result.Count);
         }
 
         public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(
             int page,
-            int pageSize, long? clientId)
+            int pageSize,
+            bool includeMedia = false)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
-
-            var favoriteEventIds = clientId != null
-               ? await DbContext.Set<Models.ClientFavoriteEvent>()
-                   .Where(f => f.ClientId == clientId)
-                   .Select(f => f.EventId)
-                   .ToListAsync() : new List<long>();
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
@@ -101,7 +93,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     && e.ViewCount > 0
                 )
                 .GroupJoin(
-                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                     eventObject => eventObject.Id,
                     media => media.ReferenceId,
                     (e, m) => new
@@ -134,8 +126,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                    IsFavorite = clientId != null && favoriteEventIds.Contains(e.Event.Id),
-                    BannerFile = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                    BannerUrl = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                     LegacyBannerUrl = e.Event.BannerImageUrl,
                     LegacyPosterUrl = e.Event.PosterImageUrl
                 })
@@ -148,14 +139,15 @@ namespace Odasoft.XBOL.Data.Repositories
                 StartDate = e.StartDate,
                 Location = e.Location,
                 Categories = e.Categories,
-                IsFavorite = e.IsFavorite,
-                BannerImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                BannerImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyBannerUrl ?? string.Empty,
-                PosterImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                PosterImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyPosterUrl ?? string.Empty
             }).ToList();
+
+            await AttachEventMediaSetsAsync(result, includeMedia);
 
             return new PagedResponse<EventItemDTO>
             {
@@ -172,18 +164,9 @@ namespace Odasoft.XBOL.Data.Repositories
             int pageSize,
             long? eventCategoryId,
             string? searchTerm,
-            long? clientId)
+            bool includeMedia = false)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
-
-            List<long> favouriteEventIds = new List<long>();
-            if (clientId != null)
-            {
-                favouriteEventIds = await DbContext.Set<ClientFavoriteEvent>().AsQueryable()
-                    .Where(c => c.ClientId == clientId)
-                    .Select(c => c.EventId)
-                    .ToListAsync();
-            }
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
@@ -217,7 +200,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var events = await query
             .GroupJoin(
-                DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                 eventObject => eventObject.Id,
                 media => media.ReferenceId,
                 (e, m) => new
@@ -244,7 +227,86 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                IsFavorite = favouriteEventIds.Contains(e.Event.Id),
+                BannerUrl = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
+                LegacyBannerUrl = e.Event.BannerImageUrl,
+                LegacyPosterUrl = e.Event.PosterImageUrl
+            })
+            .ToListAsync();
+
+            var result = events.Select(e => new EventItemDTO
+            {
+                Id = e.Id,
+                Name = e.Name,
+                StartDate = e.StartDate,
+                Location = e.Location,
+                Categories = e.Categories,
+                BannerImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
+                    : e.LegacyBannerUrl ?? string.Empty,
+                PosterImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
+                    : e.LegacyPosterUrl ?? string.Empty
+            }).ToList();
+
+            await AttachEventMediaSetsAsync(result, includeMedia);
+
+            return new PagedResponse<EventItemDTO>
+            {
+                Items = result,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
+        }
+
+        public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(
+            int page,
+            int pageSize)
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var query = DbContext.Set<Models.Event>()
+                .Where(e =>
+                    e.Schedules.Any(es =>
+                        es.PreSaleStartDate > now
+                        || es.OnSaleDate > now
+                    )
+                )
+                .AsQueryable();
+
+            int totalCount = await query.CountAsync();
+            var skip = (page - 1) * pageSize;
+
+            var events = await query
+                .GroupJoin(
+                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    eventObject => eventObject.Id,
+                    media => media.ReferenceId,
+                    (e, m) => new
+                    {
+                        Event = e,
+                        EventImages = m
+                    }
+            )
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(e => new
+            {
+                Id = e.Event.Id,
+                Name = e.Event.Name,
+                StartDate = e.Event.Schedules
+                    .OrderBy(s => s.StartDateTime)
+                    .Select(s => s.StartDateTime)
+                    .FirstOrDefault(),
+                Location = e.Event.VenueMap.Venue.Name,
+                Categories = e.Event.Categories
+                        .Select(ec => new EventCategoryDTO
+                        {
+                            Id = ec.Id,
+                            Name = ec.Name,
+                            DisplayName = ec.DisplayName
+                        }).ToList(),
                 BannerFile = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
                 LegacyBannerUrl = e.Event.BannerImageUrl,
                 LegacyPosterUrl = e.Event.PosterImageUrl
@@ -258,7 +320,6 @@ namespace Odasoft.XBOL.Data.Repositories
                 StartDate = e.StartDate,
                 Location = e.Location,
                 Categories = e.Categories,
-                IsFavorite = e.IsFavorite,
                 BannerImageUrl = e.BannerFile != null && e.BannerFile.Url != null
                     ? e.BannerFile.Url
                     : e.LegacyBannerUrl ?? string.Empty,
@@ -277,10 +338,8 @@ namespace Odasoft.XBOL.Data.Repositories
             };
         }
 
-        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? clientId, bool includeImages = false)
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, bool includeImages = false, bool includeMedia = false)
         {
-            bool isFavorite = false;
-
             var query = DbContext.Set<Models.Event>()
                 .Where(e => e.Id == eventId);
 
@@ -297,14 +356,11 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 return null;
             }
-            if (clientId != null)
-            {
-                isFavorite = await DbContext.Set<Models.ClientFavoriteEvent>()
-                    .AnyAsync(c => c.ClientId == clientId && c.EventId == eventId);
-            }
 
             var eventImages = await DbContext.Set<Media>()
-                .Where(m => m.ReferenceType == ClientSaleType.Event && m.ReferenceId == eventId && m.DeletedAt == null)
+                .Include(m => m.BlobAsset)
+                .AvailableBlobMedia()
+                .Where(m => m.ReferenceType == ClientSaleType.Event && m.ReferenceId == eventId)
                 .ToListAsync();
 
             var banner = eventImages
@@ -316,36 +372,45 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Where(i => i.MediaType == ClientMediaType.Gallery)
                 .OrderBy(i => i.Order);
 
+            var bannerUrl = banner?.Url;
+
             EventImagesDTO? images = null;
             if (includeImages)
             {
                 images = new EventImagesDTO
                 {
-                    Horizontal = banner != null && banner.Url != null
-                        ? banner.Url
+                    Horizontal = bannerUrl != null
+                        ? bannerUrl
                         : eventEntity.BannerImageUrl,
-                    Vertical = banner != null && banner.Url != null
-                        ? banner.Url
+                    Vertical = bannerUrl != null
+                        ? bannerUrl
                         : eventEntity.PosterImageUrl
                 };
             }
 
+            var fallbackGallery = new[]
+                {
+                    bannerUrl,
+                    eventEntity.BannerImageUrl,
+                    eventEntity.PosterImageUrl
+                }
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Select(url => url!)
+                .Distinct()
+                .ToList();
+
             EventDetailDTO? eventDetail = new EventDetailDTO
             {
                 Id = eventEntity.Id,
-                Image = banner != null && banner.Url != null
-                    ? banner.Url
+                Image = bannerUrl != null
+                    ? bannerUrl
                     : eventEntity.BannerImageUrl ?? string.Empty,
                 Gallery = gallery != null && gallery.Any(i => i.Url != null)
                     ? gallery
                         .Where(i => i.Url != null)
                         .Select(i => i.Url!)
                         .ToList()
-                    : new()
-                    {
-                        eventEntity.BannerImageUrl ?? string.Empty,
-                        eventEntity.PosterImageUrl ?? string.Empty
-                    },
+                    : fallbackGallery,
                 Name = eventEntity.Name,
                 LongDescription = eventEntity.LongDescription,
                 ShortDescription = eventEntity.ShortDescription,
@@ -361,16 +426,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         {
                             Id = s.Id,
                             Date = s.StartDateTime,
-                            Location = s.Event.VenueMap.Name,
-                            SectionPrices = s.Sections // TODO: Mapper
-                                .GroupBy(es => es.Price)
-                                .Select(g => new EventScheduleSectionPricesDTO
-                                {
-                                    Price = g.Key,
-                                    Objects = g.Select(es => es.BaseSection.Name).ToList(),
-                                    Currency = "MXN", // TODO: Add currency support for totals
-                                })
-                                .ToList()
+                            Location = s.Event.VenueMap.Name
                         }).ToList(),
                 Categories = eventEntity.Categories
                         .Select(ec => new EventCategoryDTO
@@ -379,13 +435,31 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                IsFavorite = isFavorite,
                 AgeRestriction = eventEntity.AgeRestriction,
                 SecurityPolicies = eventEntity.SecurityPolicies,
-                Images = images
+                Images = images,
+                Media = includeMedia
+                    ? EventMediaSetMapper.CreateMediaSet(eventImages.Select(EventMediaSetMapper.CreateMediaResponse))
+                    : null
             };
 
             return eventDetail;
         }
+
+        private async Task AttachEventMediaSetsAsync(List<EventItemDTO> events, bool includeMedia)
+        {
+            if (!includeMedia || events.Count == 0)
+            {
+                return;
+            }
+
+            var mediaSets = await EventMediaSetMapper.GetEventMediaSetsAsync(DbContext, events.Select(e => e.Id).Distinct().ToList());
+
+            foreach (var eventItem in events)
+            {
+                eventItem.Media = mediaSets.GetValueOrDefault(eventItem.Id) ?? new EventMediaSetResponse();
+            }
+        }
+
     }
 }

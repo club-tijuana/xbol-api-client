@@ -8,7 +8,7 @@
         public long BaseSeatId { get; set; }
         public BaseSeat BaseSeat { get; set; } = null!;
 
-        public decimal? PriceOverride { get; set; }
         public string ExternalSeatObjectKey { get; set; } = null!;
+        public bool ForSale { get; set; } = true;
     }
 }

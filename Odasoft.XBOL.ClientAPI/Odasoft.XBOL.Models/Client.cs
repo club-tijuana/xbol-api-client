@@ -5,16 +5,14 @@ namespace Odasoft.XBOL.Models
     public class Client : BaseModel
     {
         public ClientType ClientType { get; set; }
-
         public string? FullName { get; set; }
         public DateTimeOffset? DateOfBirth { get; set; }
         public Gender? Gender { get; set; }
         public string? BusinessName { get; set; }
-
-        public string Email { get; set; } = null!;
+        public string? Email { get; set; }
         public long? PhoneRegionCodeId { get; set; }
         public PhoneRegionCode? PhoneRegionCode { get; set; }
-        public string PhoneNumber { get; set; } = null!;
+        public string? PhoneNumber { get; set; }
         public string? TaxId { get; set; }
         public string? Country { get; set; }
         public string? State { get; set; }
@@ -32,11 +30,11 @@ namespace Odasoft.XBOL.Models
         public Guid CreatedBy { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         public Guid UpdatedBy { get; set; }
-
         public IList<Order> Orders { get; set; } = [];
-        public IList<ClientCreditAccount> ClientCreditAccounts { get; set; } = [];
-        public IList<SeatHold> SeatHolds { get; set; } = [];
+        public ClientCreditAccount? ClientCreditAccount { get; set; }
         public IList<Ticket> Tickets { get; set; } = [];
+        public IList<ClientFavoriteEvent> FavoriteEvents { get; set; } = [];
+        public IList<ClientLoginIdentifier> LoginIdentifiers { get; set; } = [];
         public LegalRepresentative? LegalRepresentative { get; set; }
     }
 }

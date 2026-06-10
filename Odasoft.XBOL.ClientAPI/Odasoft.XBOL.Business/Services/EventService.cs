@@ -16,6 +16,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SearchSettings _searchSettings;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
         private readonly ILogger<EventService> _logger;
+        private readonly ITicketingClient _ticketingClient;
 
         private const int MIN_PAGE = 1;
         private const int MAX_PAGE = 50;
@@ -29,8 +30,8 @@ namespace Odasoft.XBOL.Business.Services
             EventViewRepository eventViewRepository,
             SearchSettings searchSettings,
             EventsTrackingSettings eventsTrackingSettings,
-            ILogger<EventService> logger
-        )
+            ILogger<EventService> logger,
+            ITicketingClient ticketingClient)
         {
             _eventRepository = eventRepository;
             _eventCategoryRepository = eventCategoryRepository;
@@ -39,11 +40,12 @@ namespace Odasoft.XBOL.Business.Services
             _searchSettings = searchSettings;
             _eventsTrackingSettings = eventsTrackingSettings;
             _logger = logger;
+            _ticketingClient = ticketingClient;
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(long? clientId)
+        public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(bool includeMedia = false)
         {
-            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE, clientId);
+            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE, includeMedia);
 
             return new PagedResponse<EventItemDTO>
             {
@@ -55,14 +57,19 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize, long? clientId)
+        public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize, bool includeMedia = false)
         {
-            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, clientId);
+            return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, includeMedia);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm, long? clientId = null)
+        public async Task<PagedResponse<EventItemDTO>> GetEventsAsync(int? page, int? pageSize, long? eventCategoryId, string? searchTerm, bool includeMedia = false)
         {
-            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, clientId);
+            return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, includeMedia);
+        }
+
+        public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(int? page, int? pageSize)
+        {
+            return await _eventRepository.GetUpcomingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE);
         }
 
         public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(
@@ -73,7 +80,8 @@ namespace Odasoft.XBOL.Business.Services
             string? searchTerm,
             long? performerId,
             List<long>? eventCategoryIds,
-            bool? trendingEvents)
+            bool? trendingEvents,
+            bool includeMedia = false)
         {
             return await _eventScheduleRepository.GetFilteredEventsAsync(
                 page ?? MIN_PAGE,
@@ -84,12 +92,33 @@ namespace Odasoft.XBOL.Business.Services
                 performerId,
                 eventCategoryIds,
                 trendingEvents,
-                _searchSettings.MatchRatio);
+                _searchSettings.MatchRatio,
+                includeMedia);
         }
 
-        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, long? idClient, bool includeImages = false)
+        public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, bool includeImages = false, bool includeMedia = false)
         {
-            return await _eventRepository.GetEventDetailAsync(eventId, idClient, includeImages);
+            EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, includeImages);
+
+            if (eventDetail != null)
+            {
+                ICollection<ZonePriceResponse> eventPrices = await _ticketingClient.GetZonePricesAsync(SaleType.Event, eventId);
+
+                // Currently the event only have one schedule.
+                List<EventScheduleSectionPricesDTO> sectionPrices = eventPrices.Select(x => new EventScheduleSectionPricesDTO
+                {
+                    Objects = x.Objects.ToList(),
+                    Price = x.Price,
+                    Currency = x.Currency ?? "MXN" // TODO: Add currency support for totals
+                }).ToList();
+
+                foreach (var schedule in eventDetail.Schedules)
+                {
+                    schedule.SectionPrices = sectionPrices;
+                }
+            }
+
+            return eventDetail;
         }
 
         public async Task<List<EventCategoryDTO>> GetEventCategories()

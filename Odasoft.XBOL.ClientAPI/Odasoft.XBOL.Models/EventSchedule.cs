@@ -10,12 +10,12 @@ namespace Odasoft.XBOL.Models
         public DateTimeOffset StartDateTime { get; set; }
         public DateTimeOffset EndDateTime { get; set; }
 
-        public DateTimeOffset PublishedDate { get; set; }
-        public DateTimeOffset PreSaleStartDate { get; set; }
-        public DateTimeOffset PreSaleEndDate { get; set; }
+        public DateTimeOffset? PublishedDate { get; set; }
+        public DateTimeOffset? PreSaleStartDate { get; set; }
+        public DateTimeOffset? PreSaleEndDate { get; set; }
         public DateTimeOffset OnSaleDate { get; set; }
         public DateTimeOffset OffSaleDate { get; set; }
-        public DateTimeOffset GateOpenDate { get; set; }
+        public DateTimeOffset? GateOpenDate { get; set; }
 
         public GameCategory? GameCategory { get; set; }
         public ScheduleStatus Status { get; set; }
@@ -26,8 +26,8 @@ namespace Odasoft.XBOL.Models
         public Guid UpdatedBy { get; set; }
         public DateTimeOffset? DeletedAt { get; set; }
 
-        public string ExternalEventKey { get; set; } = null!;
-
+        public string? ExternalEventKey { get; set; }
+        public int? HoldExpirationInMinutes { get; set; }
         public IList<EventSection> Sections { get; set; } = [];
         public IList<Ticket> Tickets { get; set; } = [];
         public IList<InventoryBatch> InventoryBatches { get; set; } = [];

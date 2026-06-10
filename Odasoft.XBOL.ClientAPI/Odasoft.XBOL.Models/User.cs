@@ -49,5 +49,6 @@ namespace Odasoft.XBOL.Models
         public IList<SeatHold> SeatHolds { get; set; } = [];
         public IList<AuditLog> AuditLogs { get; set; } = [];
         public IList<Ticket> Tickets { get; set; } = [];
+        public IList<PaymentLink> PaymentLinks { get; set; } = [];
     }
 }

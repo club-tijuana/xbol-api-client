@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Odasoft.XBOL.Data.Configurations;
 using Odasoft.XBOL.Data.Extensions;
 using Odasoft.XBOL.Models;
@@ -8,9 +8,13 @@ namespace Odasoft.XBOL.Data
     public class XBOLDbContext : DbContext
     {
         public DbSet<Season> Seasons => Set<Season>();
+        public DbSet<Bundle> Bundles => Set<Bundle>();
+        public DbSet<BundleEventSchedule> BundleEventSchedules => Set<BundleEventSchedule>();
+        public DbSet<BundleSection> BundleSections => Set<BundleSection>();
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Client> Clients => Set<Client>();
+        public DbSet<ClientLoginIdentifier> ClientLoginIdentifiers => Set<ClientLoginIdentifier>();
         public DbSet<Ticket> Tickets => Set<Ticket>();
         public DbSet<SeasonPass> SeasonPasses => Set<SeasonPass>();
         public DbSet<SeasonPassEventTicket> SeasonPassEventTickets => Set<SeasonPassEventTicket>();
@@ -31,6 +35,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<ClientFavoriteEvent> ClientFavoriteEvents { get; set; }
         public DbSet<SequenceTracker> SequenceTrackers { get; set; }
         public DbSet<EventCategory> EventCategories => Set<EventCategory>();
+        public DbSet<BlobAsset> BlobAssets => Set<BlobAsset>();
         public DbSet<Media> Media => Set<Media>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<User> Users => Set<User>();
@@ -70,9 +75,14 @@ namespace Odasoft.XBOL.Data
 
             modelBuilder.RemovePluralizingTableNameConvention();
 
+            modelBuilder.ApplyConfiguration(new ClientLoginIdentifierConfiguration());
             modelBuilder.ApplyConfiguration(new TicketConfiguration());
             modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfiguration(new EventConfiguration());
+            modelBuilder.ApplyConfiguration(new BlobAssetConfiguration());
+            modelBuilder.ApplyConfiguration(new MediaConfiguration());
+            modelBuilder.ApplyConfiguration(new BundleConfiguration());
+            modelBuilder.ApplyConfiguration(new BundleEventScheduleConfiguration());
         }
     }
 }

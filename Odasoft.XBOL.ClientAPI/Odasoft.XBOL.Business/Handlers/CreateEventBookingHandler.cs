@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Business.Messages;
 using Odasoft.XBOL.Business.Services;
-using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.DTO.Results;
 
 namespace Odasoft.XBOL.Business.Handlers
@@ -59,6 +58,8 @@ namespace Odasoft.XBOL.Business.Handlers
                     throw new Exception(canReserveEvent.Message);
                 }
 
+                ApplyVerifiedClientIdentity(command.Request.ClientContact, command.VerifiedClientId);
+
                 command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(EVENT_ORDER_LOCALIZER_PREFIX, schedule.EventId);
 
                 var tickets = await _ticketingClient.BookEventSeatsAsync(command.Request);
@@ -93,31 +94,9 @@ namespace Odasoft.XBOL.Business.Handlers
                     return null;
                 }
 
-                long? clientId = command.Request.ClientContact.Id;
-                if (clientId == null)
-                {
-                    if (command.Request.ClientContact.Email == null)
-                    {
-                        throw new Exception("Client information must be provided");
-                    }
+                ApplyVerifiedClientIdentity(command.Request.ClientContact, command.VerifiedClientId);
 
-                    ClientContactRequest contact = new ClientContactRequest
-                    {
-                        Email = command.Request.ClientContact.Email,
-                        Phone = command.Request.ClientContact.PhoneNumber ?? string.Empty,
-                        PhoneCode = ""
-                    };
-                    var client = await _clientService.GetClientByContactAsync(contact);
-
-                    if (client == null)
-                    {
-                        throw new Exception("Client information must be provided");
-                    }
-
-                    clientId = client.Id;
-                }
-
-                var canReserveSeason = await _bookingService.CanReserveSeasonAsync(season, clientId);
+                var canReserveSeason = await _bookingService.CanReserveSeasonAsync(season, command.VerifiedClientId);
                 if (!canReserveSeason.CanReserve)
                 {
                     throw new Exception(canReserveSeason.Message);
@@ -125,18 +104,23 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX, season.Id);
 
-                if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
-                {
-                    command.Request.HoldToken = "";
+                //if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
+                //{
+                //    if (!command.VerifiedClientId.HasValue)
+                //    {
+                //        throw new Exception("Season renewal requires a verified client identity.");
+                //    }
 
-                    SetForSaleRequest setForSaleRequest = new SetForSaleRequest
-                    {
-                        EventKey = command.Request.SeasonKey,
-                        ForSale = true,
-                        SeatKeys = command.Request.Seats.Select(s => s.Key).ToList()
-                    };
-                    await _ticketingClient.SetForSaleAsync(setForSaleRequest);
-                }
+                //    command.Request.HoldToken = "";
+
+                //    SetForSaleRequest setForSaleRequest = new SetForSaleRequest
+                //    {
+                //        EventKey = command.Request.SeasonKey,
+                //        ForSale = true,
+                //        SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
+                //    };
+                //    await _ticketingClient.SetForSaleAsync(setForSaleRequest);
+                //}
 
                 try
                 {
@@ -155,16 +139,16 @@ namespace Odasoft.XBOL.Business.Handlers
                 }
                 catch
                 {
-                    if (command.Request.ReferenceOrderId != null)
-                    {
-                        SetForSaleRequest setForSaleRequest = new SetForSaleRequest
-                        {
-                            EventKey = command.Request.SeasonKey,
-                            ForSale = false,
-                            SeatKeys = command.Request.Seats.Select(s => s.Key).ToList()
-                        };
-                        await _ticketingClient.SetForSaleAsync(setForSaleRequest);
-                    }
+                    //if (command.Request.ReferenceOrderId != null)
+                    //{
+                    //    SetForSaleRequest setForSaleRequest = new SetForSaleRequest
+                    //    {
+                    //        EventKey = command.Request.SeasonKey,
+                    //        ForSale = false,
+                    //        SeatKeys = command.Request.Seats.Select(s => s.SeatKey).ToList()
+                    //    };
+                    //    await _ticketingClient.SetForSaleAsync(setForSaleRequest);
+                    //}
                     throw;
                 }
             }
@@ -173,6 +157,11 @@ namespace Odasoft.XBOL.Business.Handlers
                 _logger.LogError(ex, "Error creating season booking for season {SeasonKey}", command.Request.SeasonKey);
                 throw;
             }
+        }
+
+        public static void ApplyVerifiedClientIdentity(ClientInfoRequest clientContact, long? verifiedClientId)
+        {
+            clientContact.Id = verifiedClientId;
         }
     }
 }

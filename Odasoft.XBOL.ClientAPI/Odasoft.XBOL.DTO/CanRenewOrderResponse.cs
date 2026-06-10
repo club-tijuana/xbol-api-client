@@ -6,5 +6,8 @@
         public bool CanRenew { get; set; }
         public string? Reference { get; set; }
         public long? NewSeasonId { get; set; }
+
+        public long? RenewableSeats { get; set; }
+        public long? TotalSeats { get; set; }
     }
 }

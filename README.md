@@ -36,7 +36,7 @@ IDE autocomplete is provided by `appsettings.schema.json`, which regenerates aut
 
 #### Firebase Service Account (local development)
 
-The API uses Firebase Admin SDK (GCIP) for client authentication. A Google Cloud service account key is required. **Do not commit the key to the repo** — use .NET user secrets instead.
+The API uses Firebase Admin SDK for root Firebase Client authentication. A Google Cloud service account key is required. **Do not commit the key to the repo** — use .NET user secrets instead.
 
 1. Download the service account JSON key from the GCP Console (`IAM & Admin → Service Accounts → Keys`).
 2. Set the key as a user secret:
@@ -46,7 +46,7 @@ dotnet user-secrets set "GcipAuth:ServiceAccountJson" "$(cat path/to/service-acc
   --project Odasoft.XBOL.ClientAPI/Odasoft.XBOL.ClientAPI
 ```
 
-The app reads `GcipAuth:ServiceAccountJson` at startup and creates a `GoogleCredential` from it. The `TenantId` and `ProjectId` are already set in `appsettings.json` and do not need to be overridden.
+The app reads `GcipAuth:ServiceAccountJson` at startup and creates a `GoogleCredential` from it. The `ProjectId` is set in `appsettings.json` and does not need to be overridden.
 
 To verify the secret is stored:
 
@@ -56,7 +56,7 @@ dotnet user-secrets list --project Odasoft.XBOL.ClientAPI/Odasoft.XBOL.ClientAPI
 
 ### Client Authentication Contract
 
-Client applications authenticate against the Firebase client tenant and call this API with a Firebase ID token in the `Authorization: Bearer ***` header. The API verifies bearer tokens with Firebase Admin SDK and resolves the authenticated buyer through `Client.FirebaseUid`. This API does not expose a password login endpoint. `POST /api/auth/register` is API-owned because registration creates the local `Client` profile for the Firebase client-tenant user.
+Client applications authenticate against the root Firebase Client project and call this API with a Firebase ID token in the `Authorization: Bearer ***` header. The API rejects tenant-scoped Client tokens, verifies bearer tokens with Firebase Admin SDK, and resolves authenticated buyers through `ClientLoginIdentifier`. `Client.FirebaseUid` remains only for compatibility/backfill. This API does not expose a password login endpoint. `POST /api/auth/register` is API-owned because registration creates the local `Client` profile for the verified Firebase identity.
 
 ## Deployment
 
