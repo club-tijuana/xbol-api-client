@@ -25,7 +25,13 @@ namespace Odasoft.XBOL.Data.Repositories
         {
             var query = DbContext.Set<Models.EventSchedule>()
                 .Include(es => es.Event)
-                .Where(es => es.StartDateTime >= DateTimeOffset.UtcNow)
+                .Where(es => es.EndDateTime > DateTimeOffset.UtcNow &&
+                    es.DeletedAt == null &&
+                    (
+                        es.Status != ScheduleStatus.Closed &&
+                        es.Status != ScheduleStatus.Draft
+                    )
+                )
                 .AsQueryable();
 
             if (performerId != null)
