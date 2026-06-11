@@ -69,7 +69,7 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<bool> CreateCreditTransactionByCreditAccountIdAsync(long clientCreditAccountId, ClientCreditTransactionRequest request)
         {
-            string localizer = await _sequenceTrackerService.GenerateLocalizerAsync(CLIENT_CREDIT_TRANSACTION_LOCALIZER_PREFIX, clientCreditAccountId);
+            string localizer = await _sequenceTrackerService.GenerateLocalizerAsync(CLIENT_CREDIT_TRANSACTION_LOCALIZER_PREFIX);
 
             var newCreditTransaction = new ClientCreditTransaction
             {

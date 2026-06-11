@@ -16,8 +16,8 @@ namespace Odasoft.XBOL.Business.Handlers
         private readonly ClientService _clientService;
         private readonly ILogger<CreateEventBookingHandler> _logger;
 
-        private const string EVENT_ORDER_LOCALIZER_PREFIX = "ORD-E";
-        private const string SEASON_ORDER_LOCALIZER_PREFIX = "ORD-S";
+        private const string EVENT_ORDER_LOCALIZER_PREFIX = "ORD";
+        private const string SEASON_ORDER_LOCALIZER_PREFIX = "ORD";
 
         public CreateEventBookingHandler(
             ITicketingClient ticketingClient,
@@ -62,7 +62,7 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 ApplyVerifiedClientIdentity(command.Request.ClientContact, command.VerifiedClientId);
 
-                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(EVENT_ORDER_LOCALIZER_PREFIX, schedule.EventId);
+                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(EVENT_ORDER_LOCALIZER_PREFIX);
 
                 var tickets = await _ticketingClient.BookEventSeatsAsync(command.Request);
                 booked = true;
@@ -117,7 +117,7 @@ namespace Odasoft.XBOL.Business.Handlers
                     throw new Exception(canReserveSeason.Message);
                 }
 
-                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX, season.Id);
+                command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX);
 
                 //if (command.Request.ReferenceOrderId != null) // TODO: Execute this section if its renovation and the seats to be booked are Not For Sale
                 //{

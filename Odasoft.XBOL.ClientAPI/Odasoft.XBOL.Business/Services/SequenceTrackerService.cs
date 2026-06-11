@@ -21,6 +21,13 @@ namespace Odasoft.XBOL.Business.Services
             return $"{prefix}-{identifier}-{nextValue}";
         }
 
+        public async Task<string> GenerateLocalizerAsync(string prefix)
+        {
+            long nextValue = await GetNextSequenceValueAsync(prefix);
+
+            return $"{prefix}{nextValue}";
+        }
+
         private async Task<long> GetNextSequenceValueAsync(string sequenceKey)
         {
             var tracker = await _sequenceTrackerRepository
