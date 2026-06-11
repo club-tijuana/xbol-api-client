@@ -42,6 +42,8 @@ namespace Odasoft.XBOL.Business.Handlers
 
         public async Task<BookingResult?> Handle(CreateEventBookingCommand command)
         {
+            var booked = false;
+
             try
             {
                 var schedule = await _eventScheduleService.GetEventScheduleByExternalEventKeyAsync(command.Request.EventKey);
@@ -63,6 +65,8 @@ namespace Odasoft.XBOL.Business.Handlers
                 command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(EVENT_ORDER_LOCALIZER_PREFIX, schedule.EventId);
 
                 var tickets = await _ticketingClient.BookEventSeatsAsync(command.Request);
+                booked = true;
+
                 long orderId = await _orderService.CreateEventOrderAsync(command.Request);
 
                 return new BookingResult
@@ -77,6 +81,15 @@ namespace Odasoft.XBOL.Business.Handlers
             }
             catch (Exception ex)
             {
+                if (booked && command.Request.Seats != null)
+                {
+                    await _ticketingClient.ReleaseSeatsActionAsync(new ReleaseSeatsByKeyRequest
+                    {
+                        EventKey = command.Request.EventKey,
+                        Seats = command.Request.Seats.Select(s => s.SeatKey).ToArray()
+                    });
+                }
+
                 _logger.LogError(ex, "Error creating event booking for event {EventKey}", command.Request.EventKey);
                 throw;
             }
@@ -84,6 +97,8 @@ namespace Odasoft.XBOL.Business.Handlers
 
         public async Task<BookingResult?> Handle(CreateSeasonBookingCommand command)
         {
+            var booked = false;
+
             try
             {
                 var season = await _seasonService.GetSeasonByExternalKeyAsync(command.Request.SeasonKey);
@@ -125,6 +140,7 @@ namespace Odasoft.XBOL.Business.Handlers
                 try
                 {
                     var tickets = await _ticketingClient.BookSeasonSeatsAsync(command.Request);
+                    booked = true;
                     long orderId = await _orderService.CreateSeasonOrderAsync(command.Request);
 
                     return new BookingResult
@@ -154,6 +170,15 @@ namespace Odasoft.XBOL.Business.Handlers
             }
             catch (Exception ex)
             {
+                if (booked && command.Request.SeasonKey != null && command.Request.Seats != null)
+                {
+                    await _ticketingClient.ReleaseSeatsActionAsync(new ReleaseSeatsByKeyRequest
+                    {
+                        EventKey = command.Request.SeasonKey,
+                        Seats = command.Request.Seats.Select(s => s.SeatKey).ToArray()
+                    });
+                }
+
                 _logger.LogError(ex, "Error creating season booking for season {SeasonKey}", command.Request.SeasonKey);
                 throw;
             }
