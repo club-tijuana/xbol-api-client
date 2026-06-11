@@ -44,7 +44,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
                         .FirstOrDefault(),
-                    Location = e.Event.VenueMap.Name,
+                    Location = e.Event.VenueMap.Venue.Name,
                     Categories = e.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
@@ -117,7 +117,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
                         .FirstOrDefault(),
-                    Location = e.Event.VenueMap.Name,
+                    Location = e.Event.VenueMap.Venue.Name,
                     Categories = e.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
@@ -459,6 +459,5 @@ namespace Odasoft.XBOL.Data.Repositories
                 eventItem.Media = mediaSets.GetValueOrDefault(eventItem.Id) ?? new EventMediaSetResponse();
             }
         }
-
     }
 }
