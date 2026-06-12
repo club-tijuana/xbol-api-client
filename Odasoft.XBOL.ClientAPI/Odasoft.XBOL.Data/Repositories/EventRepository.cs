@@ -21,6 +21,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     e.Schedules != null
                     && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
                     && e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                 )
                 .GroupJoin(
                     DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
@@ -91,6 +92,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     e.Schedules != null
                     && e.Status == EventStatus.Published
                     && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
+                    && e.DeletedAt == null
                     && e.ViewCount > 0
                 )
                 .GroupJoin(
@@ -176,6 +178,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         && es.EndDateTime > now
                     ) &&
                     e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                 )
                 .AsQueryable();
 
@@ -279,6 +282,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             es.OnSaleDate > now
                         )
                     )
+                    && e.DeletedAt == null
                 )
                 .AsQueryable();
 

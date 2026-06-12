@@ -31,6 +31,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         es.Status != ScheduleStatus.Closed &&
                         es.Status != ScheduleStatus.Draft
                     )
+                    && es.Event.DeletedAt == null
                 )
                 .AsQueryable();
 
