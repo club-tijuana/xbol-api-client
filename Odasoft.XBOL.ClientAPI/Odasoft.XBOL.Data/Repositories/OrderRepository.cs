@@ -62,7 +62,7 @@ namespace Odasoft.XBOL.Data.Repositories
                                 .FirstOrDefault(),
 
                             LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
-                            Location = t.EventSchedule.Event.VenueMap.Name,
+                            Location = t.EventSchedule.Event.VenueMap.Venue.Name,
                             TicketType = t.TicketType,
                             SeasonId = t.EventSchedule.Event.SeasonId,
                             SeasonName = t.EventSchedule.Event.Season != null
@@ -114,7 +114,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     Name = g.First().EventSchedule.Event.Name,
                     Date = g.First().EventSchedule.Event.Schedules
                         .Min(s => s.StartDateTime),
-                    Location = g.First().EventSchedule.Event.VenueMap.Name,
+                    Location = g.First().EventSchedule.Event.VenueMap.Venue.Name,
                     SubTotal = g.First().OriginalOrder!.SubTotal,
                     TotalFees = g.First().OriginalOrder!.TotalFees,
                     TotalTaxes = g.First().OriginalOrder!.TotalTaxes,
@@ -226,7 +226,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     OrderReference = t.Ticket.OriginalOrder.Reference,
                     OrderType = t.Ticket.OriginalOrder != null ? t.Ticket.OriginalOrder.OrderType : OrderType.Ticket,
                     Name = t.Ticket.EventSchedule.Event.Name,
-                    Location = t.Ticket.EventSchedule.Event.VenueMap.Name,
+                    Location = t.Ticket.EventSchedule.Event.VenueMap.Venue.Name,
                     StartDate = t.Ticket.EventSchedule.StartDateTime,
                     EventImageUrl = t.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                     LegacyEventImageUrl = t.Ticket.EventSchedule.Event.PosterImageUrl,
@@ -358,7 +358,7 @@ namespace Odasoft.XBOL.Data.Repositories
                                 EventId = t.EventSchedule.Event.Id,
                                 EventName = t.EventSchedule.Event.Name,
                                 LegacyEventPosterUrl = t.EventSchedule.Event.PosterImageUrl,
-                                VenueName = t.EventSchedule.Event.VenueMap.Name,
+                                VenueName = t.EventSchedule.Event.VenueMap.Venue.Name,
 
                                 Season = t.EventSchedule.Event.Season == null ? null : new
                                 {

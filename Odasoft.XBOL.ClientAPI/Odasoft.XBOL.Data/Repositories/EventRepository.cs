@@ -18,10 +18,13 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
-                    e.Schedules != null
-                    && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
-                    && e.Status == EventStatus.Published
+                    e.Status == EventStatus.Published
                     && e.DeletedAt == null
+                    && e.Schedules.Any(es =>
+                        es.Status != ScheduleStatus.Closed
+                        && es.Status != ScheduleStatus.Draft
+                        && es.EndDateTime > now
+                    )
                 )
                 .GroupJoin(
                     DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
@@ -43,6 +46,10 @@ namespace Odasoft.XBOL.Data.Repositories
                     Id = e.Event.Id,
                     Name = e.Event.Name,
                     StartDate = e.Event.Schedules
+                        .Where(s =>
+                            s.Status != ScheduleStatus.Closed &&
+                            s.Status != ScheduleStatus.Draft &&
+                            s.EndDateTime > now)
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
                         .FirstOrDefault(),
@@ -89,11 +96,14 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
-                    e.Schedules != null
-                    && e.Status == EventStatus.Published
-                    && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
+					e.Status == EventStatus.Published
                     && e.DeletedAt == null
                     && e.ViewCount > 0
+                    && e.Schedules.Any(es =>
+                        es.Status != ScheduleStatus.Closed &&
+                        es.Status != ScheduleStatus.Draft &&
+                        es.EndDateTime > now
+                    )
                 )
                 .GroupJoin(
                     DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
@@ -174,8 +184,10 @@ namespace Odasoft.XBOL.Data.Repositories
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
                     e.Schedules.Any(es =>
-                        es.OnSaleDate <= now
-                        && es.EndDateTime > now
+                        es.Status != ScheduleStatus.Closed &&
+                        es.Status != ScheduleStatus.Draft &&
+                        es.StartDateTime <= now &&
+                        es.EndDateTime > now
                     ) &&
                     e.Status == EventStatus.Published
                     && e.DeletedAt == null
@@ -277,10 +289,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     e.Schedules.Any(es =>
                         es.Status != ScheduleStatus.Closed &&
                         es.Status != ScheduleStatus.Draft &&
-                        (
-                            es.PreSaleStartDate > now ||
-                            es.OnSaleDate > now
-                        )
+                        es.StartDateTime > now &&
+                        es.EndDateTime > now
                     )
                     && e.DeletedAt == null
                 )
@@ -351,6 +361,8 @@ namespace Odasoft.XBOL.Data.Repositories
 
         public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, bool includeImages = false, bool includeMedia = false)
         {
+            var now = DateTimeOffset.UtcNow;
+
             var query = DbContext.Set<Models.Event>()
                 .Where(e => e.Id == eventId);
 
@@ -432,7 +444,13 @@ namespace Odasoft.XBOL.Data.Repositories
                 FullAddress = eventEntity.VenueMap.Venue.GetFullAddress(),
                 Latitude = eventEntity.VenueMap.Venue.Latitude,
                 Longitude = eventEntity.VenueMap.Venue.Longitude,
-                Schedules = eventEntity.Schedules.OrderBy(s => s.StartDateTime)
+                Schedules = eventEntity.Schedules
+                        .Where(s =>
+                            s.Status != ScheduleStatus.Closed &&
+                            s.Status != ScheduleStatus.Draft &&
+                            s.EndDateTime > now
+                        )
+                        .OrderBy(s => s.StartDateTime)
                         .Select(s => new EventScheduleDTO
                         {
                             Id = s.Id,

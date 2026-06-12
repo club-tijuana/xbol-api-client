@@ -41,6 +41,7 @@ namespace Odasoft.XBOL.Business.Services
                     "EventSchedule",
                     "EventSchedule.Event",
                     "EventSchedule.Event.VenueMap",
+                    "EventSchedule.Event.VenueMap.Venue",
                     "EventSection",
                     "EventSection.BaseSection",
                     "EventSeat",
@@ -94,7 +95,7 @@ namespace Odasoft.XBOL.Business.Services
             {
                 Id = ticket.Id,
                 Name = ticket.EventSchedule.Event.Name,
-                Location = ticket.EventSchedule.Event.VenueMap.Name,
+                Location = ticket.EventSchedule.Event.VenueMap.Venue.Name,
                 StartDate = ticket.EventSchedule.StartDateTime,
                 EventImage = banner != null && banner.Url != null
                     ? banner.Url
