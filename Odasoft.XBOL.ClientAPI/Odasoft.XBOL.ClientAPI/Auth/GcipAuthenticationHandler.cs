@@ -14,7 +14,6 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
     public const string SchemeName = "Bearer";
 
     public const string FirebaseUidClaimType = "firebase.uid";
-    public const string TenantClaimType = "firebase.tenant";
     public const string EmailVerifiedClaimType = "firebase.email_verified";
     public const string SignInProviderClaimType = "firebase.sign_in_provider";
 
@@ -58,11 +57,6 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
             return AuthenticateResult.Fail($"Firebase ID token verification failed: {ex.Message}");
         }
 
-        if (!string.IsNullOrWhiteSpace(decoded.TenantId))
-        {
-            return AuthenticateResult.Fail("Client API requires a root Firebase ID token, not a tenant-scoped token.");
-        }
-
         var claims = BuildClaims(decoded);
         var identity = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
@@ -94,11 +88,6 @@ public sealed class GcipAuthenticationHandler : AuthenticationHandler<GcipAuthen
             new(ClaimTypes.NameIdentifier, token.Uid),
             new(FirebaseUidClaimType, token.Uid)
         };
-
-        if (token.TenantId is not null)
-        {
-            claims.Add(new Claim(TenantClaimType, token.TenantId));
-        }
 
         if (token.Claims.TryGetValue("email", out var email) && email is string emailString)
         {

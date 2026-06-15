@@ -11,7 +11,6 @@ public sealed class FirebaseTokenVerifier(FirebaseAuth firebaseAuth) : IFirebase
         var decoded = await firebaseAuth.VerifyIdTokenAsync(token, cancellationToken);
         return new VerifiedFirebaseToken(
             decoded.Uid,
-            decoded.TenantId,
             decoded.Claims);
     }
 }

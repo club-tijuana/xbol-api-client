@@ -7,7 +7,6 @@ using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
 using System.Data;
-using System.Threading.Tasks;
 
 namespace Odasoft.XBOL.Data.Repositories
 {
@@ -19,8 +18,13 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
-                    e.Schedules != null
-                    && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
+                    e.Status == EventStatus.Published
+                    && e.DeletedAt == null
+                    && e.Schedules.Any(es =>
+                        es.Status != ScheduleStatus.Closed
+                        && es.Status != ScheduleStatus.Draft
+                        && es.EndDateTime > now
+                    )
                 )
                 .GroupJoin(
                     DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
@@ -42,10 +46,14 @@ namespace Odasoft.XBOL.Data.Repositories
                     Id = e.Event.Id,
                     Name = e.Event.Name,
                     StartDate = e.Event.Schedules
+                        .Where(s =>
+                            s.Status != ScheduleStatus.Closed &&
+                            s.Status != ScheduleStatus.Draft &&
+                            s.EndDateTime > now)
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
                         .FirstOrDefault(),
-                    Location = e.Event.VenueMap.Name,
+                    Location = e.Event.VenueMap.Venue.Name,
                     Categories = e.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
@@ -88,9 +96,14 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
-                    e.Schedules != null
-                    && e.Schedules.All(es => es.OnSaleDate <= now && es.EndDateTime > now)
+					e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                     && e.ViewCount > 0
+                    && e.Schedules.Any(es =>
+                        es.Status != ScheduleStatus.Closed &&
+                        es.Status != ScheduleStatus.Draft &&
+                        es.EndDateTime > now
+                    )
                 )
                 .GroupJoin(
                     DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
@@ -118,7 +131,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         .OrderBy(s => s.StartDateTime)
                         .Select(s => s.StartDateTime)
                         .FirstOrDefault(),
-                    Location = e.Event.VenueMap.Name,
+                    Location = e.Event.VenueMap.Venue.Name,
                     Categories = e.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
@@ -171,9 +184,13 @@ namespace Odasoft.XBOL.Data.Repositories
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
                     e.Schedules.Any(es =>
-                        es.OnSaleDate <= now
-                        && es.EndDateTime > now
-                    )
+                        es.Status != ScheduleStatus.Closed &&
+                        es.Status != ScheduleStatus.Draft &&
+                        es.StartDateTime <= now &&
+                        es.EndDateTime > now
+                    ) &&
+                    e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                 )
                 .AsQueryable();
 
@@ -268,10 +285,14 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
+                    e.Status == EventStatus.Published &&
                     e.Schedules.Any(es =>
-                        es.PreSaleStartDate > now
-                        || es.OnSaleDate > now
+                        es.Status != ScheduleStatus.Closed &&
+                        es.Status != ScheduleStatus.Draft &&
+                        es.StartDateTime > now &&
+                        es.EndDateTime > now
                     )
+                    && e.DeletedAt == null
                 )
                 .AsQueryable();
 
@@ -340,6 +361,8 @@ namespace Odasoft.XBOL.Data.Repositories
 
         public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, bool includeImages = false, bool includeMedia = false)
         {
+            var now = DateTimeOffset.UtcNow;
+
             var query = DbContext.Set<Models.Event>()
                 .Where(e => e.Id == eventId);
 
@@ -421,12 +444,18 @@ namespace Odasoft.XBOL.Data.Repositories
                 FullAddress = eventEntity.VenueMap.Venue.GetFullAddress(),
                 Latitude = eventEntity.VenueMap.Venue.Latitude,
                 Longitude = eventEntity.VenueMap.Venue.Longitude,
-                Schedules = eventEntity.Schedules.OrderBy(s => s.StartDateTime)
+                Schedules = eventEntity.Schedules
+                        .Where(s =>
+                            s.Status != ScheduleStatus.Closed &&
+                            s.Status != ScheduleStatus.Draft &&
+                            s.EndDateTime > now
+                        )
+                        .OrderBy(s => s.StartDateTime)
                         .Select(s => new EventScheduleDTO
                         {
                             Id = s.Id,
                             Date = s.StartDateTime,
-                            Location = s.Event.VenueMap.Name
+                            Location = s.Event.VenueMap.Venue.Name
                         }).ToList(),
                 Categories = eventEntity.Categories
                         .Select(ec => new EventCategoryDTO
@@ -460,6 +489,5 @@ namespace Odasoft.XBOL.Data.Repositories
                 eventItem.Media = mediaSets.GetValueOrDefault(eventItem.Id) ?? new EventMediaSetResponse();
             }
         }
-
     }
 }

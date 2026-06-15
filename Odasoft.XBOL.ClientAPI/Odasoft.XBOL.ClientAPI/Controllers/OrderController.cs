@@ -30,24 +30,32 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         {
             long? clientId = null;
 
-            if (User.Identity?.IsAuthenticated == true)
+            try
             {
-                var client = await _clientIdentityService.RequireCurrentClientAsync(User);
-
-                if (client != null)
+                if (User.Identity?.IsAuthenticated == true)
                 {
-                    clientId = client.Id;
+                    var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+
+                    if (client != null)
+                    {
+                        clientId = client.Id;
+                    }
                 }
+
+                var result = await _orderService.GetOrderAsync(clientId, orderId);
+
+                if (result == null)
+                {
+                    return NotFound("Order not found");
+                }
+
+                return Ok(result);
             }
-
-            var result = await _orderService.GetOrderAsync(clientId, orderId);
-
-            if (result == null)
+            catch (Exception ex)
             {
-                return NotFound("Order not found");
+                _logger.LogError(ex, "Failed to load the order {OrderId}", orderId);
+                return BadRequest(ex.Message);
             }
-
-            return Ok(result);
         }
 
         [HttpGet("{orderId}/metadata")]

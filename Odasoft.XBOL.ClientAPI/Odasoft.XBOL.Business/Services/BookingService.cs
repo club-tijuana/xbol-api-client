@@ -86,6 +86,7 @@ namespace Odasoft.XBOL.Business.Services
                 s => s.Id == scheduleId)
                 .Include(s => s.Event)
                     .ThenInclude(e => e.VenueMap)
+                    .ThenInclude(e => e.Venue)
                 .Include(s => s.Event)
                     .ThenInclude(e => e.Categories)
                 .Include(s => s.Event)
@@ -127,7 +128,7 @@ namespace Odasoft.XBOL.Business.Services
                     : schedule.Event.PosterImageUrl ?? string.Empty,
                 Name = schedule.Event.Name,
                 StartDate = schedule.StartDateTime,
-                Location = schedule.Event.VenueMap.Name,
+                Location = schedule.Event.VenueMap.Venue.Name,
                 Categories = schedule.Event.Categories
                         .Select(ec => new EventCategoryDTO
                         {
