@@ -3,6 +3,9 @@
     public enum EventStatus
     {
         Draft,
+        PendingReview,
+        Approved,
+        ChangesRequested,
         Published,
         Cancelled
     }

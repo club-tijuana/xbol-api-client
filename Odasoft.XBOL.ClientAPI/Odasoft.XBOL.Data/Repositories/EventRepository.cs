@@ -19,6 +19,7 @@ namespace Odasoft.XBOL.Data.Repositories
             var mainEvents = await DbContext.Set<Models.Event>()
                 .Where(e =>
                     e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                     && e.Schedules.Any(es =>
                         es.Status != ScheduleStatus.Closed
                         && es.Status != ScheduleStatus.Draft
@@ -95,7 +96,8 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
-                    e.Status == EventStatus.Published
+					e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                     && e.ViewCount > 0
                     && e.Schedules.Any(es =>
                         es.Status != ScheduleStatus.Closed &&
@@ -188,6 +190,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         es.EndDateTime > now
                     ) &&
                     e.Status == EventStatus.Published
+                    && e.DeletedAt == null
                 )
                 .AsQueryable();
 
@@ -289,6 +292,7 @@ namespace Odasoft.XBOL.Data.Repositories
                         es.StartDateTime > now &&
                         es.EndDateTime > now
                     )
+                    && e.DeletedAt == null
                 )
                 .AsQueryable();
 
@@ -485,6 +489,5 @@ namespace Odasoft.XBOL.Data.Repositories
                 eventItem.Media = mediaSets.GetValueOrDefault(eventItem.Id) ?? new EventMediaSetResponse();
             }
         }
-
     }
 }
