@@ -25,6 +25,8 @@ namespace Odasoft.XBOL.Data.Repositories
                         t.CurrentClientId == idClient
                     )
                     && o.OrderType == orderType
+                    && o.Tickets.All(t => t.EventSchedule.Event.Status == EventStatus.Published)
+                    && o.Tickets.All(t => t.EventSchedule.Event.DeletedAt == null)
                 );
 
             int totalCount = await query.CountAsync();
@@ -89,6 +91,8 @@ namespace Odasoft.XBOL.Data.Repositories
                         t.OriginalClientId == clientId
                         || t.CurrentClientId == clientId
                     )
+                    && o.Tickets.All(t => t.EventSchedule.Event.Status == EventStatus.Published)
+                    && o.Tickets.All(t => t.EventSchedule.Event.DeletedAt == null)
                 )
                 .SelectMany(o => o.Tickets)
                 .Where(t =>
