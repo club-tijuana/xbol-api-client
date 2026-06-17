@@ -1,4 +1,4 @@
-{
+﻿{
   "openapi": "3.0.4",
   "info": {
     "title": "XBOL Ticketing API",
@@ -2020,6 +2020,83 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/sync": {
+      "post": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "Synchronizes a seats.io chart asynchronously",
+        "operationId": "SyncChartAsync",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
           }
         }
       }
@@ -4773,6 +4850,565 @@
         }
       }
     },
+    "/api/payments/create-session": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/update-session/{sessionId}": {
+      "put": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSessionRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSessionRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSessionRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateSessionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/pay": {
+      "put": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PayRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PayRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PayRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PayRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/create-checkout-session": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Crea una sesiÃ³n de Hosted Checkout en EVO Payments (INITIATE_CHECKOUT).\r\nDevuelve sessionId + successIndicator para que el frontend cargue\r\ncheckout.min.js y muestre la pÃ¡gina de pago alojada por el gateway.\r\nEl amount/currency son calculados en backend â€” nunca se confÃ­a en el frontend para el monto final.",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/payments/initiate-checkout": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Inicia el flujo de Hosted Checkout: valida el EventSchedule y los asientos,\r\ncalcula el monto desde BD, crea una Order + Payment en estado Pending,\r\nllama a EVO INITIATE_CHECKOUT y devuelve los datos para que el frontend\r\ncargue checkout.min.js y llame a Checkout.showPaymentPage().",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateCheckoutResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateCheckoutResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/payments/confirm-checkout": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Confirma el resultado del pago de Hosted Checkout.\r\nLlama a Retrieve Order en EVO (verificaciÃ³n autoritativa), actualiza\r\nOrder/Payment/Tickets en BD y activa los tickets si el pago fue exitoso.\r\nEs idempotente: puede llamarse mÃ¡s de una vez con el mismo localOrderId + orderRefId.",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmCheckoutResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmCheckoutResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/payments/retrieve-order/{orderRefId}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Consulta el estado real de una orden en EVO Payments (Retrieve Order).\r\nVerificaciÃ³n autoritativa post-pago: confirma si el cobro quedÃ³ capturado,\r\npor cuÃ¡nto y con quÃ© tarjeta. Nunca debe llamarse desde el frontend.",
+        "parameters": [
+          {
+            "name": "orderRefId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveOrderResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveOrderResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveOrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
     "/api/prices": {
       "get": {
         "tags": [
@@ -6346,6 +6982,62 @@
         },
         "additionalProperties": false
       },
+      "CheckoutSeatRequest": {
+        "required": [
+          "seatKey"
+        ],
+        "type": "object",
+        "properties": {
+          "seatKey": {
+            "type": "string"
+          },
+          "priceListItemId": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CheckoutSessionResponse": {
+        "required": [
+          "amount",
+          "apiVersion",
+          "currency",
+          "gatewayBaseUrl",
+          "merchantId",
+          "orderRefId",
+          "sessionId",
+          "successIndicator"
+        ],
+        "type": "object",
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "successIndicator": {
+            "type": "string"
+          },
+          "apiVersion": {
+            "type": "string"
+          },
+          "gatewayBaseUrl": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ClientGender": {
         "enum": [
           "Female",
@@ -6400,6 +7092,80 @@
           "birthday": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfirmCheckoutRequest": {
+        "required": [
+          "orderRefId"
+        ],
+        "type": "object",
+        "properties": {
+          "localOrderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "resultIndicator": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfirmCheckoutResponse": {
+        "required": [
+          "orderStatus",
+          "paymentStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderStatus": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "ticketsIssued": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateCheckoutSessionRequest": {
+        "required": [
+          "returnUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "returnUrl": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "amount": {
+            "maximum": 9999999.99,
+            "minimum": 0.01,
+            "type": "number",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -6478,6 +7244,17 @@
           },
           "isPaymentLink": {
             "type": "boolean"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transactionRefId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "additionalProperties": false
@@ -7054,6 +7831,52 @@
         ],
         "type": "string"
       },
+      "EvoError": {
+        "type": "object",
+        "properties": {
+          "cause": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "supportCode": {
+            "type": "string"
+          },
+          "validationType": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EvoOrder": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "certainty": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EvoResponse": {
+        "type": "object",
+        "properties": {
+          "gatewayCode": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "Floor": {
         "type": "object",
         "properties": {
@@ -7102,6 +7925,11 @@
         ],
         "type": "object",
         "properties": {
+          "bundleId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
           "eventKey": {
             "type": "string"
           },
@@ -7178,6 +8006,88 @@
           "section": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "InitiateCheckoutRequest": {
+        "required": [
+          "clientContact",
+          "holdToken",
+          "returnUrl",
+          "seats"
+        ],
+        "type": "object",
+        "properties": {
+          "eventScheduleId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "holdToken": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutSeatRequest"
+            }
+          },
+          "clientContact": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientInfoRequest"
+              }
+            ]
+          },
+          "returnUrl": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InitiateCheckoutResponse": {
+        "required": [
+          "amount",
+          "apiVersion",
+          "currency",
+          "gatewayBaseUrl",
+          "merchantId",
+          "orderRefId",
+          "sessionId",
+          "successIndicator"
+        ],
+        "type": "object",
+        "properties": {
+          "localOrderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "successIndicator": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "apiVersion": {
+            "type": "string"
+          },
+          "gatewayBaseUrl": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -7346,6 +8256,27 @@
         ],
         "type": "string"
       },
+      "PayRequest": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transactionRefId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
       "PaymentInfoRequest": {
         "type": "object",
         "properties": {
@@ -7382,19 +8313,9 @@
       "PaymentLinkRequest": {
         "type": "object",
         "properties": {
-          "expirationDays": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "expirationHours": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "expirationMinutes": {
-            "type": "integer",
-            "format": "int64",
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         },
@@ -7475,6 +8396,52 @@
             "items": {
               "type": "string"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetrieveOrderResponse": {
+        "required": [
+          "orderRefId",
+          "result"
+        ],
+        "type": "object",
+        "properties": {
+          "orderRefId": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "gatewayCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalCapturedAmount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "totalAuthorizedAmount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardNumberMasked": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardBrand": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -7574,6 +8541,17 @@
           },
           "isPaymentLink": {
             "type": "boolean"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transactionRefId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "additionalProperties": false
@@ -7806,6 +8784,88 @@
         },
         "additionalProperties": false
       },
+      "Session": {
+        "required": [
+          "id",
+          "updateStatus",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "aes256Key": {
+            "type": "string"
+          },
+          "authenticationLimit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "maxLength": 35,
+            "minLength": 31,
+            "type": "string"
+          },
+          "updateStatus": {
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 10,
+            "minLength": 10,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SessionResponse": {
+        "type": "object",
+        "properties": {
+          "merchant": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "nullable": true
+          },
+          "session": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Session"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvoError"
+              }
+            ],
+            "nullable": true
+          },
+          "order": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvoOrder"
+              }
+            ],
+            "nullable": true
+          },
+          "evoResponse": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvoResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "transactionRefId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "SetForSaleRequest": {
         "required": [
           "eventKey",
@@ -7916,6 +8976,20 @@
         },
         "additionalProperties": false
       },
+      "SyncChartRequest": {
+        "type": "object",
+        "properties": {
+          "venueMapId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
       "TestResultObject": {
         "required": [
           "result"
@@ -7985,6 +9059,20 @@
           "extraData": {
             "type": "object",
             "additionalProperties": { }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateSessionRequest": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EvoOrder"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -8115,6 +9203,9 @@
     },
     {
       "name": "ManageSeats"
+    },
+    {
+      "name": "Payment"
     },
     {
       "name": "Prices"

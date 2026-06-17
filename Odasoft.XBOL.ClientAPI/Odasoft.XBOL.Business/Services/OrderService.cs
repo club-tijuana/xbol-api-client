@@ -77,6 +77,7 @@ namespace Odasoft.XBOL.Business.Services
         public async Task<long> CreateEventOrderAsync(EventBookingRequest request)
         {
             IDbContextTransaction transaction = await _orderRepository.BeginTransactionAsync();
+            OrderStatus orderStatus = OrderStatus.Pending;
 
             try
             {
@@ -92,6 +93,7 @@ namespace Odasoft.XBOL.Business.Services
                 List<Ticket> tickets = await CreateTicketsAsync(request.Seats, schedule.EventId, client);
 
                 // TODO: Retrieve Fee and Tax once dynamic pricing is implemented
+                // TODO: Retrieve prices from DB, do not trust in front
                 decimal Subtotal = request.Seats.Sum(x => x.SeatPrice);
                 decimal Fee = 0;
                 decimal Tax = 0;
@@ -121,7 +123,7 @@ namespace Odasoft.XBOL.Business.Services
                     ClientId = request.ClientContact.Id.Value,
                     UserId = null,
                     Reference = request.Localizer,
-                    Status = OrderStatus.Paid,
+                    Status = orderStatus,
                     PaidAt = now,
                     SubTotal = Subtotal,
                     TotalFees = Fee,

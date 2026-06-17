@@ -69,6 +69,19 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 long orderId = await _orderService.CreateEventOrderAsync(command.Request);
 
+                // PAY
+                if (!string.IsNullOrEmpty(command.Request.SessionId))
+                {
+                    var payResponse = await _ticketingClient.PayAsync(new PayRequest
+                    {
+                        OrderId = orderId,
+                        OrderRefId = command.Request.OrderRefId,
+                        SessionId = command.Request.SessionId,
+                        TransactionRefId = command.Request.TransactionRefId
+                    });
+                }
+                // PAY
+
                 return new BookingResult
                 {
                     Message = "Booking created successfully",
