@@ -79,7 +79,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [HttpGet("renovate/{orderId}")]
         [Authorize]
         [EndpointName("GetOrderToRenovate")]
-        public async Task<ActionResult<SeasonToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
+        public async Task<ActionResult<BundleToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
 

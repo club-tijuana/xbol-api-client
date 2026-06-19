@@ -29,6 +29,9 @@ namespace Odasoft.XBOL.Data.Extensions
             services.AddScoped<MediaRepository>();
             services.AddScoped<ClientLoginIdentifierRepository>();
             services.AddScoped<PaymentLinkRepository>();
+            services.AddScoped<BundleRepository>();
+            services.AddScoped<BundlePassRepository>();
+            services.AddScoped<BundlePassEventTicketRepository>();
 
             return services;
         }

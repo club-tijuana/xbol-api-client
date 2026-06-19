@@ -9,11 +9,6 @@ namespace Odasoft.XBOL.Data.Configurations
         public void Configure(EntityTypeBuilder<BundleEventSchedule> builder)
         {
             builder.HasKey(bes => new { bes.BundleId, bes.EventScheduleId });
-
-            builder.HasOne(bes => bes.EventSchedule)
-                .WithMany()
-                .HasForeignKey(bes => bes.EventScheduleId)
-                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

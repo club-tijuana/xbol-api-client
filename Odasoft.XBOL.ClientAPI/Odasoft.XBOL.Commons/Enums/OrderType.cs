@@ -3,6 +3,7 @@
     public enum OrderType
     {
         Ticket,
-        SeasonPass
+        SeasonPass,
+        Bundle
     }
 }

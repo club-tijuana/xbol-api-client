@@ -1,4 +1,4 @@
-namespace Odasoft.XBOL.Commons.Enums
+﻿namespace Odasoft.XBOL.Commons.Enums
 {
     public enum BundlePassType
     {

@@ -1,4 +1,4 @@
-using Odasoft.XBOL.Commons.Enums;
+﻿using Odasoft.XBOL.Commons.Enums;
 
 namespace Odasoft.XBOL.Models
 {

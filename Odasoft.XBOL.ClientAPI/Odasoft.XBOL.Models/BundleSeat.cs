@@ -1,4 +1,4 @@
-namespace Odasoft.XBOL.Models
+﻿namespace Odasoft.XBOL.Models
 {
     public class BundleSeat : BaseModel
     {
