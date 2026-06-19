@@ -20,6 +20,7 @@ public sealed class ClientIdentityService(
     ClientLoginIdentifierRepository clientLoginIdentifierRepository,
     OrderRepository orderRepository,
     UserRepository userRepository,
+    PhoneRegionCodeRepository phoneRegionCodeRepository,
     IFirebaseClientAuthClient firebaseAuth) : IClientIdentityService
 {
     private static readonly HashSet<string> SupportedPhoneRegions = new(StringComparer.OrdinalIgnoreCase)
@@ -186,6 +187,7 @@ public sealed class ClientIdentityService(
                 ClientAuthProblemCodes.InvalidRegistration);
         }
 
+        var phoneRegion = await ResolvePhoneRegionAsync(phone);
         var existingClient = await ResolveClientAsync(identity);
         if (existingClient is not null)
         {
@@ -217,6 +219,7 @@ public sealed class ClientIdentityService(
         {
             FirebaseUid = identity.FirebaseUid,
             Email = string.Empty,
+            PhoneRegionCodeId = phoneRegion.Id,
             PhoneNumber = phone,
             FullName = fullName,
             ClientType = ClientType.Individual,
@@ -260,6 +263,38 @@ public sealed class ClientIdentityService(
             OnboardingStatus = "linked",
             VerificationStatus = GetVerificationStatus(identity)
         };
+    }
+
+    private async Task<PhoneRegionCode> ResolvePhoneRegionAsync(string phone)
+    {
+        string regionCode;
+        try
+        {
+            var parsed = PhoneNumberParser.Parse(phone, null);
+            regionCode = PhoneNumberParser.GetRegionCodeForNumber(parsed);
+        }
+        catch (NumberParseException)
+        {
+            throw CreateInvalidRegistrationException("phoneNumber must be a valid phone number.");
+        }
+
+        if (string.IsNullOrWhiteSpace(regionCode))
+        {
+            throw CreateInvalidRegistrationException("phoneNumber must be a valid phone number.");
+        }
+
+        var phoneRegion = await phoneRegionCodeRepository.Get(x => x.RegionCode == regionCode)
+            .SingleOrDefaultAsync();
+
+        if (phoneRegion is null)
+        {
+            throw new ClientAuthException(
+                "Phone registration requires a configured phone region.",
+                StatusCodes.Status400BadRequest,
+                ClientAuthProblemCodes.InvalidRegistration);
+        }
+
+        return phoneRegion;
     }
 
     public async Task<AuthMeResponse> CompleteLoginAsync(
@@ -605,10 +640,25 @@ public sealed class ClientIdentityService(
             FirebaseUid = client.FirebaseUid ?? string.Empty,
             FullName = client.FullName ?? string.Empty,
             BusinessName = client.BusinessName,
-            Email = client.Email,
+            Email = client.Email ?? string.Empty,
             PhoneNumber = client.PhoneNumber,
-            PhoneCode = client.PhoneRegionCode?.DialCode ?? InferPhoneCode(client.PhoneNumber)
+            PhoneRegionCodeId = client.PhoneRegionCodeId,
+            PhoneCode = NormalizePhoneDialCode(client.PhoneRegionCode?.DialCode)
+                ?? InferPhoneCode(client.PhoneNumber)
         };
+    }
+
+    private static string? NormalizePhoneDialCode(string? dialCode)
+    {
+        if (string.IsNullOrWhiteSpace(dialCode))
+        {
+            return null;
+        }
+
+        var trimmed = dialCode.Trim();
+        return trimmed.StartsWith("+", StringComparison.Ordinal)
+            ? trimmed
+            : $"+{trimmed}";
     }
 
     private static string InferPhoneCode(string? phoneNumber)

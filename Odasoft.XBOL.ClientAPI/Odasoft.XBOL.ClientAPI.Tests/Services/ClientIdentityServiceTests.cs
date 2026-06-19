@@ -16,6 +16,10 @@ namespace Odasoft.XBOL.ClientAPI.Tests.Services;
 
 public sealed class ClientIdentityServiceTests
 {
+    private const long UsPhoneRegionId = 1;
+    private const long MxPhoneRegionId = 2;
+    private const long CaPhoneRegionId = 3;
+
     [Fact]
     public async Task GetMeAsync_resolves_client_by_verified_phone_identifier()
     {
@@ -122,6 +126,7 @@ public sealed class ClientIdentityServiceTests
     public async Task RegisterAsync_creates_phone_client_from_matching_verified_phone_identifier()
     {
         await using var database = await TestDatabase.CreateAsync();
+        var mxRegion = await database.GetPhoneRegionAsync("MX");
         var service = CreateService(database.Context);
 
         var result = await service.RegisterAsync(
@@ -142,6 +147,10 @@ public sealed class ClientIdentityServiceTests
         result.Client.UserId.Should().Be("phone-root-uid");
         result.Client.FullName.Should().Be("Phone Buyer");
         result.Client.PhoneNumber.Should().Be("+526641234567");
+        result.Client.PhoneRegionCodeId.Should().Be(mxRegion.Id);
+        result.Client.PhoneCode.Should().Be("+52");
+        var client = await database.Context.Clients.SingleAsync();
+        client.PhoneRegionCodeId.Should().Be(mxRegion.Id);
         var identifiers = await database.Context.ClientLoginIdentifiers
             .OrderBy(x => x.Type)
             .ToListAsync();
@@ -160,6 +169,7 @@ public sealed class ClientIdentityServiceTests
     public async Task RegisterAsync_returns_country_calling_code_for_us_phone_identifier()
     {
         await using var database = await TestDatabase.CreateAsync();
+        var usRegion = await database.GetPhoneRegionAsync("US");
         var service = CreateService(database.Context);
 
         var result = await service.RegisterAsync(
@@ -177,6 +187,7 @@ public sealed class ClientIdentityServiceTests
 
         result.Client.PhoneNumber.Should().Be("+14155550100");
         result.Client.PhoneCode.Should().Be("+1");
+        result.Client.PhoneRegionCodeId.Should().Be(usRegion.Id);
     }
 
     [Fact]
@@ -435,41 +446,23 @@ public sealed class ClientIdentityServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_creates_email_client_from_identifier_without_phone_contact()
+    public async Task RegisterAsync_rejects_email_identifier_while_phone_only_registration_is_enabled()
     {
         await using var database = await TestDatabase.CreateAsync();
-        var firebaseAuth = Substitute.For<IFirebaseClientAuthClient>();
-        firebaseAuth.CreateUserAsync(
-                Arg.Is<CreateFirebaseClientUserRequest>(args =>
-                    args.Email == "buyer@example.com"
-                    && args.Password == "ValidPassword123!"
-                    && args.DisplayName == "Email Buyer"
-                    && args.EmailVerified == false),
-                Arg.Any<CancellationToken>())
-            .Returns(new FirebaseClientUser(
-                "email-root-uid",
-                "buyer@example.com",
-                false,
-                "Email Buyer",
-                null));
-        firebaseAuth.CreateCustomTokenAsync("email-root-uid", Arg.Any<CancellationToken>())
-            .Returns("custom-token");
-        var service = CreateService(database.Context, firebaseAuth);
+        var service = CreateService(database.Context);
 
-        var result = await service.RegisterAsync(new RegisterRequest
+        var act = () => service.RegisterAsync(new RegisterRequest
         {
             Identifier = " Buyer@Example.COM ",
             Password = "ValidPassword123!",
             FullName = "Email Buyer"
         }, CreateAnonymousPrincipal(), CancellationToken.None);
 
-        result.VerificationStatus.Should().Be("pending");
-        result.Client.Email.Should().Be("buyer@example.com");
-        result.Client.PhoneNumber.Should().BeEmpty();
-        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
-        identifiers.Should().ContainSingle();
-        identifiers.Single().Type.Should().Be(ClientLoginIdentifierType.FirebaseUid);
-        identifiers.Single().NormalizedValue.Should().Be("email-root-uid");
+        var exception = await act.Should().ThrowAsync<ClientAuthException>();
+        exception.Which.StatusCode.Should().Be(400);
+        exception.Which.Code.Should().Be(ClientAuthProblemCodes.InvalidRegistration);
+        database.Context.Clients.Should().BeEmpty();
+        database.Context.ClientLoginIdentifiers.Should().BeEmpty();
     }
 
     private static ClientIdentityService CreateService(
@@ -479,6 +472,9 @@ public sealed class ClientIdentityServiceTests
         return new ClientIdentityService(
             new ClientRepository(context),
             new ClientLoginIdentifierRepository(context),
+            new OrderRepository(context),
+            new UserRepository(context),
+            new PhoneRegionCodeRepository(context),
             firebaseAuth ?? Substitute.For<IFirebaseClientAuthClient>());
     }
 
@@ -544,11 +540,23 @@ public sealed class ClientIdentityServiceTests
             Email = email,
             PhoneNumber = phoneNumber,
             FullName = "Existing Client",
+            PhoneRegionCodeId = MxPhoneRegionId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = Guid.Empty,
             UpdatedAt = DateTimeOffset.UtcNow,
             UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static PhoneRegionCode CreatePhoneRegion(long id, string regionCode, string dialCode)
+    {
+        return new PhoneRegionCode
+        {
+            Id = id,
+            RegionCode = regionCode,
+            DialCode = dialCode,
+            FlagEmoji = string.Empty
         };
     }
 
@@ -573,7 +581,17 @@ public sealed class ClientIdentityServiceTests
                 .Options;
             var context = new XBOLDbContext(options);
             await context.Database.EnsureCreatedAsync();
+            context.Set<PhoneRegionCode>().AddRange(
+                CreatePhoneRegion(UsPhoneRegionId, "US", "1"),
+                CreatePhoneRegion(MxPhoneRegionId, "MX", "52"),
+                CreatePhoneRegion(CaPhoneRegionId, "CA", "1"));
+            await context.SaveChangesAsync();
             return new TestDatabase(connection, context);
+        }
+
+        public Task<PhoneRegionCode> GetPhoneRegionAsync(string regionCode)
+        {
+            return Context.Set<PhoneRegionCode>().SingleAsync(x => x.RegionCode == regionCode);
         }
 
         public async ValueTask DisposeAsync()
