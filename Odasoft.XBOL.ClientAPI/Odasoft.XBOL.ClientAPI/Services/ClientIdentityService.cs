@@ -1,5 +1,6 @@
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
+using FuzzySharp.SimilarityRatio.Scorer.StrategySensitive;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Odasoft.XBOL.ClientAPI.Auth;
@@ -96,8 +97,6 @@ public sealed class ClientIdentityService(
             nameof(RegisterRequest.Identifier));
         RegisterResponse registerResponse = await RegisterPhoneAsync(principal, requestPhone, fullName, cancellationToken);
 
-        //await LinkUserOrdersAsync(registerResponse);
-
         return registerResponse;
     }
 
@@ -187,7 +186,7 @@ public sealed class ClientIdentityService(
                 ClientAuthProblemCodes.InvalidRegistration);
         }
 
-        var phoneRegion = await ResolvePhoneRegionAsync(phone);
+        var phoneRegion = await ResolvePhoneRegionAsync(identity.PhoneNumber);
         var existingClient = await ResolveClientAsync(identity);
         if (existingClient is not null)
         {
@@ -372,6 +371,7 @@ public sealed class ClientIdentityService(
     {
         var matches = await clientLoginIdentifierRepository.GetVerifiedMatchesAsync(
             BuildVerifiedIdentifierLookups(identity));
+
         var clientIds = matches
             .Select(x => x.ClientId)
             .Distinct()
@@ -578,7 +578,7 @@ public sealed class ClientIdentityService(
                     $"{fieldName} must be a US, Mexico, or Canada phone number.");
             }
 
-            return PhoneNumberParser.Format(parsed, PhoneNumberFormat.E164);
+            return PhoneNumberParser.Format(parsed, PhoneNumberFormat.NATIONAL).Replace(" ", "");
         }
         catch (NumberParseException)
         {
@@ -732,32 +732,5 @@ public sealed class ClientIdentityService(
                 || text.Contains("IX_ClientLoginIdentifiers_Type_NormalizedValue", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("23505", StringComparison.OrdinalIgnoreCase));
-    }
-
-    private async Task LinkUserOrdersAsync(RegisterResponse registerResponse)
-    {
-        List<Order> orders = await orderRepository.Get()
-                                    .AsNoTracking()
-                                    .Where(o => o.ClientId == registerResponse.Client.Id)
-                                    .ToListAsync();
-
-        if (orders.Count > 0)
-        {
-            User? user = await userRepository.GetByFirebaseUidAsync(registerResponse.Client.FirebaseUid);
-
-            if (user == null)
-            {
-                // We should get a user..
-                return;
-            }
-
-            foreach (var order in orders)
-            {
-                order.UserId = user.Id;
-            }
-
-            await orderRepository.UpdateRangeAsync(orders);
-            await orderRepository.CommitAsync();
-        }
     }
 }
