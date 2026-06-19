@@ -96,7 +96,7 @@ public sealed class ClientIdentityService(
             nameof(RegisterRequest.Identifier));
         RegisterResponse registerResponse = await RegisterPhoneAsync(principal, requestPhone, fullName, cancellationToken);
 
-        await LinkUserOrdersAsync(registerResponse);
+        //await LinkUserOrdersAsync(registerResponse);
 
         return registerResponse;
     }
@@ -738,8 +738,7 @@ public sealed class ClientIdentityService(
     {
         List<Order> orders = await orderRepository.Get()
                                     .AsNoTracking()
-                                    .Where(o => o.ClientId == registerResponse.Client.Id
-                                        && o.UserId == null)
+                                    .Where(o => o.ClientId == registerResponse.Client.Id)
                                     .ToListAsync();
 
         if (orders.Count > 0)
@@ -751,8 +750,6 @@ public sealed class ClientIdentityService(
                 // We should get a user..
                 return;
             }
-
-
 
             foreach (var order in orders)
             {
