@@ -18,6 +18,8 @@ namespace Odasoft.XBOL.ClientAPI.Services;
 public sealed class ClientIdentityService(
     ClientRepository clientRepository,
     ClientLoginIdentifierRepository clientLoginIdentifierRepository,
+    OrderRepository orderRepository,
+    UserRepository userRepository,
     IFirebaseClientAuthClient firebaseAuth) : IClientIdentityService
 {
     private static readonly HashSet<string> SupportedPhoneRegions = new(StringComparer.OrdinalIgnoreCase)
@@ -81,17 +83,21 @@ public sealed class ClientIdentityService(
         var identifier = NormalizeRequired(request.Identifier, nameof(RegisterRequest.Identifier));
         var fullName = NormalizeRequired(request.FullName, nameof(RegisterRequest.FullName));
 
-        if (TryNormalizeEmailIdentifier(identifier, out var email))
-        {
-            var password = ValidateRequiredPassword(request.Password, nameof(RegisterRequest.Password));
-            return await RegisterEmailAsync(email, password, fullName, cancellationToken);
-        }
+        //if (TryNormalizeEmailIdentifier(identifier, out var email))
+        //{
+        //    var password = ValidateRequiredPassword(request.Password, nameof(RegisterRequest.Password));
+        //    return await RegisterEmailAsync(email, password, fullName, cancellationToken);
+        //}
 
         var requestPhone = NormalizePhoneIdentifier(
             identifier,
             request.IdentifierCountryCode,
             nameof(RegisterRequest.Identifier));
-        return await RegisterPhoneAsync(principal, requestPhone, fullName, cancellationToken);
+        RegisterResponse registerResponse = await RegisterPhoneAsync(principal, requestPhone, fullName, cancellationToken);
+
+        await LinkUserOrdersAsync(registerResponse);
+
+        return registerResponse;
     }
 
     private async Task<RegisterResponse> RegisterEmailAsync(
@@ -100,7 +106,6 @@ public sealed class ClientIdentityService(
         string fullName,
         CancellationToken cancellationToken)
     {
-
         var firebaseUser = await CreateFirebaseUserAsync(email, password, fullName, cancellationToken);
 
         try
@@ -677,5 +682,35 @@ public sealed class ClientIdentityService(
                 || text.Contains("IX_ClientLoginIdentifiers_Type_NormalizedValue", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("23505", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task LinkUserOrdersAsync(RegisterResponse registerResponse)
+    {
+        List<Order> orders = await orderRepository.Get()
+                                    .AsNoTracking()
+                                    .Where(o => o.ClientId == registerResponse.Client.Id
+                                        && o.UserId == null)
+                                    .ToListAsync();
+
+        if (orders.Count > 0)
+        {
+            User? user = await userRepository.GetByFirebaseUidAsync(registerResponse.Client.FirebaseUid);
+
+            if (user == null)
+            {
+                // We should get a user..
+                return;
+            }
+
+
+
+            foreach (var order in orders)
+            {
+                order.UserId = user.Id;
+            }
+
+            await orderRepository.UpdateRangeAsync(orders);
+            await orderRepository.CommitAsync();
+        }
     }
 }

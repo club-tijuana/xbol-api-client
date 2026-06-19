@@ -10,7 +10,7 @@
 
         public string Email { get; set; } = null!;
         public string PhoneNumber { get; set; } = null!;
-        public long? PhoneRegionCodeId { get; set; }
+        public long PhoneRegionCodeId { get; set; }
         public string PhoneCode { get; set; } = null!;
     }
 }
