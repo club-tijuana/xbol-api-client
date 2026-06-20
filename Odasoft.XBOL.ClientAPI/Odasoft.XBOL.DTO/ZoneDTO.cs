@@ -7,5 +7,6 @@
         public string DisplayName { get; set; } = string.Empty;
         public decimal? Price { get; set; }
         public long? PriceListItemId { get; set; }
+        public List<OrderFeeDTO> Fees { get; set; } = new List<OrderFeeDTO>();
     }
 }

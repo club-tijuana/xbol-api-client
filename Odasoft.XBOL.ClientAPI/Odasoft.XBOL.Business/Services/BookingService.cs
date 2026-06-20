@@ -79,14 +79,24 @@ namespace Odasoft.XBOL.Business.Services
                     Name = x.Name ?? string.Empty,
                     DisplayName = x.DisplayName ?? string.Empty,
                     Price = x.Price,
-                    PriceListItemId = x.PriceListItemId
+                    PriceListItemId = x.PriceListItemId,
+                    Fees = x.Fees?.Select(f => new OrderFeeDTO
+                    {
+                        FeeType = f.FeeName ?? string.Empty,
+                        Amount = f.FeeAmount
+                    }).ToList() ?? new List<OrderFeeDTO>()
                 }).ToList() ?? [],
                 SeatOverrides = response.SeatOverrides?.Select(x => new SeatDTO
                 {
                     Id = x.Id.HasValue ? x.Id.Value : 0,
                     ExternalSeatObjectKey = x.ExternalSeatObjectKey ?? string.Empty,
                     PriceOverride = x.PriceOverride,
-                    PriceListItemId = x.PriceListItemId
+                    PriceListItemId = x.PriceListItemId,
+                    Fees = x.Fees?.Select(f => new OrderFeeDTO
+                    {
+                        FeeType = f.FeeName ?? string.Empty,
+                        Amount = f.FeeAmount
+                    }).ToList() ?? new List<OrderFeeDTO>()
                 }).ToList() ?? []
             };
         }

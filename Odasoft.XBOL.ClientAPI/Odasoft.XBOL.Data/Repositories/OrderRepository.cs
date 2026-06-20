@@ -153,6 +153,11 @@ namespace Odasoft.XBOL.Data.Repositories
                 return null;
             }
 
+            var fees = await DbContext.Set<OrderFee>()
+                .Where(f => f.OrderId == result.OrderId)
+                .Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount })
+                .ToListAsync();
+
             var detail = new MyEventDetailDTO
             {
                 OrderId = result.OrderId,
@@ -171,7 +176,8 @@ namespace Odasoft.XBOL.Data.Repositories
                 Total = result.Total,
                 Seats = result.Seats,
                 SelectedSeats = result.SelectedSeats,
-                Currency = result.Currency
+                Currency = result.Currency,
+                Fees = fees
             };
 
             return detail;
@@ -359,6 +365,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     o.TotalTaxes,
                     o.Discount,
                     o.Total,
+                    Fees = o.Fees.Select(f => new { f.FeeType, f.Amount }).ToList(),
                     FirstItemReferenceId = o.Items.First().ItemReferenceId,
                     Tickets = o.Tickets.Select(t => new
                     {
@@ -471,7 +478,10 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemStartDate = first.EventSchedule.StartDateTime,
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
-                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>()
+                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>(),
+                    Fees = (clientId != null || isPaymentLink == true)
+                        ? orderData.Fees.Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount }).ToList()
+                        : new List<OrderFeeDTO>()
                 };
             }
             else if (orderData.OrderType == OrderType.Bundle)
@@ -533,7 +543,10 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemStartDate = bundle.StartDate,
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
-                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>()
+                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>(),
+                    Fees = (clientId != null || isPaymentLink == true)
+                        ? orderData.Fees.Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount }).ToList()
+                        : new List<OrderFeeDTO>()
                 };
             }
             else

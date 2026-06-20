@@ -20,5 +20,6 @@ namespace Odasoft.XBOL.DTO
         public List<SeatDTO> ItemSeatsLabels { get; set; } = new List<SeatDTO>();
         public string ItemPosterImageUrl { get; set; } = string.Empty;
         public DateTimeOffset? ItemStartDate { get; set; }
+        public List<OrderFeeDTO> Fees { get; set; } = new List<OrderFeeDTO>();
     }
 }
