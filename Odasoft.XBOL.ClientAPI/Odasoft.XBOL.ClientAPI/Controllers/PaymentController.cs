@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odasoft.XBOL.Business;
+using Odasoft.XBOL.ClientAPI.Services;
 
 namespace Odasoft.XBOL.ClientAPI.Controllers
 {
@@ -9,10 +10,14 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
     public class PaymentController : ControllerBase
     {
         private readonly ITicketingClient _ticketingClient;
+        private readonly IClientIdentityService _clientIdentityService;
 
-        public PaymentController(ITicketingClient ticketingClient)
+        public PaymentController(
+            ITicketingClient ticketingClient,
+            IClientIdentityService clientIdentityService)
         {
             _ticketingClient = ticketingClient;
+            _clientIdentityService = clientIdentityService;
         }
 
         [AllowAnonymous]
@@ -20,6 +25,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         public async Task<ActionResult<InitiateCheckoutResponse>> InitiateCheckoutAsync(
             [FromBody] InitiateCheckoutRequest request)
         {
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            request.ClientContact.Id = client?.Id;
+
             return Ok(await _ticketingClient.InitiateCheckoutAsync(request));
         }
 

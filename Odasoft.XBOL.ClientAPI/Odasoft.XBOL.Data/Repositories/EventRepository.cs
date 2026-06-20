@@ -96,7 +96,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
-					e.Status == EventStatus.Published
+                    e.Status == EventStatus.Published
                     && e.DeletedAt == null
                     && e.ViewCount > 0
                     && e.Schedules.Any(es =>

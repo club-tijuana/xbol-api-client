@@ -13,6 +13,8 @@ namespace Odasoft.XBOL.ClientAPI.Tests.Services;
 
 public sealed class ClientServiceTests
 {
+    private const long MxPhoneRegionId = 2;
+
     [Fact]
     public async Task GetClientByContactAsync_does_not_resolve_by_contact_email()
     {
@@ -102,6 +104,7 @@ public sealed class ClientServiceTests
         {
             ClientType = ClientType.Individual,
             Email = email,
+            PhoneRegionCodeId = MxPhoneRegionId,
             PhoneNumber = phoneNumber,
             FullName = "Existing Client",
             IsActive = true,
@@ -151,6 +154,11 @@ public sealed class ClientServiceTests
                 .Options;
             var context = new XBOLDbContext(options);
             await context.Database.EnsureCreatedAsync();
+            context.Set<PhoneRegionCode>().AddRange(
+                CreatePhoneRegion(1, "US", "1"),
+                CreatePhoneRegion(MxPhoneRegionId, "MX", "52"),
+                CreatePhoneRegion(3, "CA", "1"));
+            await context.SaveChangesAsync();
             return new TestDatabase(connection, context);
         }
 
@@ -159,5 +167,16 @@ public sealed class ClientServiceTests
             await Context.DisposeAsync();
             await connection.DisposeAsync();
         }
+    }
+
+    private static PhoneRegionCode CreatePhoneRegion(long id, string regionCode, string dialCode)
+    {
+        return new PhoneRegionCode
+        {
+            Id = id,
+            RegionCode = regionCode,
+            DialCode = dialCode,
+            FlagEmoji = string.Empty
+        };
     }
 }

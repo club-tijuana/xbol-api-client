@@ -26,8 +26,7 @@ public class AuthController(IClientIdentityService clientIdentityService) : Cont
     [HttpPost("complete-login")]
     [ProducesResponseType(typeof(AuthMeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<AuthMeResponse>> CompleteLoginAsync(
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<AuthMeResponse>> CompleteLoginAsync(CancellationToken cancellationToken)
     {
         return Ok(await clientIdentityService.CompleteLoginAsync(User, cancellationToken));
     }

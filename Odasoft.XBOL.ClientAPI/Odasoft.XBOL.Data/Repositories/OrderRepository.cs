@@ -19,15 +19,28 @@ namespace Odasoft.XBOL.Data.Repositories
         {
             var query = DbContext.Set<Models.Order>()
                 .Where(o =>
-                    o.Tickets.Any()
-                    && o.Status == OrderStatus.Paid
-                    && o.Tickets.Any(t =>
-                        t.OriginalClientId == idClient ||
-                        t.CurrentClientId == idClient
-                    )
+                    o.Status == OrderStatus.Paid
                     && o.OrderType == orderType
-                    && o.Tickets.All(t => t.EventSchedule.Event.Status == EventStatus.Published)
-                    && o.Tickets.All(t => t.EventSchedule.Event.DeletedAt == null)
+                    && (
+                        o.Tickets.Any(t =>
+                            (t.OriginalClientId == idClient ||
+                                t.CurrentClientId == idClient)
+                            && t.EventSchedule.Event.Status == EventStatus.Published
+                            && t.EventSchedule.Event.DeletedAt == null
+                        )
+                        || (
+                            o.ClientId == idClient
+                            && o.OrderType == OrderType.Bundle
+                            && o.Items.Any(i =>
+                                i.ItemType == ItemType.BundlePass
+                                && DbContext.Set<BundlePass>().Any(bp =>
+                                    bp.Id == i.ItemReferenceId
+                                    && bp.Bundle.Status == EventStatus.Published
+                                    && bp.Bundle.DeletedAt == null
+                                )
+                            )
+                        )
+                    )
                 );
 
             int totalCount = await query.CountAsync();
@@ -37,48 +50,126 @@ namespace Odasoft.XBOL.Data.Repositories
                 .OrderBy(o => o.Id)
                 .Skip(skip)
                 .Take(pageSize)
-                .Select(o => new MyOrderProjection
+                .Select(o => new
                 {
                     Id = o.Id,
-                    Reference = o.Reference,
-                    Tickets = o.Tickets
-                        .Where(t =>
-                            t.OriginalClientId == idClient ||
-                            t.CurrentClientId == idClient
-                        )
-                        .Select(t => new MyOrderTicketProjection
-                        {
-                            EventScheduleId = t.EventScheduleId,
-                            StartDateTime = t.EventSchedule.StartDateTime,
-                            EndDateTime = t.EventSchedule.EndDateTime,
-
-                            EventId = t.EventSchedule.EventId,
-                            EventName = t.EventSchedule.Event.Name,
-                            BannerUrl = DbContext.Set<Media>()
-                                .Where(m =>
-                                    m.ReferenceId == t.EventSchedule.Event.Id &&
-                                    m.ReferenceType == ClientSaleType.Event &&
-                                    m.MediaType == ClientMediaType.Banner
-                                )
-                                .OrderBy(m => m.Order)
-                                .Select(m => m.Url)
-                                .FirstOrDefault(),
-
-                            LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
-                            Location = t.EventSchedule.Event.VenueMap.Venue.Name,
-                            TicketType = t.TicketType,
-                            SeasonId = t.EventSchedule.Event.SeasonId,
-                            SeasonName = t.EventSchedule.Event.Season != null
-                                ? t.EventSchedule.Event.Season.Name
-                                : ""
-                        })
-                        .ToList()
+                    o.Reference
                 })
                 .ToListAsync();
 
+            var orderIds = orders.Select(o => o.Id).ToList();
+            var ticketRows = await DbContext.Set<Ticket>()
+                .Where(t =>
+                    t.OriginalOrderId != null
+                    && orderIds.Contains(t.OriginalOrderId.Value)
+                    && (t.OriginalClientId == idClient ||
+                        t.CurrentClientId == idClient)
+                    && t.EventSchedule.Event.Status == EventStatus.Published
+                    && t.EventSchedule.Event.DeletedAt == null
+                )
+                .Select(t => new
+                {
+                    OrderId = t.OriginalOrderId!.Value,
+                    Item = new MyOrderTicketProjection
+                    {
+                        EventScheduleId = t.EventScheduleId,
+                        StartDateTime = t.EventSchedule.StartDateTime,
+                        EndDateTime = t.EventSchedule.EndDateTime,
+
+                        EventId = t.EventSchedule.EventId,
+                        EventName = t.EventSchedule.Event.Name,
+                        BannerUrl = DbContext.Set<Media>()
+                            .Where(m =>
+                                m.ReferenceId == t.EventSchedule.Event.Id &&
+                                m.ReferenceType == ClientSaleType.Event &&
+                                m.MediaType == ClientMediaType.Banner
+                            )
+                            .OrderBy(m => m.Order)
+                            .Select(m => m.BlobAsset.Url)
+                            .FirstOrDefault(),
+
+                        LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
+                        Location = t.EventSchedule.Event.VenueMap.Venue.Name,
+                        TicketType = t.TicketType,
+                        SeasonId = t.EventSchedule.Event.SeasonId,
+                        SeasonName = t.EventSchedule.Event.Season != null
+                            ? t.EventSchedule.Event.Season.Name
+                            : "",
+                        Source = "Ticket",
+                        CanViewTickets = true
+                    }
+                })
+                .ToListAsync();
+
+            var ticketBackedOrderIds = ticketRows
+                .Select(t => t.OrderId)
+                .Distinct()
+                .ToList();
+
+            var orderItemRows = await (
+                    from order in DbContext.Set<Order>()
+                    from item in order.Items
+                    join bundlePass in DbContext.Set<BundlePass>()
+                        on item.ItemReferenceId equals bundlePass.Id
+                    where orderIds.Contains(order.Id)
+                        && !ticketBackedOrderIds.Contains(order.Id)
+                        && order.ClientId == idClient
+                        && order.OrderType == OrderType.Bundle
+                        && item.ItemType == ItemType.BundlePass
+                        && bundlePass.Bundle.Status == EventStatus.Published
+                        && bundlePass.Bundle.DeletedAt == null
+                    select new
+                    {
+                        OrderId = order.Id,
+                        Item = new MyOrderTicketProjection
+                        {
+                            EventScheduleId = 0,
+                            StartDateTime = bundlePass.Bundle.StartDate ?? bundlePass.PurchasedAt,
+                            EndDateTime = bundlePass.Bundle.EndDate
+                                ?? bundlePass.Bundle.StartDate
+                                ?? bundlePass.PurchasedAt,
+                            EventId = bundlePass.BundleId,
+                            EventName = bundlePass.Bundle.Name,
+                            BannerUrl = DbContext.Set<Media>()
+                                .Where(m =>
+                                    m.ReferenceId == bundlePass.BundleId &&
+                                    m.ReferenceType == ClientSaleType.Bundle &&
+                                    m.MediaType == ClientMediaType.Banner
+                                )
+                                .OrderBy(m => m.Order)
+                                .Select(m => m.BlobAsset.Url)
+                                .FirstOrDefault(),
+                            LegacyPosterUrl = bundlePass.Bundle.PosterImageUrl,
+                            Location = bundlePass.Bundle.VenueMap.Venue.Name,
+                            TicketType = "BUNDLEPASS",
+                            SeasonId = bundlePass.BundleId,
+                            SeasonName = bundlePass.Bundle.Name,
+                            Source = "OrderItem",
+                            CanViewTickets = false
+                        }
+                    }
+                )
+                .ToListAsync();
+
+            var ticketLookup = ticketRows
+                .GroupBy(t => t.OrderId)
+                .ToDictionary(g => g.Key, g => g.Select(t => t.Item).ToList());
+            var itemLookup = orderItemRows
+                .GroupBy(t => t.OrderId)
+                .ToDictionary(g => g.Key, g => g.Select(t => t.Item).ToList());
+
             return new PagedOrdersProjection
             {
-                Orders = orders,
+                Orders = orders
+                    .Select(o => new MyOrderProjection
+                    {
+                        Id = o.Id,
+                        Reference = o.Reference,
+                        Tickets = ticketLookup.TryGetValue(o.Id, out var tickets)
+                            ? tickets
+                            : itemLookup.GetValueOrDefault(o.Id) ?? []
+                    })
+                    .ToList(),
                 TotalCount = totalCount
             };
         }

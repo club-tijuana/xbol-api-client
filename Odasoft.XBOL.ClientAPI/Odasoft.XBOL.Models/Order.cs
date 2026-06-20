@@ -4,8 +4,8 @@ namespace Odasoft.XBOL.Models
 {
     public class Order : BaseModel
     {
-        public long? ClientId { get; set; }
-        public Client? Client { get; set; } = null;
+        public long ClientId { get; set; }
+        public Client Client { get; set; } = null!;
 
         public Guid? UserId { get; set; }
         public User? User { get; set; }
