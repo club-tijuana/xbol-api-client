@@ -21,6 +21,8 @@ namespace Odasoft.XBOL.Business.Extensions
             services.AddScoped<PhoneRegionCodesService>();
             services.AddScoped<ClientCreditTransactionService>();
             services.AddScoped<PaymentLinkService>();
+            services.AddScoped<SeatManagementService>();
+            services.AddScoped<BundleService>();
 
             return services;
         }

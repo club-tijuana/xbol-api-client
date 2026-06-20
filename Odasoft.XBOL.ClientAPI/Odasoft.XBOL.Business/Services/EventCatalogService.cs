@@ -164,7 +164,7 @@ namespace Odasoft.XBOL.Business.Services
         {
             var schedules = BundleSchedules(bundle).ToList();
             var schedule = PickDisplaySchedule(schedules);
-            var venueMapId = bundle.VenueMapId ?? schedule?.Event?.VenueMapId;
+            var venueMapId = bundle.VenueMapId;
             var mediaSet = MediaSet(media, bundle.Id);
             var bannerImageUrl = mediaSet.Banner?.Url;
             var posterImageUrl = mediaSet.Logo?.Url;

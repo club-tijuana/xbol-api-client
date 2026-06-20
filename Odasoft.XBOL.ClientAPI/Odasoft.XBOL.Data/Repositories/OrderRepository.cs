@@ -20,6 +20,7 @@ namespace Odasoft.XBOL.Data.Repositories
             var query = DbContext.Set<Models.Order>()
                 .Where(o =>
                     o.Tickets.Any()
+                    && o.Status == OrderStatus.Paid
                     && o.Tickets.Any(t =>
                         t.OriginalClientId == idClient ||
                         t.CurrentClientId == idClient
@@ -315,14 +316,28 @@ namespace Odasoft.XBOL.Data.Repositories
             }
             else
             {
+                //ticketPriceListLookup = await (
+                //    from oi in DbContext.Set<OrderItem>()
+                //    join spet in DbContext.Set<SeasonPassEventTicket>()
+                //        on oi.ItemReferenceId equals spet.SeasonPassId
+                //    where oi.OrderId == orderId
+                //    select new
+                //    {
+                //        spet.TicketId,
+                //        oi.PriceListItemId
+                //    })
+                //    .ToDictionaryAsync(
+                //        x => x.TicketId,
+                //        x => x.PriceListItemId
+                //    );
                 ticketPriceListLookup = await (
                     from oi in DbContext.Set<OrderItem>()
-                    join spet in DbContext.Set<SeasonPassEventTicket>()
-                        on oi.ItemReferenceId equals spet.SeasonPassId
+                    join bpet in DbContext.Set<BundlePassEventTicket>()
+                        on oi.ItemReferenceId equals bpet.BundlePassId
                     where oi.OrderId == orderId
                     select new
                     {
-                        spet.TicketId,
+                        bpet.TicketId,
                         oi.PriceListItemId
                     })
                     .ToDictionaryAsync(
@@ -344,6 +359,7 @@ namespace Odasoft.XBOL.Data.Repositories
                     o.TotalTaxes,
                     o.Discount,
                     o.Total,
+                    FirstItemReferenceId = o.Items.First().ItemReferenceId,
                     Tickets = o.Tickets.Select(t => new
                     {
                         SectionName = t.EventSeat.EventSection.BaseSection.Name,
@@ -458,17 +474,21 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>()
                 };
             }
-            else if (orderData.OrderType == OrderType.SeasonPass)
+            else if (orderData.OrderType == OrderType.Bundle)
             {
-                var seasons = orderData.Tickets
-                    .Select(t => t.EventSchedule.Event.Season)
-                    .Where(s => s != null)
-                    .DistinctBy(s => s!.Id)
-                    .ToList();
+                //var seasons = orderData.Tickets
+                //    .Select(t => t.EventSchedule.Event.Season)
+                //    .Where(s => s != null)
+                //    .DistinctBy(s => s!.Id)
+                //    .ToList();
+                var bundle = await DbContext.Set<BundlePass>()
+                    .Where(bp => bp.Id == orderData.FirstItemReferenceId)
+                    .Select(bp => bp.Bundle)
+                    .FirstOrDefaultAsync();
 
-                if (seasons.Count != 1)
+                if (bundle == null)
                 {
-                    throw new Exception("Invalid season order: múltiples seasons detectadas.");
+                    throw new Exception("Bundle not found.");
                 }
 
                 var venues = orderData.Tickets
@@ -481,14 +501,12 @@ namespace Odasoft.XBOL.Data.Repositories
                     throw new Exception("Invalid season order: múltiples venues detectados.");
                 }
 
-                var season = seasons.First()!;
-
                 var seasonBanner = DbContext.Set<Media>()
                 .Include(m => m.BlobAsset)
                 .AvailableBlobMedia()
                 .Where(m =>
-                    m.ReferenceId == season.Id &&
-                    m.ReferenceType == ClientSaleType.SeasonPass &&
+                    m.ReferenceId == bundle.Id &&
+                    m.ReferenceType == ClientSaleType.Bundle &&
                     m.MediaType == ClientMediaType.Banner
                 )
                 .OrderBy(m => m.Order)
@@ -506,13 +524,13 @@ namespace Odasoft.XBOL.Data.Repositories
                     Total = (clientId != null || isPaymentLink == true) ? orderData.Total : 0,
                     Currency = (clientId != null || isPaymentLink == true) ? "MXN" : "",
 
-                    ItemName = season.Name,
+                    ItemName = bundle.Name,
                     ItemLocation = venues.First(),
-                    ItemKey = season.ExternalSeasonKey,
+                    ItemKey = bundle.ExternalKey ?? "",
                     ItemPosterImageUrl = seasonBanner != null && seasonBanner.Url != null
                         ? seasonBanner.Url
-                        : season.LegacySeasonPosterUrl ?? string.Empty,
-                    ItemStartDate = season.StartDate,
+                        : bundle.PosterImageUrl ?? string.Empty,
+                    ItemStartDate = bundle.StartDate,
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
                     ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>()
