@@ -13,7 +13,5 @@
         public string TicketType { get; set; } = string.Empty;
         public long? SeasonId { get; set; }
         public string SeasonName { get; set; } = string.Empty;
-        public string Source { get; set; } = "Ticket";
-        public bool CanViewTickets { get; set; } = true;
     }
 }

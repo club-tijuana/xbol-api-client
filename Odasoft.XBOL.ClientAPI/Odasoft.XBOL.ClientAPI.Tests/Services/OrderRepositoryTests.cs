@@ -19,7 +19,7 @@ public sealed class OrderRepositoryTests
     private const long MxPhoneRegionId = 2;
 
     [Fact]
-    public async Task GetMyEventsAsync_includes_paid_bundle_order_items_when_order_has_no_tickets()
+    public async Task GetMyEventsAsync_includes_bundle_orders_without_tickets_as_pass_summary()
     {
         await using var database = await TestDatabase.CreateAsync();
         var client = CreateClient();
@@ -61,11 +61,20 @@ public sealed class OrderRepositoryTests
         result.TotalCount.Should().Be(1);
         var order = result.Orders.Should().ContainSingle().Subject;
         order.Reference.Should().Be("LEGACY-ORDER");
-        var historyItem = order.Tickets.Should().ContainSingle().Subject;
-        historyItem.EventName.Should().Be("Imported Season Pass");
-        historyItem.TicketType.Should().Be("BUNDLEPASS");
-        historyItem.GetType().GetProperty("Source")!.GetValue(historyItem).Should().Be("OrderItem");
-        historyItem.GetType().GetProperty("CanViewTickets")!.GetValue(historyItem).Should().Be(false);
+        var passSummary = order.Tickets.Should().ContainSingle().Subject;
+        passSummary.EventScheduleId.Should().Be(0);
+        passSummary.EventId.Should().Be(0);
+        passSummary.TicketType.Should().Be(ItemType.BundlePass.ToString());
+        passSummary.SeasonName.Should().Be("Imported Season Pass");
+
+        var service = CreateOrderService(database.Context);
+
+        var serviceResult = await service.GetMyEventsAsync(1, 10, OrderType.Bundle, client.Id);
+
+        var item = serviceResult.Items.Should().ContainSingle().Subject;
+        item.Name.Should().Be("Imported Season Pass");
+        item.IsSeasonPass.Should().BeTrue();
+        item.CanViewTickets.Should().BeFalse();
     }
 
     [Fact]
