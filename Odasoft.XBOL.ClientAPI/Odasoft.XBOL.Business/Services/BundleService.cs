@@ -21,7 +21,8 @@ namespace Odasoft.XBOL.Business.Services
             var bundles = await bundleRepository.Get(
                     b => b.Status == Commons.Enums.EventStatus.Published &&
                     b.BundleType == Commons.Enums.BundleType.SeasonPass &&
-                    b.OffSaleDate > now
+                    b.PublishedDate <= now
+                    && b.OffSaleDate > now
                 ).ToListAsync();
 
             var bundlesStates = bundles.Select(b => new
@@ -36,7 +37,7 @@ namespace Odasoft.XBOL.Business.Services
                 IsPreSale = now >= b.PreSaleDate && now < b.OnSaleDate,
                 IsGeneral = now >= b.OnSaleDate && now < b.OffSaleDate
             })
-            .OrderByDescending(b => b.Bundle.Id)
+            .OrderByDescending(b => b.Bundle.StartDate)
             .ToList();
 
             if (clientId == null)
@@ -132,9 +133,18 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<Bundle?> GetLatestBundleAsync(long originBundleId)
         {
+            var now = DateTimeOffset.UtcNow;
+
             var bundleChainData = await bundleRepository.Get()
                                         .AsNoTracking()
-                                        .Where(b => b.DeletedAt == null && b.PreviousBundleId.HasValue)
+                                        .Where(b =>
+                                            b.Status == Commons.Enums.EventStatus.Published
+                                            && b.PublishedDate < now
+                                            && b.RenewalStartDate <= now
+                                            && b.OffSaleDate > now
+                                            && b.DeletedAt == null
+                                            && b.PreviousBundleId.HasValue
+                                        )
                                         .Select(b => new { Id = b.Id, PreviousBundleId = b.PreviousBundleId!.Value })
                                         .ToListAsync();
 
@@ -151,6 +161,38 @@ namespace Odasoft.XBOL.Business.Services
                             .Get()
                             .AsNoTracking()
                             .FirstOrDefaultAsync(s => s.Id == latestBundleId && s.DeletedAt == null);
+        }
+
+        public async Task<List<string>> GetBlockedSeatsAsync(long idClient, long bundleId)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var currentBundle = await bundleRepository.GetByIdAsync(bundleId);
+
+            if (currentBundle == null)
+            {
+                return new List<string>();
+            }
+
+            if (currentBundle.PreviousBundleId == null)
+            {
+                return new List<string>();
+            }
+
+            if (currentBundle.OnSaleDate <= now)
+            {
+                return new List<string>();
+            }
+
+            var blockedSeats = await bundlePassRepository
+                .Get(bp =>
+                    bp.BundleId == currentBundle.PreviousBundleId
+                    && bp.ClientId != idClient
+                )
+                .Select(bp => bp.TrackingCode)
+                .ToListAsync();
+
+            return blockedSeats;
         }
     }
 }

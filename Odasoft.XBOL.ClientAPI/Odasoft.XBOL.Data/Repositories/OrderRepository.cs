@@ -29,14 +29,23 @@ namespace Odasoft.XBOL.Data.Repositories
                             && t.EventSchedule.Event.DeletedAt == null
                         )
                         || (
-                            o.ClientId == idClient
-                            && o.OrderType == OrderType.Bundle
+                            o.OrderType == OrderType.Bundle
                             && o.Items.Any(i =>
                                 i.ItemType == ItemType.BundlePass
                                 && DbContext.Set<BundlePass>().Any(bp =>
                                     bp.Id == i.ItemReferenceId
                                     && bp.Bundle.Status == EventStatus.Published
                                     && bp.Bundle.DeletedAt == null
+                                    && DbContext.Set<BundlePassEventTicket>()
+                                        .Where(bpet => bpet.BundlePassId == bp.Id)
+                                        .Join(DbContext.Set<Ticket>(),
+                                            bpet => bpet.TicketId,
+                                            t => t.Id,
+                                            (bpet, t) => t)
+                                        .Any(t =>
+                                            t.OriginalClientId == idClient ||
+                                            t.CurrentClientId == idClient
+                                        )
                                 )
                             )
                         )
@@ -174,61 +183,85 @@ namespace Odasoft.XBOL.Data.Repositories
             };
         }
 
-        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(long clientId, long eventId, long orderId)
+        public async Task<MyEventDetailDTO?> GetMyEventDetailAsync(
+            long clientId,
+            long eventId,
+            long orderId
+        )
         {
-            var result = await DbContext.Set<Order>()
-                .Where(o =>
-                    o.Id == orderId &&
-                    o.Tickets.Any(t =>
-                        t.OriginalClientId == clientId
-                        || t.CurrentClientId == clientId
-                    )
-                    && o.Tickets.All(t => t.EventSchedule.Event.Status == EventStatus.Published)
-                    && o.Tickets.All(t => t.EventSchedule.Event.DeletedAt == null)
-                )
-                .SelectMany(o => o.Tickets)
+            var order = await DbContext.Set<Order>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order == null)
+                return null;
+
+            IQueryable<Ticket> ticketsQuery = order.OrderType switch
+            {
+                OrderType.Bundle =>
+                    from oi in DbContext.Set<OrderItem>()
+                    where oi.OrderId == orderId
+                    join bp in DbContext.Set<BundlePassEventTicket>()
+                        on oi.ItemReferenceId equals bp.BundlePassId
+                    select bp.Ticket,
+
+                _ => DbContext.Set<Ticket>().Where(t => false)
+            };
+
+            var filteredTickets = ticketsQuery
                 .Where(t =>
-                    t.EventSchedule.EventId == eventId
-                    && t.OriginalOrder != null
-                    && (
-                        t.OriginalClientId == clientId
-                        || t.CurrentClientId == clientId
-                    )
+                    t.EventSchedule.EventId == eventId &&
+                    (t.OriginalClientId == clientId || t.CurrentClientId == clientId)
                 )
+                .Where(t =>
+                    t.EventSchedule.Event.Status == EventStatus.Published &&
+                    t.EventSchedule.Event.DeletedAt == null
+                );
+
+            var result = await filteredTickets
                 .GroupBy(t => new
                 {
                     EventId = t.EventSchedule.Event.Id,
-                    OrderId = t.OriginalOrder!.Id
+                    OrderId = orderId
                 })
                 .Select(g => new
                 {
                     OrderId = g.Key.OrderId,
                     EventId = g.Key.EventId,
+
                     EventKey = g.First().EventSchedule.ExternalEventKey,
                     LegacyPosterUrl = g.First().EventSchedule.Event.PosterImageUrl,
                     Folio = g.First().OriginalOrder!.Reference,
                     Name = g.First().EventSchedule.Event.Name,
+
                     Date = g.First().EventSchedule.Event.Schedules
                         .Min(s => s.StartDateTime),
+
                     Location = g.First().EventSchedule.Event.VenueMap.Venue.Name,
+
                     SubTotal = g.First().OriginalOrder!.SubTotal,
                     TotalFees = g.First().OriginalOrder!.TotalFees,
                     TotalTaxes = g.First().OriginalOrder!.TotalTaxes,
                     Total = g.First().OriginalOrder!.Total,
-                    Seats = g
-                        .GroupBy(x => x.SectionLabelSnapshot)
+
+                    Seats = g.GroupBy(x => x.SectionLabelSnapshot)
                         .Select(gTicket => new MyEventSeatDTO
                         {
                             Section = $"{gTicket.Key} x{gTicket.Count()}",
                             Seats = string.Join(", ", gTicket.Select(x => x.SeatLabelSnapshot))
                         })
                         .ToList(),
-                    SelectedSeats = g.Select(seat => seat.EventSeat.ExternalSeatObjectKey).ToList(),
-                    Currency = "MXN" // TODO: Add currency support for totals
+
+                    SelectedSeats = g
+                        .Select(x => x.EventSeat.ExternalSeatObjectKey)
+                        .ToList()
                 })
                 .FirstOrDefaultAsync();
 
-            var banner = DbContext.Set<Media>()
+            if (result == null)
+                return null;
+
+            var banner = await DbContext.Set<Media>()
                 .Include(m => m.BlobAsset)
                 .AvailableBlobMedia()
                 .Where(m =>
@@ -237,32 +270,35 @@ namespace Odasoft.XBOL.Data.Repositories
                     m.MediaType == ClientMediaType.Banner
                 )
                 .OrderBy(m => m.Order)
-                .FirstOrDefault();
+                .FirstOrDefaultAsync();
 
-            if (result == null)
-            {
-                return null;
-            }
+            var fees = await DbContext.Set<OrderFee>()
+                .Where(f => f.OrderId == result.OrderId)
+                .Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount })
+                .ToListAsync();
 
             var detail = new MyEventDetailDTO
             {
                 OrderId = result.OrderId,
                 EventId = result.EventId,
                 EventKey = result.EventKey,
-                EventImage = banner != null && banner.Url != null
-                     ? banner.Url
-                     : result.LegacyPosterUrl ?? string.Empty,
+
+                EventImage = banner?.Url ?? result.LegacyPosterUrl ?? string.Empty,
+
                 Folio = result.Folio,
                 Name = result.Name,
                 Date = result.Date,
                 Location = result.Location,
+
                 SubTotal = result.SubTotal,
                 TotalFees = result.TotalFees,
                 TotalTaxes = result.TotalTaxes,
                 Total = result.Total,
+
                 Seats = result.Seats,
                 SelectedSeats = result.SelectedSeats,
-                Currency = result.Currency
+                Currency = "MXN",
+                Fees = fees
             };
 
             return detail;
@@ -450,10 +486,12 @@ namespace Odasoft.XBOL.Data.Repositories
                     o.TotalTaxes,
                     o.Discount,
                     o.Total,
+                    Fees = o.Fees.Select(f => new { f.FeeType, f.Amount }).ToList(),
                     FirstItemReferenceId = o.Items.First().ItemReferenceId,
                     Tickets = o.Tickets.Select(t => new
                     {
                         SectionName = t.EventSeat.EventSection.BaseSection.Name,
+                        RowName = t.EventSeat.BaseSeat.BaseRow.RowLabel,
                         SeatNumber = t.EventSeat.BaseSeat.SeatNumber,
                         EventSeatId = t.EventSeatId,
                         SeatLabelSnapshot = t.SeatLabelSnapshot,
@@ -503,13 +541,14 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Select(t => new
                 {
                     t.SectionName,
+                    t.RowName,
                     t.SeatNumber
                 })
                 .Distinct()
-                .GroupBy(x => x.SectionName)
+                .GroupBy(x => new { x.SectionName, x.RowName })
                 .Select(g => new MyEventSeatDTO
                 {
-                    Section = $"{g.Key} x{g.Count()}",
+                    Section = $"Sección {g.Key.SectionName} - Fila {g.Key.RowName} x{g.Count()}",
                     Seats = string.Join(", ", g.Select(x => x.SeatNumber).OrderBy(n => n))
                 })
                 .ToList();
@@ -562,7 +601,10 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemStartDate = first.EventSchedule.StartDateTime,
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
-                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>()
+                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>(),
+                    Fees = (clientId != null || isPaymentLink == true)
+                        ? orderData.Fees.Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount }).ToList()
+                        : new List<OrderFeeDTO>()
                 };
             }
             else if (orderData.OrderType == OrderType.Bundle)
@@ -624,7 +666,10 @@ namespace Odasoft.XBOL.Data.Repositories
                     ItemStartDate = bundle.StartDate,
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
-                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>()
+                    ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>(),
+                    Fees = (clientId != null || isPaymentLink == true)
+                        ? orderData.Fees.Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount }).ToList()
+                        : new List<OrderFeeDTO>()
                 };
             }
             else

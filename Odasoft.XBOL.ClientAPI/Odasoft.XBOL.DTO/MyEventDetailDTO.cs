@@ -17,5 +17,6 @@
         public string Currency { get; set; } = string.Empty;
         public List<MyEventSeatDTO> Seats { get; set; } = new List<MyEventSeatDTO>();
         public List<string> SelectedSeats { get; set; } = new List<string>();
+        public List<OrderFeeDTO> Fees { get; set; } = new List<OrderFeeDTO>();
     }
 }

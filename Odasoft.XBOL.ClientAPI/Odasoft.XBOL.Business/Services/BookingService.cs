@@ -79,14 +79,26 @@ namespace Odasoft.XBOL.Business.Services
                     Name = x.Name ?? string.Empty,
                     DisplayName = x.DisplayName ?? string.Empty,
                     Price = x.Price,
-                    PriceListItemId = x.PriceListItemId
+                    PriceListItemId = x.PriceListItemId,
+                    Fees = x.Fees?.Select(f => new OrderFeeDTO
+                    {
+                        FeeType = f.FeeName ?? string.Empty,
+                        Amount = f.FeeAmount,
+                        ChargeCategory = string.IsNullOrEmpty(f.ChargeCategory) ? "Fee" : f.ChargeCategory
+                    }).ToList() ?? new List<OrderFeeDTO>()
                 }).ToList() ?? [],
                 SeatOverrides = response.SeatOverrides?.Select(x => new SeatDTO
                 {
                     Id = x.Id.HasValue ? x.Id.Value : 0,
                     ExternalSeatObjectKey = x.ExternalSeatObjectKey ?? string.Empty,
                     PriceOverride = x.PriceOverride,
-                    PriceListItemId = x.PriceListItemId
+                    PriceListItemId = x.PriceListItemId,
+                    Fees = x.Fees?.Select(f => new OrderFeeDTO
+                    {
+                        FeeType = f.FeeName ?? string.Empty,
+                        Amount = f.FeeAmount,
+                        ChargeCategory = string.IsNullOrEmpty(f.ChargeCategory) ? "Fee" : f.ChargeCategory
+                    }).ToList() ?? new List<OrderFeeDTO>()
                 }).ToList() ?? []
             };
         }
@@ -179,7 +191,8 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var bundle = await _bundleRepository.Get(b => b.Id == bundleId)
+            var bundle = await _bundleRepository.Get(b => b.Id == bundleId,
+                includedProperties: ["VenueMap.Venue"])
                 .FirstOrDefaultAsync();
 
             if (bundle == null)
@@ -205,7 +218,8 @@ namespace Odasoft.XBOL.Business.Services
                 s => s.Id == bundleId,
                 includedProperties:
                 [
-                    "BundleEventSchedules.EventSchedule.Event.VenueMap.Venue"
+                    "BundleEventSchedules.EventSchedule.Event.VenueMap.Venue",
+                    "VenueMap.Venue"
                 ])
                 .FirstOrDefaultAsync();
 
@@ -575,10 +589,14 @@ namespace Odasoft.XBOL.Business.Services
                 .AvailableBlobMedia()
                 .ToListAsync();
 
-            var banner = media
+            bool hasMedia = (media != null && media.Any());
+
+            var bannerResult = hasMedia ?
+                media
                 .Where(m => m.MediaType == ClientMediaType.Banner)
-                .OrderBy(m => m.Order)
-                .FirstOrDefault();
+                .OrderBy(m => m.Order) : null;
+
+            var banner = bannerResult != null && bannerResult.Any() ? bannerResult.FirstOrDefault() : null;
 
             var now = DateTimeOffset.UtcNow;
 
@@ -589,11 +607,11 @@ namespace Odasoft.XBOL.Business.Services
                     ? banner.Url
                     : bundle.BannerImageUrl,
                 Name = bundle.Name,
-                Location = bundle.BundleEventSchedules.First().EventSchedule.Event.VenueMap.Venue.Name,
+                Location = bundle.VenueMap.Venue.Name,
                 StartDate = bundle.StartDate,
                 ExternalKey = bundle.ExternalKey,
-                Media = includeMedia
-                    ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
+                Media = includeMedia && hasMedia
+                    ? EventMediaSetMapper.CreateMediaSet(media?.Select(EventMediaSetMapper.CreateMediaResponse))
                     : null,
                 IsRenewal = now >= bundle.RenewalStartDate && now < bundle.RenewalEndDate,
                 IsPreSale = now >= bundle.PreSaleDate && now < bundle.OnSaleDate,

@@ -79,6 +79,56 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
         }
 
+        [HttpPost("initiate-checkout/{code}")]
+        [EndpointName("InitiateCheckoutAsync")]
+        public async Task<ActionResult<InitiatePaymentLinkCheckoutResponse>> InitiateCheckoutAsync(
+            [FromRoute] string code,
+            [FromBody] InitiatePaymentLinkCheckoutRequest request)
+        {
+            try
+            {
+                var response = await _paymentLinkService.InitiateCheckoutAsync(code, request);
+                return Ok(response);
+            }
+            catch (PaymentLinkExpiredException ex)
+            {
+                return Problem(title: "Link expirado", detail: ex.Message, statusCode: StatusCodes.Status410Gone);
+            }
+            catch (PaymentLinkCanceledException ex)
+            {
+                return Problem(title: "Link cancelado", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (PaymentLinkAlreadyUsedException ex)
+            {
+                return Problem(title: "Link ya utilizado", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (Exception ex)
+            {
+                return Problem(title: ex.Message, detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("confirm-checkout/{code}")]
+        [EndpointName("ConfirmCheckoutAsync")]
+        public async Task<ActionResult<long>> ConfirmCheckoutAsync(
+            [FromRoute] string code,
+            [FromBody] ConfirmPaymentLinkCheckoutRequest request)
+        {
+            try
+            {
+                var orderId = await _paymentLinkService.ConfirmCheckoutAsync(code, request);
+                return Ok(orderId);
+            }
+            catch (PaymentLinkAlreadyUsedException ex)
+            {
+                return Problem(title: "Link ya utilizado", detail: ex.Message, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (Exception ex)
+            {
+                return Problem(title: ex.Message, detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
         [HttpGet("metadata/{code}")]
         [EndpointName("GetEventMetadataByPaymentCodeAsync")]
         public async Task<ActionResult<SeoMetadataDTO>> GetEventMetadataByPaymentCodeAsync([FromRoute] string code)
