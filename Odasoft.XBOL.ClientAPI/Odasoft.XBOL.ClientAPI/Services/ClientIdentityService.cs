@@ -1,6 +1,5 @@
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
-using FuzzySharp.SimilarityRatio.Scorer.StrategySensitive;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Odasoft.XBOL.ClientAPI.Auth;
@@ -19,8 +18,6 @@ namespace Odasoft.XBOL.ClientAPI.Services;
 public sealed class ClientIdentityService(
     ClientRepository clientRepository,
     ClientLoginIdentifierRepository clientLoginIdentifierRepository,
-    OrderRepository orderRepository,
-    UserRepository userRepository,
     PhoneRegionCodeRepository phoneRegionCodeRepository,
     IFirebaseClientAuthClient firebaseAuth) : IClientIdentityService
 {
@@ -186,7 +183,7 @@ public sealed class ClientIdentityService(
                 ClientAuthProblemCodes.InvalidRegistration);
         }
 
-        var phoneRegion = await ResolvePhoneRegionAsync(identity.PhoneNumber);
+        var phoneRegion = await ResolvePhoneRegionAsync(phone);
         var existingClient = await ResolveClientAsync(identity);
         if (existingClient is not null)
         {
@@ -208,6 +205,18 @@ public sealed class ClientIdentityService(
             {
                 FirebaseUid = identity.FirebaseUid,
                 Client = ToDto(existingClient),
+                OnboardingStatus = "linked",
+                VerificationStatus = GetVerificationStatus(identity)
+            };
+        }
+
+        var importedClient = await TryClaimImportedClientAsync(identity);
+        if (importedClient is not null)
+        {
+            return new RegisterResponse
+            {
+                FirebaseUid = identity.FirebaseUid,
+                Client = ToDto(importedClient),
                 OnboardingStatus = "linked",
                 VerificationStatus = GetVerificationStatus(identity)
             };
@@ -322,6 +331,58 @@ public sealed class ClientIdentityService(
         return ToAuthMeResponse(identity, client);
     }
 
+    private async Task<Client?> TryClaimImportedClientAsync(AuthenticatedClientIdentity identity)
+    {
+        var phone = NormalizeFirebasePhoneClaim(identity.PhoneNumber);
+        var candidate = await ResolveImportedClaimCandidateAsync(phone);
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        await EnsureClientDoesNotHaveDifferentFirebaseUidAsync(candidate, identity);
+
+        var now = DateTimeOffset.UtcNow;
+        candidate.FirebaseUid = identity.FirebaseUid;
+        candidate.UpdatedAt = now;
+        candidate.UpdatedBy = Guid.Empty;
+
+        await clientLoginIdentifierRepository.AddMissingAsync(
+            candidate,
+            BuildVerifiedIdentifierLookups(identity),
+            now);
+
+        try
+        {
+            await clientLoginIdentifierRepository.CommitAsync();
+        }
+        catch (DbUpdateException ex) when (IsClientIdentityUniqueConflict(ex))
+        {
+            return await ResolveClientAfterIdentifierRaceAsync(identity);
+        }
+
+        return candidate;
+    }
+
+    private async Task<Client?> ResolveImportedClaimCandidateAsync(string verifiedPhone)
+    {
+        var candidates = (await clientRepository.GetImportedClaimCandidatesAsync())
+            .Where(client => DoesClientPhoneMatchVerifiedPhone(client, verifiedPhone))
+            .GroupBy(client => client.Id)
+            .Select(group => group.First())
+            .ToList();
+
+        if (candidates.Count > 1)
+        {
+            throw new ClientAuthException(
+                "Verified phone identifier matches more than one imported client profile.",
+                StatusCodes.Status409Conflict,
+                ClientAuthProblemCodes.ClientIdentityConflict);
+        }
+
+        return candidates.Count == 0 ? null : candidates[0];
+    }
+
     private async Task<Client> ResolveClientAfterIdentifierRaceAsync(AuthenticatedClientIdentity identity)
     {
         clientLoginIdentifierRepository.DetachPendingClientIdentityChanges();
@@ -371,7 +432,6 @@ public sealed class ClientIdentityService(
     {
         var matches = await clientLoginIdentifierRepository.GetVerifiedMatchesAsync(
             BuildVerifiedIdentifierLookups(identity));
-
         var clientIds = matches
             .Select(x => x.ClientId)
             .Distinct()
@@ -552,6 +612,89 @@ public sealed class ClientIdentityService(
         return NormalizePhoneIdentifier(value, null, "phoneNumber");
     }
 
+    private static bool DoesClientPhoneMatchVerifiedPhone(Client client, string verifiedPhone)
+    {
+        if (string.IsNullOrWhiteSpace(client.PhoneNumber))
+        {
+            return false;
+        }
+
+        return GetNormalizedClientContactPhones(client)
+            .Contains(verifiedPhone, StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<string> GetNormalizedClientContactPhones(Client client)
+    {
+        var raw = NormalizeOptionalClaim(client.PhoneNumber);
+        if (raw is null)
+        {
+            yield break;
+        }
+
+        if (TryFormatPhone(raw, null, out var phone))
+        {
+            yield return phone;
+        }
+
+        var digits = GetDigitsOnly(raw);
+        if (digits.Length == 0)
+        {
+            yield break;
+        }
+
+        var dialCode = NormalizeOptionalDialCode(client.PhoneRegionCode?.DialCode);
+        if (dialCode is not null && digits.StartsWith(dialCode, StringComparison.Ordinal))
+        {
+            if (TryFormatPhone($"+{digits}", null, out phone))
+            {
+                yield return phone;
+            }
+        }
+
+        var region = NormalizeOptionalClaim(client.PhoneRegionCode?.RegionCode);
+        if (region is not null && TryFormatPhone(digits, region, out phone))
+        {
+            yield return phone;
+        }
+    }
+
+    private static bool TryFormatPhone(string raw, string? region, out string phone)
+    {
+        phone = string.Empty;
+        try
+        {
+            var parsed = PhoneNumberParser.Parse(raw, region);
+            if (!PhoneNumberParser.IsValidNumber(parsed))
+            {
+                return false;
+            }
+
+            phone = PhoneNumberParser.Format(parsed, PhoneNumberFormat.E164);
+            return true;
+        }
+        catch (NumberParseException)
+        {
+            return false;
+        }
+    }
+
+    private static string GetDigitsOnly(string value)
+    {
+        return new string(value.Where(char.IsDigit).ToArray());
+    }
+
+    private static string? NormalizeOptionalDialCode(string? value)
+    {
+        var dialCode = NormalizeOptionalClaim(value);
+        if (dialCode is null)
+        {
+            return null;
+        }
+
+        var digits = GetDigitsOnly(dialCode);
+        return digits.Length == 0 ? null : digits;
+    }
+
     private static string NormalizePhoneIdentifier(
         string? value,
         string? identifierCountryCode,
@@ -578,7 +721,7 @@ public sealed class ClientIdentityService(
                     $"{fieldName} must be a US, Mexico, or Canada phone number.");
             }
 
-            return PhoneNumberParser.Format(parsed, PhoneNumberFormat.NATIONAL).Replace(" ", "");
+            return PhoneNumberParser.Format(parsed, PhoneNumberFormat.E164);
         }
         catch (NumberParseException)
         {
@@ -716,6 +859,12 @@ public sealed class ClientIdentityService(
         return false;
     }
 
+    private static bool IsClientIdentityUniqueConflict(DbUpdateException exception)
+    {
+        return IsClientLoginIdentifierUniqueConflict(exception)
+            || IsClientFirebaseUidUniqueConflict(exception);
+    }
+
     private static bool IsClientLoginIdentifierUniqueConflict(DbUpdateException exception)
     {
         if (exception.InnerException is PostgresException postgresException)
@@ -730,6 +879,23 @@ public sealed class ClientIdentityService(
                 || text.Contains("ClientLoginIdentifiers", StringComparison.OrdinalIgnoreCase))
             && (text.Contains("IX_ClientLoginIdentifier_Type_NormalizedValue", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("IX_ClientLoginIdentifiers_Type_NormalizedValue", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("23505", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsClientFirebaseUidUniqueConflict(DbUpdateException exception)
+    {
+        if (exception.InnerException is PostgresException postgresException)
+        {
+            return postgresException.SqlState == PostgresErrorCodes.UniqueViolation
+                && string.Equals(postgresException.TableName, "Client", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(postgresException.ConstraintName, "IX_Client_FirebaseUid", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var text = exception.ToString();
+        return text.Contains("Client", StringComparison.OrdinalIgnoreCase)
+            && text.Contains("FirebaseUid", StringComparison.OrdinalIgnoreCase)
+            && (text.Contains("IX_Client_FirebaseUid", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("23505", StringComparison.OrdinalIgnoreCase));
     }

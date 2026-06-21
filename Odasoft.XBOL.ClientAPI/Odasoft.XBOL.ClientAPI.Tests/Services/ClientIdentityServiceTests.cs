@@ -418,7 +418,143 @@ public sealed class ClientIdentityServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_does_not_claim_existing_contact_client_with_matching_phone()
+    public async Task RegisterAsync_claims_imported_client_with_matching_phone_contact()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var importedClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "+526641234567");
+        importedClient.Orders.Add(CreateImportedOrder());
+        database.Context.Clients.Add(importedClient);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var result = await service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "+526641234567",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526641234567",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        result.Client.Id.Should().Be(importedClient.Id);
+        result.Client.PhoneNumber.Should().Be("+526641234567");
+        (await database.Context.Clients.CountAsync()).Should().Be(1);
+        var claimedClient = await database.Context.Clients.SingleAsync();
+        claimedClient.FirebaseUid.Should().Be("phone-root-uid");
+        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
+        identifiers.Should().HaveCount(2);
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.FirebaseUid
+            && identifier.NormalizedValue == "phone-root-uid");
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.Phone
+            && identifier.NormalizedValue == "+526641234567");
+    }
+
+    [Fact]
+    public async Task RegisterAsync_claims_imported_client_with_digits_only_phone_contact()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var importedClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "526642322873");
+        importedClient.Orders.Add(CreateImportedOrder());
+        database.Context.Clients.Add(importedClient);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var result = await service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "6642322873",
+                IdentifierCountryCode = "MX",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526642322873",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        result.Client.Id.Should().Be(importedClient.Id);
+        (await database.Context.Clients.CountAsync()).Should().Be(1);
+        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.Phone
+            && identifier.NormalizedValue == "+526642322873");
+    }
+
+    [Fact]
+    public async Task RegisterAsync_fails_closed_when_phone_claim_matches_multiple_imported_clients()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var firstClient = CreateClient(email: "first@example.com", phoneNumber: "+526641234567");
+        firstClient.Orders.Add(CreateImportedOrder("FIRST"));
+        var secondClient = CreateClient(email: "second@example.com", phoneNumber: "+526641234567");
+        secondClient.Orders.Add(CreateImportedOrder("SECOND"));
+        database.Context.Clients.AddRange(firstClient, secondClient);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var act = () => service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "+526641234567",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526641234567",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<ClientAuthException>();
+        exception.Which.StatusCode.Should().Be(409);
+        exception.Which.Code.Should().Be(ClientAuthProblemCodes.ClientIdentityConflict);
+        (await database.Context.ClientLoginIdentifiers.CountAsync()).Should().Be(0);
+        (await database.Context.Clients.CountAsync(x => x.FirebaseUid != null)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_claims_imported_client_with_only_bundle_pass_ownership()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var importedClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "526642322873");
+        var bundlePass = CreateBundlePass();
+        bundlePass.Client = importedClient;
+        database.Context.Clients.Add(importedClient);
+        database.Context.Set<BundlePass>().Add(bundlePass);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var result = await service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "6642322873",
+                IdentifierCountryCode = "MX",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526642322873",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        result.Client.Id.Should().Be(importedClient.Id);
+        (await database.Context.Clients.CountAsync()).Should().Be(1);
+        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.Phone
+            && identifier.NormalizedValue == "+526642322873");
+    }
+
+    [Fact]
+    public async Task RegisterAsync_does_not_claim_contact_only_client_without_owned_items()
     {
         await using var database = await TestDatabase.CreateAsync();
         var contactOnlyClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "+526641234567");
@@ -439,7 +575,6 @@ public sealed class ClientIdentityServiceTests
             CancellationToken.None);
 
         result.Client.Id.Should().NotBe(contactOnlyClient.Id);
-        result.Client.PhoneNumber.Should().Be("+526641234567");
         (await database.Context.Clients.CountAsync()).Should().Be(2);
         var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
         identifiers.Should().OnlyContain(identifier => identifier.ClientId == result.Client.Id);
@@ -472,8 +607,6 @@ public sealed class ClientIdentityServiceTests
         return new ClientIdentityService(
             new ClientRepository(context),
             new ClientLoginIdentifierRepository(context),
-            new OrderRepository(context),
-            new UserRepository(context),
             new PhoneRegionCodeRepository(context),
             firebaseAuth ?? Substitute.For<IFirebaseClientAuthClient>());
     }
@@ -557,6 +690,86 @@ public sealed class ClientIdentityServiceTests
             RegionCode = regionCode,
             DialCode = dialCode,
             FlagEmoji = string.Empty
+        };
+    }
+
+    private static Order CreateImportedOrder(string reference = "IMPORTED")
+    {
+        return new Order
+        {
+            Reference = reference,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static BundlePass CreateBundlePass()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new BundlePass
+        {
+            Bundle = CreateBundle(),
+            TrackingCode = Guid.NewGuid().ToString("N"),
+            PrivateToken = Guid.NewGuid().ToString("N"),
+            BundlePassType = BundlePassType.Full,
+            Status = BundlePassStatus.Active,
+            IsDigital = true,
+            Price = 100,
+            PurchasedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static Bundle CreateBundle()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new Bundle
+        {
+            VenueMap = CreateVenueMap(),
+            Name = "Imported Bundle",
+            Status = EventStatus.Published,
+            BundleType = BundleType.SeasonPass,
+            BundlePricingType = BundlePricingType.Composite,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static VenueMap CreateVenueMap()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new VenueMap
+        {
+            Venue = CreateVenue(),
+            Name = "Imported Venue Map",
+            ExternalMapKey = Guid.NewGuid().ToString("N"),
+            Capacity = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static Venue CreateVenue()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new Venue
+        {
+            Name = "Imported Venue",
+            Category = VenueCategory.Stadium,
+            Status = VenueStatus.Active,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
         };
     }
 

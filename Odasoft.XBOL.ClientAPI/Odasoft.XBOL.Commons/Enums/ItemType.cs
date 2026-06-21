@@ -3,6 +3,7 @@
     public enum ItemType
     {
         Ticket,
-        SeasonPass
+        SeasonPass,
+        BundlePass
     }
 }
