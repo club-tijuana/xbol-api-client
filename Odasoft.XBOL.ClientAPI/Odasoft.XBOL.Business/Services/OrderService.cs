@@ -1230,6 +1230,7 @@ namespace Odasoft.XBOL.Business.Services
                 bool isBundle = order.Tickets.Any(t =>
                     t.TicketType.ToUpper().Trim() == BUNDLEPASS
                 );
+                bool canViewTickets = order.Tickets.Any(t => t.EventScheduleId > 0);
 
                 var currentSchedule = order.Tickets
                     .GroupBy(t => t.EventScheduleId)
@@ -1272,8 +1273,7 @@ namespace Odasoft.XBOL.Business.Services
                     IsSeasonPass = isBundle, // TODO: Update name
                     IsPastEvent = isPastEvent,
                     CanRenovateSeasonPass = canRenovateSeasonPass,
-                    Source = currentSchedule.Source,
-                    CanViewTickets = currentSchedule.CanViewTickets
+                    CanViewTickets = canViewTickets
                 });
             }
 

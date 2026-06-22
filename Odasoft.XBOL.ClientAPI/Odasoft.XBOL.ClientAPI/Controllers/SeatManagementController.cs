@@ -61,16 +61,20 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                     ChangeInfoRequest = request.ChangeInfoRequest,
                     Localizer = request.Localizer,
                     ReferenceOrderId = request.ReferenceOrderId,
+                    IsPaymentLink = request.IsPaymentLink,
+                    PaymentLinkRequest = request.PaymentLinkRequest
                 });
 
                 result = new BookingResult
                 {
                     BookingId = booking.OrderId,
                     Message = T("BookingCreatedSuccessfully"),
-                    Tickets = booking.BookedSeatKeys,
+                    Tickets = booking.BookedSeatKeys ?? [],
+                    TicketIds = booking.TicketIds ?? [],
+                    BundlePassIds = booking.BundlePassIds ?? [],
                     ClientEmail = request.ClientContact.Email,
                     ClientPhone = request.ClientContact.PhoneNumber,
-                    Localizer = booking.Reference
+                    Localizer = booking.Reference ?? string.Empty
                 };
             }
             else if (request.EventScheduleId is long eventScheduleId)
@@ -93,7 +97,9 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                     PaymentInfoRequest = request.PaymentInfoRequest,
                     ChangeInfoRequest = request.ChangeInfoRequest,
                     Localizer = request.Localizer,
-                    ReferenceOrderId = request.ReferenceOrderId
+                    ReferenceOrderId = request.ReferenceOrderId,
+                    IsPaymentLink = request.IsPaymentLink,
+                    PaymentLinkRequest = request.PaymentLinkRequest
                 });
 
                 result = new BookingResult
@@ -101,10 +107,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
                     BookingId = booking.OrderId,
                     //Reference = booking.Reference,
                     Message = T("BookingCreatedSuccessfully"),
-                    Tickets = booking.BookedSeatKeys,
+                    Tickets = booking.BookedSeatKeys ?? [],
+                    TicketIds = booking.TicketIds ?? [],
+                    BundlePassIds = booking.BundlePassIds ?? [],
                     ClientEmail = request.ClientContact.Email,
                     ClientPhone = request.ClientContact.PhoneNumber,
-                    Localizer = booking.Reference
+                    Localizer = booking.Reference ?? string.Empty
                 };
             }
 

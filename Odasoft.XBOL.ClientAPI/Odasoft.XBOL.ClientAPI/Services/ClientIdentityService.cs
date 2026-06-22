@@ -311,6 +311,8 @@ public sealed class ClientIdentityService(
     {
         var identity = GetFirebaseIdentity(principal);
         var client = await ResolveClientAsync(identity);
+        client ??= await TryClaimImportedClientAsync(identity);
+
         if (client is not null)
         {
             await EnsureClientDoesNotHaveDifferentFirebaseUidAsync(client, identity);
