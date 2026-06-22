@@ -21,16 +21,20 @@ namespace Odasoft.XBOL.Business.Services
             var eventMedia = await LoadCatalogMediaAsync(events.Select(eventItem => eventItem.Id), ClientSaleType.Event);
             var bundleMedia = await LoadCatalogMediaAsync(bundles.Select(bundle => bundle.Id), ClientSaleType.Bundle);
 
+            var bundleItems = bundles
+                .Where(bundle => queryParams.BuyableOnly != true || IsBuyableBundle(bundle))
+                .Select(bundle => MapBundle(bundle, bundleMedia));
+
             var items = events
                 .Select(eventItem => MapEvent(eventItem, eventMedia))
-                .Concat(bundles.Select(bundle => MapBundle(bundle, bundleMedia)))
+                .Concat(bundleItems)
                 .Where(item => MatchesCatalogFilters(item, queryParams))
                 .ToList();
 
             return Page(Sort(items, queryParams.SortBy, queryParams.Descending), queryParams.Page, queryParams.PageSize);
         }
 
-        public async Task<EventCatalogItemDTO?> GetItemAsync(long id, EventCatalogItemType? itemType = null)
+        public async Task<EventCatalogItemDTO?> GetItemAsync(long id, EventCatalogItemType? itemType = null, bool buyableOnly = false)
         {
             if (itemType is null or EventCatalogItemType.Event)
             {
@@ -45,7 +49,7 @@ namespace Odasoft.XBOL.Business.Services
             if (itemType is null or EventCatalogItemType.Bundle)
             {
                 var bundle = (await LoadBundlesAsync()).FirstOrDefault(item => item.Id == id);
-                if (bundle is not null)
+                if (bundle is not null && (!buyableOnly || IsBuyableBundle(bundle)))
                 {
                     var media = await LoadCatalogMediaAsync([bundle.Id], ClientSaleType.Bundle);
                     return MapBundle(bundle, media);
@@ -76,6 +80,7 @@ namespace Odasoft.XBOL.Business.Services
                 .Include(bundle => bundle.VenueMap)
                     .ThenInclude(venueMap => venueMap!.Venue)
                 .Include(bundle => bundle.BundleSections)
+                    .ThenInclude(section => section.BundleSeats)
                 .Include(bundle => bundle.BundleEventSchedules)
                     .ThenInclude(link => link.EventSchedule)
                     .ThenInclude(schedule => schedule.Event)
@@ -260,6 +265,34 @@ namespace Odasoft.XBOL.Business.Services
             return queryParams.Upcoming.Value
                 ? item.ScheduledStartDate >= DateTimeOffset.UtcNow
                 : item.ScheduledStartDate < DateTimeOffset.UtcNow;
+        }
+
+        internal static bool IsBuyableBundle(Bundle bundle)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            if (bundle.Status != Commons.Enums.EventStatus.Published
+                || bundle.PublishedDate is null
+                || bundle.PublishedDate.Value > now
+                || bundle.OnSaleDate is null
+                || bundle.OffSaleDate is null
+                || now < bundle.OnSaleDate.Value
+                || now >= bundle.OffSaleDate.Value
+                || !HasForSaleSeat(bundle))
+            {
+                return false;
+            }
+
+            return bundle.BundleType != Commons.Enums.BundleType.SeasonPass
+                || !bundle.PreviousBundleId.HasValue
+                || (bundle.RenewalEndDate.HasValue && now >= bundle.RenewalEndDate.Value);
+        }
+
+        private static bool HasForSaleSeat(Bundle bundle)
+        {
+            return bundle.BundleSections
+                .SelectMany(section => section.BundleSeats)
+                .Any(seat => seat.ForSale);
         }
 
         private static bool MatchesSearch(string value, string? searchTerm)

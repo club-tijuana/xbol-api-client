@@ -18,12 +18,14 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var bundles = await bundleRepository.Get(
+            var bundles = (await bundleRepository.Get(
                     b => b.Status == Commons.Enums.EventStatus.Published &&
-                    b.BundleType == Commons.Enums.BundleType.SeasonPass &&
-                    b.PublishedDate <= now
-                    && b.OffSaleDate > now
-                ).ToListAsync();
+                    b.BundleType == Commons.Enums.BundleType.SeasonPass,
+                    includedProperties: ["BundleSections.BundleSeats"]
+                )
+                .ToListAsync())
+                .Where(bundle => bundle.PublishedDate <= now && bundle.OffSaleDate > now)
+                .ToList();
 
             var bundlesStates = bundles.Select(b => new
             {
@@ -43,7 +45,7 @@ namespace Odasoft.XBOL.Business.Services
             if (clientId == null)
             {
                 var bundle = bundlesStates
-                    .Where(b => b.IsGeneral)
+                    .Where(b => b.IsGeneral && EventCatalogService.IsBuyableBundle(b.Bundle))
                     .Select(b => b.Bundle)
                     .FirstOrDefault();
 
@@ -72,8 +74,8 @@ namespace Odasoft.XBOL.Business.Services
 
                 var season = seasonStatesWithAccess
                     .Where(b =>
-                        b.IsGeneral
-                        || (b.HasPrevious && (b.IsRenewal || b.IsPreSale))
+                        b.HasPrevious && (b.IsRenewal || b.IsPreSale) && HasForSaleSeat(b.Bundle)
+                        || b.IsGeneral && EventCatalogService.IsBuyableBundle(b.Bundle)
                     )
                     .Select(b => b.Bundle)
                     .FirstOrDefault();
@@ -82,6 +84,13 @@ namespace Odasoft.XBOL.Business.Services
                     ? null
                     : await MapBundleItemAsync(season, includeMedia);
             }
+        }
+
+        private static bool HasForSaleSeat(Bundle bundle)
+        {
+            return bundle.BundleSections
+                .SelectMany(section => section.BundleSeats)
+                .Any(seat => seat.ForSale);
         }
 
         public async Task<SeoMetadataDTO> GetBundleMetadataAsync(long bundleId)
