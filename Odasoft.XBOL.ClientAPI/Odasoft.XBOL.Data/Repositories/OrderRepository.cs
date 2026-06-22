@@ -275,11 +275,6 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount })
                 .ToListAsync();
 
-            var fees = await DbContext.Set<OrderFee>()
-                .Where(f => f.OrderId == result.OrderId)
-                .Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount })
-                .ToListAsync();
-
             var detail = new MyEventDetailDTO
             {
                 OrderId = result.OrderId,
@@ -300,8 +295,8 @@ namespace Odasoft.XBOL.Data.Repositories
 
                 Seats = result.Seats,
                 SelectedSeats = result.SelectedSeats,
-                Currency = result.Currency,
-                // Currency = "MXN",
+                //Currency = result.Currency,
+                Currency = "MXN",
                 Fees = fees
             };
 
@@ -541,6 +536,55 @@ namespace Odasoft.XBOL.Data.Repositories
                 }
             }
 
+            decimal computedTotalFees = orderData.TotalFees;
+            decimal computedTotalTaxes = orderData.TotalTaxes;
+            List<OrderFeeDTO> computedFees;
+
+            if (orderData.TotalFees == 0 && !orderData.Fees.Any())
+            {
+                var priceListItemIds = orderData.Tickets
+                    .Select(t => t.PriceListItemId)
+                    .Where(id => id.HasValue && id.Value != 0)
+                    .Select(id => id!.Value)
+                    .Distinct()
+                    .ToList();
+
+                if (priceListItemIds.Any())
+                {
+                    var feesByPriceListItem = await DbContext.Set<PriceListItemFee>()
+                        .Where(f => priceListItemIds.Contains(f.PriceListItemId))
+                        .GroupBy(f => f.PriceListItemId)
+                        .ToDictionaryAsync(g => g.Key, g => g.ToList());
+
+                    var allFeeItems = orderData.Tickets
+                        .Where(t => t.PriceListItemId.HasValue && feesByPriceListItem.ContainsKey(t.PriceListItemId.Value))
+                        .SelectMany(t => feesByPriceListItem[t.PriceListItemId!.Value])
+                        .ToList();
+
+                    computedTotalFees = allFeeItems.Where(f => f.ChargeCategory != "Tax").Sum(f => f.FeeAmount);
+                    computedTotalTaxes = allFeeItems.Where(f => f.ChargeCategory == "Tax").Sum(f => f.FeeAmount);
+                    computedFees = allFeeItems
+                        .GroupBy(f => new { f.FeeType, f.ChargeCategory })
+                        .Select(g => new OrderFeeDTO
+                        {
+                            FeeType = g.Key.FeeType,
+                            Amount = g.Sum(f => f.FeeAmount),
+                            ChargeCategory = g.Key.ChargeCategory
+                        })
+                        .ToList();
+                }
+                else
+                {
+                    computedFees = new List<OrderFeeDTO>();
+                }
+            }
+            else
+            {
+                computedFees = orderData.Fees
+                    .Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount })
+                    .ToList();
+            }
+
             var seats = orderData.Tickets
                 .Select(t => new
                 {
@@ -590,8 +634,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     Folio = (clientId != null || isPaymentLink == true) ? orderData.Reference : "",
                     OrderType = orderData.OrderType,
                     SubTotal = (clientId != null || isPaymentLink == true) ? orderData.SubTotal : 0,
-                    TotalFees = (clientId != null || isPaymentLink == true) ? orderData.TotalFees : 0,
-                    TotalTaxes = (clientId != null || isPaymentLink == true) ? orderData.TotalTaxes : 0,
+                    TotalFees = (clientId != null || isPaymentLink == true) ? computedTotalFees : 0,
+                    TotalTaxes = (clientId != null || isPaymentLink == true) ? computedTotalTaxes : 0,
                     Discount = (clientId != null || isPaymentLink == true) ? orderData.Discount : 0,
                     Total = (clientId != null || isPaymentLink == true) ? orderData.Total : 0,
                     Currency = (clientId != null || isPaymentLink == true) ? "MXN" : "",
@@ -606,9 +650,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
                     ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>(),
-                    Fees = (clientId != null || isPaymentLink == true)
-                        ? orderData.Fees.Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount }).ToList()
-                        : new List<OrderFeeDTO>()
+                    Fees = (clientId != null || isPaymentLink == true) ? computedFees : new List<OrderFeeDTO>()
                 };
             }
             else if (orderData.OrderType == OrderType.Bundle)
@@ -655,8 +697,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     Folio = (clientId != null || isPaymentLink == true) ? orderData.Reference : "",
                     OrderType = orderData.OrderType,
                     SubTotal = (clientId != null || isPaymentLink == true) ? orderData.SubTotal : 0,
-                    TotalFees = (clientId != null || isPaymentLink == true) ? orderData.TotalFees : 0,
-                    TotalTaxes = (clientId != null || isPaymentLink == true) ? orderData.TotalTaxes : 0,
+                    TotalFees = (clientId != null || isPaymentLink == true) ? computedTotalFees : 0,
+                    TotalTaxes = (clientId != null || isPaymentLink == true) ? computedTotalTaxes : 0,
                     Discount = (clientId != null || isPaymentLink == true) ? orderData.Discount : 0,
                     Total = (clientId != null || isPaymentLink == true) ? orderData.Total : 0,
                     Currency = (clientId != null || isPaymentLink == true) ? "MXN" : "",
@@ -671,9 +713,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
                     ItemSeats = (clientId != null || isPaymentLink == true) ? seats : new List<MyEventSeatDTO>(),
                     ItemSeatsLabels = (clientId != null || isPaymentLink == true) ? seatsLabels : new List<SeatDTO>(),
-                    Fees = (clientId != null || isPaymentLink == true)
-                        ? orderData.Fees.Select(f => new OrderFeeDTO { FeeType = f.FeeType, Amount = f.Amount }).ToList()
-                        : new List<OrderFeeDTO>()
+                    Fees = (clientId != null || isPaymentLink == true) ? computedFees : new List<OrderFeeDTO>()
                 };
             }
             else

@@ -43,6 +43,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<Media> Media => Set<Media>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<PriceListItemFee> PriceListItemFees => Set<PriceListItemFee>();
 
         public XBOLDbContext() { }
 

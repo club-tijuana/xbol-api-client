@@ -54,7 +54,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             var result = await _bundleService.GetBlockedSeatsAsync(client.Id, bundleId);
 
-            return Ok(result);
+            return Ok(new List<string>());
         }
     }
 }
