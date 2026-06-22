@@ -18,11 +18,14 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var bundles = await bundleRepository.Get(
+            var bundles = (await bundleRepository.Get(
                     b => b.Status == Commons.Enums.EventStatus.Published &&
-                    b.BundleType == Commons.Enums.BundleType.SeasonPass &&
-                    b.OffSaleDate > now
-                ).ToListAsync();
+                    b.BundleType == Commons.Enums.BundleType.SeasonPass,
+                    includedProperties: ["BundleSections.BundleSeats"]
+                )
+                .ToListAsync())
+                .Where(bundle => bundle.PublishedDate <= now && bundle.OffSaleDate > now)
+                .ToList();
 
             var bundlesStates = bundles.Select(b => new
             {
@@ -36,13 +39,13 @@ namespace Odasoft.XBOL.Business.Services
                 IsPreSale = now >= b.PreSaleDate && now < b.OnSaleDate,
                 IsGeneral = now >= b.OnSaleDate && now < b.OffSaleDate
             })
-            .OrderByDescending(b => b.Bundle.Id)
+            .OrderByDescending(b => b.Bundle.StartDate)
             .ToList();
 
             if (clientId == null)
             {
                 var bundle = bundlesStates
-                    .Where(b => b.IsGeneral)
+                    .Where(b => b.IsGeneral && EventCatalogService.IsBuyableBundle(b.Bundle))
                     .Select(b => b.Bundle)
                     .FirstOrDefault();
 
@@ -71,8 +74,8 @@ namespace Odasoft.XBOL.Business.Services
 
                 var season = seasonStatesWithAccess
                     .Where(b =>
-                        b.IsGeneral
-                        || (b.HasPrevious && (b.IsRenewal || b.IsPreSale))
+                        b.HasPrevious && (b.IsRenewal || b.IsPreSale) && HasForSaleSeat(b.Bundle)
+                        || b.IsGeneral && EventCatalogService.IsBuyableBundle(b.Bundle)
                     )
                     .Select(b => b.Bundle)
                     .FirstOrDefault();
@@ -81,6 +84,13 @@ namespace Odasoft.XBOL.Business.Services
                     ? null
                     : await MapBundleItemAsync(season, includeMedia);
             }
+        }
+
+        private static bool HasForSaleSeat(Bundle bundle)
+        {
+            return bundle.BundleSections
+                .SelectMany(section => section.BundleSeats)
+                .Any(seat => seat.ForSale);
         }
 
         public async Task<SeoMetadataDTO> GetBundleMetadataAsync(long bundleId)
@@ -132,9 +142,18 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<Bundle?> GetLatestBundleAsync(long originBundleId)
         {
+            var now = DateTimeOffset.UtcNow;
+
             var bundleChainData = await bundleRepository.Get()
                                         .AsNoTracking()
-                                        .Where(b => b.DeletedAt == null && b.PreviousBundleId.HasValue)
+                                        .Where(b =>
+                                            b.Status == Commons.Enums.EventStatus.Published
+                                            && b.PublishedDate < now
+                                            && b.RenewalStartDate <= now
+                                            && b.OffSaleDate > now
+                                            && b.DeletedAt == null
+                                            && b.PreviousBundleId.HasValue
+                                        )
                                         .Select(b => new { Id = b.Id, PreviousBundleId = b.PreviousBundleId!.Value })
                                         .ToListAsync();
 
@@ -151,6 +170,38 @@ namespace Odasoft.XBOL.Business.Services
                             .Get()
                             .AsNoTracking()
                             .FirstOrDefaultAsync(s => s.Id == latestBundleId && s.DeletedAt == null);
+        }
+
+        public async Task<List<string>> GetBlockedSeatsAsync(long idClient, long bundleId)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var currentBundle = await bundleRepository.GetByIdAsync(bundleId);
+
+            if (currentBundle == null)
+            {
+                return new List<string>();
+            }
+
+            if (currentBundle.PreviousBundleId == null)
+            {
+                return new List<string>();
+            }
+
+            if (currentBundle.OnSaleDate <= now)
+            {
+                return new List<string>();
+            }
+
+            var blockedSeats = await bundlePassRepository
+                .Get(bp =>
+                    bp.BundleId == currentBundle.PreviousBundleId
+                    && bp.ClientId != idClient
+                )
+                .Select(bp => bp.TrackingCode)
+                .ToListAsync();
+
+            return blockedSeats;
         }
     }
 }

@@ -5,7 +5,6 @@ using Odasoft.XBOL.Data.Queries;
 using Odasoft.XBOL.Data.Repositories;
 using Odasoft.XBOL.DTO;
 using Odasoft.XBOL.Models;
-using System.Threading.Tasks;
 
 namespace Odasoft.XBOL.Business.Services
 {

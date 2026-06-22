@@ -67,9 +67,9 @@ namespace Odasoft.XBOL.Business.Services
             return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, includeMedia);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(int? page, int? pageSize)
+        public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(int? page, int? pageSize, bool includeMedia = false)
         {
-            return await _eventRepository.GetUpcomingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE);
+            return await _eventRepository.GetUpcomingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, includeMedia);
         }
 
         public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(
@@ -98,7 +98,7 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, bool includeImages = false, bool includeMedia = false)
         {
-            EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, includeImages);
+            EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, includeImages, includeMedia);
 
             if (eventDetail != null)
             {

@@ -16,6 +16,7 @@ namespace Odasoft.XBOL.Models
         public decimal ExchangeRate { get; set; }
 
         public PaymentType PaymentType { get; set; }
+        public PaymentStatus PaymentStatus { get; set; }
 
         public string Provider { get; set; } = null!;
         public string ProviderReference { get; set; } = null!;

@@ -16,6 +16,10 @@ namespace Odasoft.XBOL.ClientAPI.Tests.Services;
 
 public sealed class ClientIdentityServiceTests
 {
+    private const long UsPhoneRegionId = 1;
+    private const long MxPhoneRegionId = 2;
+    private const long CaPhoneRegionId = 3;
+
     [Fact]
     public async Task GetMeAsync_resolves_client_by_verified_phone_identifier()
     {
@@ -122,6 +126,7 @@ public sealed class ClientIdentityServiceTests
     public async Task RegisterAsync_creates_phone_client_from_matching_verified_phone_identifier()
     {
         await using var database = await TestDatabase.CreateAsync();
+        var mxRegion = await database.GetPhoneRegionAsync("MX");
         var service = CreateService(database.Context);
 
         var result = await service.RegisterAsync(
@@ -142,6 +147,10 @@ public sealed class ClientIdentityServiceTests
         result.Client.UserId.Should().Be("phone-root-uid");
         result.Client.FullName.Should().Be("Phone Buyer");
         result.Client.PhoneNumber.Should().Be("+526641234567");
+        result.Client.PhoneRegionCodeId.Should().Be(mxRegion.Id);
+        result.Client.PhoneCode.Should().Be("+52");
+        var client = await database.Context.Clients.SingleAsync();
+        client.PhoneRegionCodeId.Should().Be(mxRegion.Id);
         var identifiers = await database.Context.ClientLoginIdentifiers
             .OrderBy(x => x.Type)
             .ToListAsync();
@@ -160,6 +169,7 @@ public sealed class ClientIdentityServiceTests
     public async Task RegisterAsync_returns_country_calling_code_for_us_phone_identifier()
     {
         await using var database = await TestDatabase.CreateAsync();
+        var usRegion = await database.GetPhoneRegionAsync("US");
         var service = CreateService(database.Context);
 
         var result = await service.RegisterAsync(
@@ -177,6 +187,7 @@ public sealed class ClientIdentityServiceTests
 
         result.Client.PhoneNumber.Should().Be("+14155550100");
         result.Client.PhoneCode.Should().Be("+1");
+        result.Client.PhoneRegionCodeId.Should().Be(usRegion.Id);
     }
 
     [Fact]
@@ -407,7 +418,143 @@ public sealed class ClientIdentityServiceTests
     }
 
     [Fact]
-    public async Task RegisterAsync_does_not_claim_existing_contact_client_with_matching_phone()
+    public async Task RegisterAsync_claims_imported_client_with_matching_phone_contact()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var importedClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "+526641234567");
+        importedClient.Orders.Add(CreateImportedOrder());
+        database.Context.Clients.Add(importedClient);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var result = await service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "+526641234567",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526641234567",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        result.Client.Id.Should().Be(importedClient.Id);
+        result.Client.PhoneNumber.Should().Be("+526641234567");
+        (await database.Context.Clients.CountAsync()).Should().Be(1);
+        var claimedClient = await database.Context.Clients.SingleAsync();
+        claimedClient.FirebaseUid.Should().Be("phone-root-uid");
+        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
+        identifiers.Should().HaveCount(2);
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.FirebaseUid
+            && identifier.NormalizedValue == "phone-root-uid");
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.Phone
+            && identifier.NormalizedValue == "+526641234567");
+    }
+
+    [Fact]
+    public async Task RegisterAsync_claims_imported_client_with_digits_only_phone_contact()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var importedClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "526642322873");
+        importedClient.Orders.Add(CreateImportedOrder());
+        database.Context.Clients.Add(importedClient);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var result = await service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "6642322873",
+                IdentifierCountryCode = "MX",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526642322873",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        result.Client.Id.Should().Be(importedClient.Id);
+        (await database.Context.Clients.CountAsync()).Should().Be(1);
+        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.Phone
+            && identifier.NormalizedValue == "+526642322873");
+    }
+
+    [Fact]
+    public async Task RegisterAsync_fails_closed_when_phone_claim_matches_multiple_imported_clients()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var firstClient = CreateClient(email: "first@example.com", phoneNumber: "+526641234567");
+        firstClient.Orders.Add(CreateImportedOrder("FIRST"));
+        var secondClient = CreateClient(email: "second@example.com", phoneNumber: "+526641234567");
+        secondClient.Orders.Add(CreateImportedOrder("SECOND"));
+        database.Context.Clients.AddRange(firstClient, secondClient);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var act = () => service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "+526641234567",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526641234567",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<ClientAuthException>();
+        exception.Which.StatusCode.Should().Be(409);
+        exception.Which.Code.Should().Be(ClientAuthProblemCodes.ClientIdentityConflict);
+        (await database.Context.ClientLoginIdentifiers.CountAsync()).Should().Be(0);
+        (await database.Context.Clients.CountAsync(x => x.FirebaseUid != null)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_claims_imported_client_with_only_bundle_pass_ownership()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var importedClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "526642322873");
+        var bundlePass = CreateBundlePass();
+        bundlePass.Client = importedClient;
+        database.Context.Clients.Add(importedClient);
+        database.Context.Set<BundlePass>().Add(bundlePass);
+        await database.Context.SaveChangesAsync();
+        var service = CreateService(database.Context);
+
+        var result = await service.RegisterAsync(
+            new RegisterRequest
+            {
+                Identifier = "6642322873",
+                IdentifierCountryCode = "MX",
+                FullName = "Phone Buyer"
+            },
+            CreatePrincipal(
+                firebaseUid: "phone-root-uid",
+                phoneNumber: "+526642322873",
+                signInProvider: "phone"),
+            CancellationToken.None);
+
+        result.Client.Id.Should().Be(importedClient.Id);
+        (await database.Context.Clients.CountAsync()).Should().Be(1);
+        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
+        identifiers.Should().Contain(identifier =>
+            identifier.ClientId == importedClient.Id
+            && identifier.Type == ClientLoginIdentifierType.Phone
+            && identifier.NormalizedValue == "+526642322873");
+    }
+
+    [Fact]
+    public async Task RegisterAsync_does_not_claim_contact_only_client_without_owned_items()
     {
         await using var database = await TestDatabase.CreateAsync();
         var contactOnlyClient = CreateClient(email: "boxoffice@example.com", phoneNumber: "+526641234567");
@@ -428,48 +575,29 @@ public sealed class ClientIdentityServiceTests
             CancellationToken.None);
 
         result.Client.Id.Should().NotBe(contactOnlyClient.Id);
-        result.Client.PhoneNumber.Should().Be("+526641234567");
         (await database.Context.Clients.CountAsync()).Should().Be(2);
         var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
         identifiers.Should().OnlyContain(identifier => identifier.ClientId == result.Client.Id);
     }
 
     [Fact]
-    public async Task RegisterAsync_creates_email_client_from_identifier_without_phone_contact()
+    public async Task RegisterAsync_rejects_email_identifier_while_phone_only_registration_is_enabled()
     {
         await using var database = await TestDatabase.CreateAsync();
-        var firebaseAuth = Substitute.For<IFirebaseClientAuthClient>();
-        firebaseAuth.CreateUserAsync(
-                Arg.Is<CreateFirebaseClientUserRequest>(args =>
-                    args.Email == "buyer@example.com"
-                    && args.Password == "ValidPassword123!"
-                    && args.DisplayName == "Email Buyer"
-                    && args.EmailVerified == false),
-                Arg.Any<CancellationToken>())
-            .Returns(new FirebaseClientUser(
-                "email-root-uid",
-                "buyer@example.com",
-                false,
-                "Email Buyer",
-                null));
-        firebaseAuth.CreateCustomTokenAsync("email-root-uid", Arg.Any<CancellationToken>())
-            .Returns("custom-token");
-        var service = CreateService(database.Context, firebaseAuth);
+        var service = CreateService(database.Context);
 
-        var result = await service.RegisterAsync(new RegisterRequest
+        var act = () => service.RegisterAsync(new RegisterRequest
         {
             Identifier = " Buyer@Example.COM ",
             Password = "ValidPassword123!",
             FullName = "Email Buyer"
         }, CreateAnonymousPrincipal(), CancellationToken.None);
 
-        result.VerificationStatus.Should().Be("pending");
-        result.Client.Email.Should().Be("buyer@example.com");
-        result.Client.PhoneNumber.Should().BeEmpty();
-        var identifiers = await database.Context.ClientLoginIdentifiers.ToListAsync();
-        identifiers.Should().ContainSingle();
-        identifiers.Single().Type.Should().Be(ClientLoginIdentifierType.FirebaseUid);
-        identifiers.Single().NormalizedValue.Should().Be("email-root-uid");
+        var exception = await act.Should().ThrowAsync<ClientAuthException>();
+        exception.Which.StatusCode.Should().Be(400);
+        exception.Which.Code.Should().Be(ClientAuthProblemCodes.InvalidRegistration);
+        database.Context.Clients.Should().BeEmpty();
+        database.Context.ClientLoginIdentifiers.Should().BeEmpty();
     }
 
     private static ClientIdentityService CreateService(
@@ -479,6 +607,7 @@ public sealed class ClientIdentityServiceTests
         return new ClientIdentityService(
             new ClientRepository(context),
             new ClientLoginIdentifierRepository(context),
+            new PhoneRegionCodeRepository(context),
             firebaseAuth ?? Substitute.For<IFirebaseClientAuthClient>());
     }
 
@@ -544,10 +673,102 @@ public sealed class ClientIdentityServiceTests
             Email = email,
             PhoneNumber = phoneNumber,
             FullName = "Existing Client",
+            PhoneRegionCodeId = MxPhoneRegionId,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             CreatedBy = Guid.Empty,
             UpdatedAt = DateTimeOffset.UtcNow,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static PhoneRegionCode CreatePhoneRegion(long id, string regionCode, string dialCode)
+    {
+        return new PhoneRegionCode
+        {
+            Id = id,
+            RegionCode = regionCode,
+            DialCode = dialCode,
+            FlagEmoji = string.Empty
+        };
+    }
+
+    private static Order CreateImportedOrder(string reference = "IMPORTED")
+    {
+        return new Order
+        {
+            Reference = reference,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static BundlePass CreateBundlePass()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new BundlePass
+        {
+            Bundle = CreateBundle(),
+            TrackingCode = Guid.NewGuid().ToString("N"),
+            PrivateToken = Guid.NewGuid().ToString("N"),
+            BundlePassType = BundlePassType.Full,
+            Status = BundlePassStatus.Active,
+            IsDigital = true,
+            Price = 100,
+            PurchasedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static Bundle CreateBundle()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new Bundle
+        {
+            VenueMap = CreateVenueMap(),
+            Name = "Imported Bundle",
+            Status = EventStatus.Published,
+            BundleType = BundleType.SeasonPass,
+            BundlePricingType = BundlePricingType.Composite,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static VenueMap CreateVenueMap()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new VenueMap
+        {
+            Venue = CreateVenue(),
+            Name = "Imported Venue Map",
+            ExternalMapKey = Guid.NewGuid().ToString("N"),
+            Capacity = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static Venue CreateVenue()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new Venue
+        {
+            Name = "Imported Venue",
+            Category = VenueCategory.Stadium,
+            Status = VenueStatus.Active,
+            CreatedAt = now,
+            UpdatedAt = now,
+            CreatedBy = Guid.Empty,
             UpdatedBy = Guid.Empty
         };
     }
@@ -573,7 +794,17 @@ public sealed class ClientIdentityServiceTests
                 .Options;
             var context = new XBOLDbContext(options);
             await context.Database.EnsureCreatedAsync();
+            context.Set<PhoneRegionCode>().AddRange(
+                CreatePhoneRegion(UsPhoneRegionId, "US", "1"),
+                CreatePhoneRegion(MxPhoneRegionId, "MX", "52"),
+                CreatePhoneRegion(CaPhoneRegionId, "CA", "1"));
+            await context.SaveChangesAsync();
             return new TestDatabase(connection, context);
+        }
+
+        public Task<PhoneRegionCode> GetPhoneRegionAsync(string regionCode)
+        {
+            return Context.Set<PhoneRegionCode>().SingleAsync(x => x.RegionCode == regionCode);
         }
 
         public async ValueTask DisposeAsync()

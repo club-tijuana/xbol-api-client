@@ -4,5 +4,6 @@
     {
         public string FeeType { get; set; } = null!;
         public decimal Amount { get; set; }
+        public string ChargeCategory { get; set; } = "Fee";
     }
 }

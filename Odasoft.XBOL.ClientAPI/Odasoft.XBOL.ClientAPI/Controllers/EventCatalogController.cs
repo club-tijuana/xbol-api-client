@@ -30,9 +30,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             // TODO: Consolidate DTOs and enums usage.
             // Currently, some services use the locally defined models while others use the OpenAPI generated models.
             // Mappings were added as a temporary workaround, but the project should standarize on a single source of truth.
-            [FromQuery] Business.EventCatalogItemType? itemType = null)
+            [FromQuery] Business.EventCatalogItemType? itemType = null,
+            [FromQuery] bool buyableOnly = false)
         {
-            var result = await eventCatalogService.GetItemAsync(id, itemType);
+            var result = await eventCatalogService.GetItemAsync(id, itemType, buyableOnly);
 
             return result is null
                 ? NotFound()

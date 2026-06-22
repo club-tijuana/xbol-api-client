@@ -39,5 +39,22 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("{bundleId}/blocked-seats")]
+        [EndpointName("GetBlockedSeatsAsync")]
+        [ProducesResponseType(typeof(SeoMetadataDTO), StatusCodes.Status200OK)]
+        public async Task<ActionResult<SeoMetadataDTO>> GetBlockedSeatsAsync(
+            [FromRoute] long bundleId)
+        {
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+
+            if (client == null)
+            {
+                return Unauthorized();
+            }
+            var result = await _bundleService.GetBlockedSeatsAsync(client.Id, bundleId);
+
+            return Ok(result);
+        }
     }
 }

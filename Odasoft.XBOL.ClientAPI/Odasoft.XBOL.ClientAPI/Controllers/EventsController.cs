@@ -185,9 +185,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetUpcomingEventsAsync(
             [FromQuery] int? page,
-            [FromQuery] int? pageSize)
+            [FromQuery] int? pageSize,
+            [FromQuery] bool includeMedia = false)
         {
-            var result = await _eventService.GetUpcomingEventsAsync(page, pageSize);
+            var result = await _eventService.GetUpcomingEventsAsync(page, pageSize, includeMedia);
 
             return Ok(result);
         }

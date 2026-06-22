@@ -32,6 +32,7 @@ namespace Odasoft.XBOL.Data.Extensions
             services.AddScoped<BundleRepository>();
             services.AddScoped<BundlePassRepository>();
             services.AddScoped<BundlePassEventTicketRepository>();
+            services.AddScoped<UserRepository>();
 
             return services;
         }
