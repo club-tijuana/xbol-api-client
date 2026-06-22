@@ -317,6 +317,7 @@ public sealed class OrderRepositoryTests
             new BundleService(
                 bundleRepository,
                 bundlePassRepository,
+                orderRepository,
                 mediaRepository),
             bundleRepository,
             new BundlePassEventTicketRepository(context));
