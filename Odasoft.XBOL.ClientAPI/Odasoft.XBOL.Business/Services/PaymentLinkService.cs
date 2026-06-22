@@ -204,15 +204,24 @@ namespace Odasoft.XBOL.Business.Services
             if (request.ResultIndicator != request.SuccessIndicator)
                 throw new Exception($"El indicador de pago no coincide. ResultIndicator: '{request.ResultIndicator}', SuccessIndicator: '{request.SuccessIndicator}'.");
 
-            var order = await _orderRepository.GetByIds(paymentLink.OrderId);
-            if (order == null)
-                throw new Exception("Order not found.");
+            await _ticketingClient.ConfirmCheckoutAsync(new ConfirmCheckoutRequest
+            {
+                LocalOrderId = paymentLink.OrderId,
+                OrderRefId = request.OrderRefId,
+                ResultIndicator = request.ResultIndicator
+            });
 
-            await RecordPaymentAndMarkPaidAsync(paymentLink, order.Total, now,
-                provider: "EvoPayments",
-                providerReference: request.OrderRefId);
+            await MarkPaymentLinkPaidAsync(paymentLink, now);
 
             return paymentLink.OrderId;
+        }
+
+        private async Task MarkPaymentLinkPaidAsync(Models.PaymentLink paymentLink, DateTimeOffset now)
+        {
+            paymentLink.PaidAt = now;
+            paymentLink.Status = PaymentLinkStatus.Paid;
+            await _paymentLinkRepository.UpdateAsync(paymentLink);
+            await _paymentLinkRepository.CommitAsync();
         }
 
         private async Task RecordPaymentAndMarkPaidAsync(
@@ -241,10 +250,7 @@ namespace Odasoft.XBOL.Business.Services
             });
             await _paymentRepository.CommitAsync();
 
-            paymentLink.PaidAt = now;
-            paymentLink.Status = PaymentLinkStatus.Paid;
-            await _paymentLinkRepository.UpdateAsync(paymentLink);
-            await _paymentLinkRepository.CommitAsync();
+            await MarkPaymentLinkPaidAsync(paymentLink, now);
 
             await _orderService.PayOrderAsync(paymentLink.OrderId);
         }
