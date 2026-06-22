@@ -157,6 +157,177 @@ public sealed class EventCatalogServiceTests
     }
 
     [Fact]
+    public async Task GetBundleBannerAsync_ReturnsNullForFirstSaleSeasonPassWithRenewalDates()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var bundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "General Sale Season",
+            now,
+            now.AddDays(-1),
+            now.AddDays(10),
+            renewalStartDate: now.AddDays(2),
+            renewalEndDate: now.AddDays(5));
+
+        database.Context.Bundles.Add(bundle);
+        await database.Context.SaveChangesAsync();
+
+        var sut = CreateBundleService(database.Context);
+
+        var result = await sut.GetBundleBannerAsync();
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBundleBannerAsync_ReturnsGeneralSaleForRenewalBundleAfterRenewalWindow()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var previousBundle = CreateBundle(9, BundleType.SeasonPass, "Previous Season", now, now.AddMonths(-8), now.AddMonths(-2));
+        var bundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "Public Season",
+            now,
+            now.AddDays(-1),
+            now.AddDays(10),
+            renewalStartDate: now.AddDays(-5),
+            renewalEndDate: now.AddDays(-1),
+            previousBundleId: previousBundle.Id);
+
+        database.Context.Bundles.AddRange(previousBundle, bundle);
+        await database.Context.SaveChangesAsync();
+
+        var sut = CreateBundleService(database.Context);
+
+        var result = await sut.GetBundleBannerAsync();
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(bundle.Id);
+        result.IsGeneralSale.Should().BeTrue();
+        result.IsRenewal.Should().BeFalse();
+        result.IsPreSale.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetBundleBannerAsync_ReturnsNullForEligibleClientAfterRenewalBeforePublicSale()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var client = CreateClient(now);
+        var previousBundle = CreateBundle(9, BundleType.SeasonPass, "Previous Season", now, now.AddMonths(-8), now.AddMonths(-2));
+        var presaleBundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "Presale Season",
+            now,
+            now.AddDays(5),
+            now.AddDays(10),
+            renewalStartDate: now.AddDays(-5),
+            renewalEndDate: now.AddDays(-1),
+            preSaleDate: now.AddDays(-1),
+            previousBundleId: previousBundle.Id);
+
+        database.Context.Clients.Add(client);
+        database.Context.Bundles.AddRange(previousBundle, presaleBundle);
+        AddPaidBundlePassOrder(database.Context, client, previousBundle, "A-1", now);
+        await database.Context.SaveChangesAsync();
+
+        var sut = CreateBundleService(database.Context);
+
+        var result = await sut.GetBundleBannerAsync(client.Id);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBundleBannerAsync_ReturnsNullWhenEligibleClientAlreadyRenewedEverySeat()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var client = CreateClient(now);
+        var previousBundle = CreateBundle(9, BundleType.SeasonPass, "Previous Season", now, now.AddMonths(-8), now.AddMonths(-2));
+        var renewalBundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "Renewal Only Season",
+            now,
+            now.AddDays(4),
+            now.AddDays(10),
+            renewalStartDate: now.AddDays(-1),
+            renewalEndDate: now.AddDays(2),
+            preSaleDate: now.AddDays(3),
+            previousBundleId: previousBundle.Id);
+
+        database.Context.Clients.Add(client);
+        database.Context.Bundles.AddRange(previousBundle, renewalBundle);
+        AddPaidBundlePassOrder(database.Context, client, previousBundle, "A-1", now);
+        database.Context.BundlePasses.Add(CreateBundlePass(client, renewalBundle, "A-1", now));
+        await database.Context.SaveChangesAsync();
+
+        var sut = CreateBundleService(database.Context);
+
+        var result = await sut.GetBundleBannerAsync(client.Id);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBundleSeasonByIdAsync_ReturnsNullForFirstSaleSeasonPassWithRenewalDates()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var bundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "Invalid First Sale Season",
+            now,
+            now.AddDays(-1),
+            now.AddDays(10),
+            renewalStartDate: now.AddDays(2),
+            renewalEndDate: now.AddDays(5));
+
+        database.Context.Bundles.Add(bundle);
+        await database.Context.SaveChangesAsync();
+        var sut = CreateBookingService(database.Context);
+
+        var result = await sut.GetBundleSeasonByIdAsync(bundle.Id, clientId: null);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetBundleSeasonByIdAsync_ReturnsPublicRenewalBundleAfterRenewalWindow()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var previousBundle = CreateBundle(9, BundleType.SeasonPass, "Previous Season", now, now.AddMonths(-8), now.AddMonths(-2));
+        var bundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "Public Season",
+            now,
+            now.AddDays(-1),
+            now.AddDays(10),
+            renewalStartDate: now.AddDays(-5),
+            renewalEndDate: now.AddDays(-1),
+            previousBundleId: previousBundle.Id);
+
+        database.Context.Bundles.AddRange(previousBundle, bundle);
+        await database.Context.SaveChangesAsync();
+        var sut = CreateBookingService(database.Context);
+
+        var result = await sut.GetBundleSeasonByIdAsync(bundle.Id, clientId: null);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(bundle.Id);
+        result.IsGeneralSale.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetBundleSeasonByIdAsync_ReturnsNullForUnavailableSeasonPass()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -290,6 +461,65 @@ public sealed class EventCatalogServiceTests
             CreatedAt = now,
             CreatedBy = Guid.Empty,
             UpdatedAt = now,
+            UpdatedBy = Guid.Empty
+        };
+    }
+
+    private static void AddPaidBundlePassOrder(
+        XBOLDbContext context,
+        Client client,
+        Bundle bundle,
+        string trackingCode,
+        DateTimeOffset now)
+    {
+        var bundlePass = CreateBundlePass(client, bundle, trackingCode, now);
+        bundlePass.Id = bundle.Id * 100 + 1;
+        context.BundlePasses.Add(bundlePass);
+        context.Orders.Add(new Order
+        {
+            Client = client,
+            Reference = Guid.NewGuid().ToString("N"),
+            SubTotal = 100,
+            TotalFees = 0,
+            TotalTaxes = 0,
+            Discount = 0,
+            Total = 100,
+            Status = OrderStatus.Paid,
+            OrderType = OrderType.Bundle,
+            SaleChannel = SaleChannel.Online,
+            PaidAt = now.AddMonths(-6),
+            CreatedAt = now.AddMonths(-6),
+            UpdatedAt = now.AddMonths(-6),
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty,
+            Items =
+            [
+                new OrderItem
+                {
+                    ItemType = ItemType.BundlePass,
+                    ItemReferenceId = bundlePass.Id,
+                    Price = 100
+                }
+            ]
+        });
+    }
+
+    private static BundlePass CreateBundlePass(Client client, Bundle bundle, string trackingCode, DateTimeOffset now)
+    {
+        return new BundlePass
+        {
+            Client = client,
+            Bundle = bundle,
+            TrackingCode = trackingCode,
+            PrivateToken = Guid.NewGuid().ToString("N"),
+            BundlePassType = BundlePassType.Full,
+            Status = BundlePassStatus.Active,
+            IsDigital = true,
+            Price = 100,
+            PurchasedAt = now.AddMonths(-6),
+            CreatedAt = now.AddMonths(-6),
+            UpdatedAt = now.AddMonths(-6),
+            CreatedBy = Guid.Empty,
             UpdatedBy = Guid.Empty
         };
     }

@@ -219,7 +219,8 @@ namespace Odasoft.XBOL.Business.Services
                 includedProperties:
                 [
                     "BundleEventSchedules.EventSchedule.Event.VenueMap.Venue",
-                    "VenueMap.Venue"
+                    "VenueMap.Venue",
+                    "BundleSections.BundleSeats"
                 ])
                 .FirstOrDefaultAsync();
 
@@ -416,28 +417,24 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var isRenewal = now >= bundle.RenewalStartDate && now <= bundle.RenewalEndDate;
-            var isPreSale = now >= bundle.PreSaleDate && now < bundle.OnSaleDate;
-            var isGeneral = now >= bundle.OnSaleDate && now < bundle.OffSaleDate;
+            var isRenewal = BundleService.IsRenewalVisible(bundle, now);
+            var isGeneral = BundleService.IsPublicVisible(bundle, now);
 
-            var hasStarted = bundle.RenewalStartDate == null ? true : now >= bundle.RenewalStartDate;
-            var isExpired = now >= bundle.OffSaleDate;
+            if (!BundleService.IsSeasonPassWindowValid(bundle))
+            {
+                return new ReservationAvailabilityResult
+                {
+                    CanReserve = false,
+                    Message = "The bundle is not available at this time"
+                };
+            }
 
-            if (isExpired)
+            if (bundle.OffSaleDate is null || bundle.OffSaleDate <= now)
             {
                 return new ReservationAvailabilityResult
                 {
                     CanReserve = false,
                     Message = "The bundle is no longer available"
-                };
-            }
-
-            if (!hasStarted)
-            {
-                return new ReservationAvailabilityResult
-                {
-                    CanReserve = false,
-                    Message = "The bundle is not yet available"
                 };
             }
 
@@ -455,23 +452,20 @@ namespace Odasoft.XBOL.Business.Services
                 return new ReservationAvailabilityResult { CanReserve = true };
             }
 
-            bool hasPreviousBundle = false;
+            var bundlePassIds = bundle.PreviousBundleId.HasValue
+                ? await _bundlePassRepository.Get(bp =>
+                        bp.ClientId == clientId
+                        && bp.BundleId == bundle.PreviousBundleId)
+                    .Select(sp => sp.Id)
+                    .ToListAsync()
+                : [];
 
-            if (bundle.PreviousBundleId.HasValue)
-            {
-                var bundlePassIds = await _bundlePassRepository.Get(bp =>
-                    bp.ClientId == clientId
-                    && bp.BundleId == bundle.PreviousBundleId
-                )
-                .Select(sp => sp.Id)
-                .ToListAsync();
-
-                hasPreviousBundle = await _orderRepository.Get(o =>
+            var hasPreviousBundle = bundlePassIds.Count > 0 &&
+                await _orderRepository.Get(o =>
                     o.ClientId == clientId
                     && o.OrderType == Commons.Enums.OrderType.Bundle
                     && o.Items.Any(i => bundlePassIds.Contains(i.ItemReferenceId))
                 ).AnyAsync();
-            }
 
             if (!hasPreviousBundle)
             {
@@ -487,7 +481,7 @@ namespace Odasoft.XBOL.Business.Services
                 return new ReservationAvailabilityResult { CanReserve = true };
             }
 
-            if (isRenewal || isPreSale || isGeneral)
+            if (isRenewal || isGeneral)
             {
                 return new ReservationAvailabilityResult { CanReserve = true };
             }

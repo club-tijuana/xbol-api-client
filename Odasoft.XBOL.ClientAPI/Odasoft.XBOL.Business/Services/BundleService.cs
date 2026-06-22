@@ -25,20 +25,16 @@ namespace Odasoft.XBOL.Business.Services
                     includedProperties: ["BundleSections.BundleSeats"]
                 )
                 .ToListAsync())
-                .Where(bundle => bundle.PublishedDate <= now && bundle.OffSaleDate > now)
+                .Where(bundle => IsSeasonPassWindowValid(bundle) &&
+                    bundle.PublishedDate <= now &&
+                    bundle.OffSaleDate > now)
                 .ToList();
 
             var bundlesStates = bundles.Select(b => new
             {
                 Bundle = b,
-                RenewalStart = b.RenewalStartDate,
-                IsRenewal = (
-                                now >= b.RenewalStartDate
-                                && now <= b.RenewalEndDate
-                            )
-                            && now < b.PreSaleDate,
-                IsPreSale = now >= b.PreSaleDate && now < b.OnSaleDate,
-                IsGeneral = now >= b.OnSaleDate && now < b.OffSaleDate
+                IsRenewal = IsRenewalVisible(b, now),
+                IsGeneral = IsPublicVisible(b, now)
             })
             .OrderByDescending(b => b.Bundle.StartDate)
             .ToList();
@@ -52,7 +48,7 @@ namespace Odasoft.XBOL.Business.Services
 
                 return bundle == null
                     ? null
-                    : await MapBundleItemAsync(bundle, includeMedia);
+                    : await MapBundleItemAsync(bundle, includeMedia, isGeneralSale: true);
             }
             else
             {
@@ -82,7 +78,6 @@ namespace Odasoft.XBOL.Business.Services
                 {
                     b.Bundle,
                     b.IsRenewal,
-                    b.IsPreSale,
                     b.IsGeneral,
                     RelatedOrderId = b.Bundle.PreviousBundleId == null
                         ? (long?)null
@@ -96,7 +91,7 @@ namespace Odasoft.XBOL.Business.Services
 
                 var season = seasonStatesWithAccess
                     .Where(b =>
-                        b.RelatedOrderId.HasValue && (b.IsRenewal || b.IsPreSale) && HasForSaleSeat(b.Bundle)
+                        b.RelatedOrderId.HasValue && b.IsRenewal && HasUnrenewedSeat(b.Bundle, clientBundlePasses)
                         || b.IsGeneral && EventCatalogService.IsBuyableBundle(b.Bundle)
                     )
                     .FirstOrDefault();
@@ -107,10 +102,96 @@ namespace Odasoft.XBOL.Business.Services
                         season.Bundle,
                         includeMedia,
                         season.IsRenewal,
-                        season.IsPreSale,
+                        false,
                         season.IsGeneral,
                         season.IsGeneral ? null : season.RelatedOrderId);
             }
+        }
+
+        public static bool IsSeasonPassWindowValid(Bundle bundle)
+        {
+            if (bundle.BundleType != Commons.Enums.BundleType.SeasonPass)
+            {
+                return true;
+            }
+
+            if (bundle.PreviousBundleId is null)
+            {
+                return bundle.RenewalStartDate is null && bundle.RenewalEndDate is null;
+            }
+
+            if (bundle.RenewalStartDate is null || bundle.RenewalEndDate is null)
+            {
+                return false;
+            }
+
+            if (bundle.RenewalStartDate >= bundle.RenewalEndDate)
+            {
+                return false;
+            }
+
+            if (bundle.OnSaleDate is not null && bundle.OnSaleDate < bundle.RenewalEndDate)
+            {
+                return false;
+            }
+
+            return bundle.PreSaleDate is null ||
+                (bundle.PreSaleDate >= bundle.RenewalEndDate && bundle.OnSaleDate is not null && bundle.PreSaleDate < bundle.OnSaleDate);
+        }
+
+        public static bool IsPublicVisible(Bundle bundle, DateTimeOffset now)
+        {
+            if (!IsSeasonPassWindowValid(bundle) ||
+                bundle.Status != Commons.Enums.EventStatus.Published ||
+                bundle.PublishedDate is null ||
+                bundle.PublishedDate > now ||
+                bundle.OnSaleDate is null ||
+                bundle.OffSaleDate is null ||
+                now < bundle.OnSaleDate ||
+                now >= bundle.OffSaleDate ||
+                !HasForSaleSeat(bundle))
+            {
+                return false;
+            }
+
+            return bundle.PreviousBundleId is null ||
+                bundle.RenewalEndDate is null ||
+                now >= bundle.RenewalEndDate;
+        }
+
+        public static bool IsRenewalVisible(Bundle bundle, DateTimeOffset now)
+        {
+            return IsSeasonPassWindowValid(bundle) &&
+                bundle.PreviousBundleId is not null &&
+                bundle.RenewalStartDate <= now &&
+                now < bundle.RenewalEndDate;
+        }
+
+        private static bool HasUnrenewedSeat(Bundle bundle, IEnumerable<BundlePass> clientBundlePasses)
+        {
+            if (bundle.PreviousBundleId is null)
+            {
+                return false;
+            }
+
+            var previousTrackingCodes = clientBundlePasses
+                .Where(pass => pass.BundleId == bundle.PreviousBundleId.Value)
+                .Select(pass => pass.TrackingCode)
+                .Distinct()
+                .ToHashSet();
+
+            if (previousTrackingCodes.Count == 0)
+            {
+                return false;
+            }
+
+            var renewedTrackingCodes = clientBundlePasses
+                .Where(pass => pass.BundleId == bundle.Id)
+                .Select(pass => pass.TrackingCode)
+                .Distinct()
+                .ToHashSet();
+
+            return previousTrackingCodes.Except(renewedTrackingCodes).Any();
         }
 
         private static bool HasForSaleSeat(Bundle bundle)

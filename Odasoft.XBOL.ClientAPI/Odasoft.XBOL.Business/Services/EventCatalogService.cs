@@ -269,23 +269,21 @@ namespace Odasoft.XBOL.Business.Services
 
         internal static bool IsBuyableBundle(Bundle bundle)
         {
-            var now = DateTimeOffset.UtcNow;
+            return bundle.BundleType == Commons.Enums.BundleType.SeasonPass
+                ? BundleService.IsPublicVisible(bundle, DateTimeOffset.UtcNow)
+                : IsPublicBundleVisible(bundle, DateTimeOffset.UtcNow);
+        }
 
-            if (bundle.Status != Commons.Enums.EventStatus.Published
-                || bundle.PublishedDate is null
-                || bundle.PublishedDate.Value > now
-                || bundle.OnSaleDate is null
-                || bundle.OffSaleDate is null
-                || now < bundle.OnSaleDate.Value
-                || now >= bundle.OffSaleDate.Value
-                || !HasForSaleSeat(bundle))
-            {
-                return false;
-            }
-
-            return bundle.BundleType != Commons.Enums.BundleType.SeasonPass
-                || !bundle.PreviousBundleId.HasValue
-                || (bundle.RenewalEndDate.HasValue && now >= bundle.RenewalEndDate.Value);
+        private static bool IsPublicBundleVisible(Bundle bundle, DateTimeOffset now)
+        {
+            return bundle.Status == Commons.Enums.EventStatus.Published
+                && bundle.PublishedDate is not null
+                && bundle.PublishedDate.Value <= now
+                && bundle.OnSaleDate is not null
+                && bundle.OffSaleDate is not null
+                && now >= bundle.OnSaleDate.Value
+                && now < bundle.OffSaleDate.Value
+                && HasForSaleSeat(bundle);
         }
 
         private static bool HasForSaleSeat(Bundle bundle)
