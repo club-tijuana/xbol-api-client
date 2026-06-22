@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 using Odasoft.XBOL.Business.Services;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
@@ -27,10 +28,11 @@ public sealed class EventCatalogServiceTests
             BundleType.SeasonPass,
             "Renewal Only Season",
             now,
-            now.AddDays(-1),
+            now.AddDays(4),
             now.AddDays(10),
             renewalStartDate: now.AddDays(-1),
             renewalEndDate: now.AddDays(2),
+            preSaleDate: now.AddDays(3),
             previousBundleId: 9));
 
         await database.Context.SaveChangesAsync();
@@ -61,7 +63,7 @@ public sealed class EventCatalogServiceTests
             BundleType.SeasonPass,
             "Renewal Only Season",
             now,
-            now.AddDays(-1),
+            now.AddDays(4),
             now.AddDays(10),
             renewalStartDate: now.AddDays(-1),
             renewalEndDate: now.AddDays(2),
@@ -76,7 +78,7 @@ public sealed class EventCatalogServiceTests
     }
 
     [Fact]
-    public async Task GetBundleBannerAsync_ReturnsRenewalSeasonForEligibleClient()
+    public async Task GetBundleBannerAsync_ReturnsRenewalSeasonWithOrderForEligibleClient()
     {
         await using var database = await TestDatabase.CreateAsync();
         var now = DateTimeOffset.UtcNow;
@@ -87,7 +89,7 @@ public sealed class EventCatalogServiceTests
             BundleType.SeasonPass,
             "Renewal Only Season",
             now,
-            now.AddDays(-1),
+            now.AddDays(4),
             now.AddDays(10),
             renewalStartDate: now.AddDays(-1),
             renewalEndDate: now.AddDays(2),
@@ -96,8 +98,9 @@ public sealed class EventCatalogServiceTests
 
         database.Context.Clients.Add(client);
         database.Context.Bundles.AddRange(previousBundle, renewalBundle);
-        database.Context.BundlePasses.Add(new BundlePass
+        var previousBundlePass = new BundlePass
         {
+            Id = 100,
             Client = client,
             Bundle = previousBundle,
             TrackingCode = "A-1",
@@ -111,7 +114,36 @@ public sealed class EventCatalogServiceTests
             UpdatedAt = now.AddMonths(-6),
             CreatedBy = Guid.Empty,
             UpdatedBy = Guid.Empty
-        });
+        };
+        var order = new Order
+        {
+            Client = client,
+            Reference = Guid.NewGuid().ToString("N"),
+            SubTotal = 100,
+            TotalFees = 0,
+            TotalTaxes = 0,
+            Discount = 0,
+            Total = 100,
+            Status = OrderStatus.Paid,
+            OrderType = OrderType.Bundle,
+            SaleChannel = SaleChannel.Online,
+            PaidAt = now.AddMonths(-6),
+            CreatedAt = now.AddMonths(-6),
+            UpdatedAt = now.AddMonths(-6),
+            CreatedBy = Guid.Empty,
+            UpdatedBy = Guid.Empty,
+            Items =
+            [
+                new OrderItem
+                {
+                    ItemType = ItemType.BundlePass,
+                    ItemReferenceId = previousBundlePass.Id,
+                    Price = 100
+                }
+            ]
+        };
+        database.Context.BundlePasses.Add(previousBundlePass);
+        database.Context.Orders.Add(order);
         await database.Context.SaveChangesAsync();
 
         var sut = CreateBundleService(database.Context);
@@ -120,6 +152,30 @@ public sealed class EventCatalogServiceTests
 
         result.Should().NotBeNull();
         result!.Id.Should().Be(renewalBundle.Id);
+        result.IsRenewal.Should().BeTrue();
+        result.RelatedOrderId.Should().Be(order.Id);
+    }
+
+    [Fact]
+    public async Task GetBundleSeasonByIdAsync_ReturnsNullForUnavailableSeasonPass()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var now = DateTimeOffset.UtcNow;
+        var bundle = CreateBundle(
+            10,
+            BundleType.SeasonPass,
+            "Future Season",
+            now,
+            now.AddDays(1),
+            now.AddDays(10));
+
+        database.Context.Bundles.Add(bundle);
+        await database.Context.SaveChangesAsync();
+        var sut = CreateBookingService(database.Context);
+
+        var result = await sut.GetBundleSeasonByIdAsync(bundle.Id, clientId: null);
+
+        result.Should().BeNull();
     }
 
     private static BundleService CreateBundleService(XBOLDbContext context)
@@ -127,7 +183,30 @@ public sealed class EventCatalogServiceTests
         return new BundleService(
             new BundleRepository(context),
             new BundlePassRepository(context),
+            new OrderRepository(context),
             new MediaRepository(context));
+    }
+
+    private static BookingService CreateBookingService(XBOLDbContext context)
+    {
+        var orderRepository = new OrderRepository(context);
+        var clientRepository = new ClientRepository(context);
+        var clientLoginIdentifierRepository = new ClientLoginIdentifierRepository(context);
+
+        return new BookingService(
+            new EventSectionRepository(context),
+            new EventScheduleRepository(context),
+            new MediaRepository(context),
+            new SeasonRepository(context),
+            new SeasonPassRepository(context),
+            orderRepository,
+            new ClientService(
+                orderRepository,
+                clientRepository,
+                clientLoginIdentifierRepository),
+            new BundleRepository(context),
+            new BundlePassRepository(context),
+            Substitute.For<Odasoft.XBOL.Business.ITicketingClient>());
     }
 
     private static Bundle CreateBundle(

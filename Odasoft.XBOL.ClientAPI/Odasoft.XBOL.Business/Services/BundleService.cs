@@ -11,6 +11,7 @@ namespace Odasoft.XBOL.Business.Services
     public class BundleService(
         BundleRepository bundleRepository,
         BundlePassRepository bundlePassRepository,
+        OrderRepository orderRepository,
         MediaRepository mediaRepository
     )
     {
@@ -55,11 +56,26 @@ namespace Odasoft.XBOL.Business.Services
             }
             else
             {
-                var clientSeasonIds = await bundlePassRepository.Get(bp =>
+                var clientBundlePasses = await bundlePassRepository.Get(bp =>
                     bp.ClientId == clientId
                 )
-                .Select(bp => bp.BundleId)
-                .Distinct()
+                .ToListAsync();
+                var clientBundlePassIds = clientBundlePasses
+                    .Select(bp => bp.Id)
+                    .ToList();
+                var clientBundleOrders = await orderRepository.Get(o =>
+                    o.ClientId == clientId &&
+                    o.OrderType == OrderType.Bundle &&
+                    o.Items.Any(i => clientBundlePassIds.Contains(i.ItemReferenceId))
+                )
+                .Select(o => new
+                {
+                    o.Id,
+                    BundlePassId = o.Items
+                        .Where(i => clientBundlePassIds.Contains(i.ItemReferenceId))
+                        .Select(i => i.ItemReferenceId)
+                        .First()
+                })
                 .ToListAsync();
 
                 var seasonStatesWithAccess = bundlesStates.Select(b => new
@@ -68,21 +84,32 @@ namespace Odasoft.XBOL.Business.Services
                     b.IsRenewal,
                     b.IsPreSale,
                     b.IsGeneral,
-                    HasPrevious = b.Bundle.PreviousBundleId != null
-                        && clientSeasonIds.Contains(b.Bundle.PreviousBundleId.Value)
+                    RelatedOrderId = b.Bundle.PreviousBundleId == null
+                        ? (long?)null
+                        : clientBundleOrders
+                            .Where(o => clientBundlePasses.Any(bp =>
+                                bp.Id == o.BundlePassId &&
+                                bp.BundleId == b.Bundle.PreviousBundleId.Value))
+                            .Select(o => (long?)o.Id)
+                            .FirstOrDefault()
                 }).ToList();
 
                 var season = seasonStatesWithAccess
                     .Where(b =>
-                        b.HasPrevious && (b.IsRenewal || b.IsPreSale) && HasForSaleSeat(b.Bundle)
+                        b.RelatedOrderId.HasValue && (b.IsRenewal || b.IsPreSale) && HasForSaleSeat(b.Bundle)
                         || b.IsGeneral && EventCatalogService.IsBuyableBundle(b.Bundle)
                     )
-                    .Select(b => b.Bundle)
                     .FirstOrDefault();
 
                 return season == null
                     ? null
-                    : await MapBundleItemAsync(season, includeMedia);
+                    : await MapBundleItemAsync(
+                        season.Bundle,
+                        includeMedia,
+                        season.IsRenewal,
+                        season.IsPreSale,
+                        season.IsGeneral,
+                        season.IsGeneral ? null : season.RelatedOrderId);
             }
         }
 
@@ -110,7 +137,13 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        private async Task<BundleItemDTO> MapBundleItemAsync(Bundle bundle, bool includeMedia)
+        private async Task<BundleItemDTO> MapBundleItemAsync(
+            Bundle bundle,
+            bool includeMedia,
+            bool isRenewal = false,
+            bool isPreSale = false,
+            bool isGeneralSale = false,
+            long? relatedOrderId = null)
         {
             var media = await mediaRepository
                 .Get(filter: m =>
@@ -136,7 +169,11 @@ namespace Odasoft.XBOL.Business.Services
                 ExternalKey = bundle.ExternalKey,
                 Media = includeMedia
                     ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
-                    : null
+                    : null,
+                IsRenewal = isRenewal,
+                IsPreSale = isPreSale,
+                IsGeneralSale = isGeneralSale,
+                RelatedOrderId = relatedOrderId
             };
         }
 

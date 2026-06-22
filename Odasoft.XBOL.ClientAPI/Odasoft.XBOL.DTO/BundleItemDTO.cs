@@ -12,5 +12,6 @@
         public bool IsRenewal { get; set; }
         public bool IsPreSale { get; set; }
         public bool IsGeneralSale { get; set; }
+        public long? RelatedOrderId { get; set; }
     }
 }

@@ -232,7 +232,7 @@ namespace Odasoft.XBOL.Business.Services
 
             if (!result.CanReserve)
             {
-                throw new Exception(result.Message);
+                return null;
             }
 
             return await MapBundleSeasonItemAsync(bundle, includeMedia);
