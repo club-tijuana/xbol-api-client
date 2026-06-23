@@ -38,16 +38,6 @@ namespace Odasoft.XBOL.Data.Repositories
                                     && bp.Status == BundlePassStatus.Active
                                     && bp.Bundle.Status == EventStatus.Published
                                     && bp.Bundle.DeletedAt == null
-                                    && DbContext.Set<BundlePassEventTicket>()
-                                        .Where(bpet => bpet.BundlePassId == bp.Id)
-                                        .Join(DbContext.Set<Ticket>(),
-                                            bpet => bpet.TicketId,
-                                            t => t.Id,
-                                            (bpet, t) => t)
-                                        .Any(t =>
-                                            t.OriginalClientId == idClient ||
-                                            t.CurrentClientId == idClient
-                                        )
                                 )
                             )
                         )

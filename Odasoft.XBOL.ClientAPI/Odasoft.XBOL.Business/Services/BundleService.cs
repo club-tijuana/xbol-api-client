@@ -262,18 +262,31 @@ namespace Odasoft.XBOL.Business.Services
         {
             var now = DateTimeOffset.UtcNow;
 
-            var bundleChainData = await bundleRepository.Get()
-                                        .AsNoTracking()
-                                        .Where(b =>
-                                            b.Status == Commons.Enums.EventStatus.Published
-                                            && b.PublishedDate < now
-                                            && b.RenewalStartDate <= now
-                                            && b.OffSaleDate > now
-                                            && b.DeletedAt == null
-                                            && b.PreviousBundleId.HasValue
-                                        )
-                                        .Select(b => new { Id = b.Id, PreviousBundleId = b.PreviousBundleId!.Value })
-                                        .ToListAsync();
+            var bundleCandidates = await bundleRepository.Get()
+                .AsNoTracking()
+                .Where(b =>
+                    b.Status == Commons.Enums.EventStatus.Published
+                    && b.DeletedAt == null
+                    && b.PreviousBundleId.HasValue
+                )
+                .Select(b => new
+                {
+                    b.Id,
+                    PreviousBundleId = b.PreviousBundleId!.Value,
+                    b.PublishedDate,
+                    b.RenewalStartDate,
+                    b.OffSaleDate
+                })
+                .ToListAsync();
+
+            var bundleChainData = bundleCandidates
+                .Where(b =>
+                    b.PublishedDate < now
+                    && b.RenewalStartDate <= now
+                    && b.OffSaleDate > now
+                )
+                .Select(b => new { b.Id, b.PreviousBundleId })
+                .ToList();
 
             var nextBundleLookup = bundleChainData.ToDictionary(s => s.PreviousBundleId, s => s.Id);
 
