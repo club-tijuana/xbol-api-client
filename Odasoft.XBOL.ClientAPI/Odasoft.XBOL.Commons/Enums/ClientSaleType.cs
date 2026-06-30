@@ -2,9 +2,9 @@
 {
     public enum ClientSaleType
     {
-        Event,
-        SeasonPass,
-        EventGroup,
-        Bundle
+        Event = 0,
+        SeasonPass = 1,
+        Bundle = 2,
+        EventGroup = 3
     }
 }

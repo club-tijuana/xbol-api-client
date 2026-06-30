@@ -14,6 +14,7 @@ namespace Odasoft.XBOL.Business.Services
         private const int MIN_PAGE = 1;
         private const int MAX_PAGE = 50;
         private const string SEASONPASS = "SEASONPASS";
+        private const string BUNDLEPASS = "BUNDLEPASS";
 
         private readonly OrderRepository _orderRepository;
         private readonly ClientRepository _clientRepository;
@@ -25,12 +26,16 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonPassEventTicketRepository _seasonPassEventTicketRepository;
         private readonly SeasonRepository _seasonRepository;
         private readonly SeasonSeatRepository _seasonSeatRepository;
+        private readonly BundlePassRepository _bundlePassRepository;
         private readonly EventRepository _eventRepository;
         private readonly SeasonService _seasonService;
         private readonly EventScheduleService _eventScheduleService;
         private readonly ITicketingClient _ticketingClient;
         private readonly ILogger<OrderService> _logger;
         private readonly ClientCreditTransactionService _clientCreditTransactionService;
+        private readonly BundleService _bundleService;
+        private readonly BundleRepository _bundleRepository;
+        private readonly BundlePassEventTicketRepository _bundlePassEventTicketRepository;
 
         public OrderService(
             OrderRepository orderRepository,
@@ -48,7 +53,11 @@ namespace Odasoft.XBOL.Business.Services
             EventScheduleService eventScheduleService,
             ITicketingClient ticketingClient,
             ILogger<OrderService> logger,
-            ClientCreditTransactionService clientCreditTransactionService
+            ClientCreditTransactionService clientCreditTransactionService,
+            BundlePassRepository bundlePassRepository,
+            BundleService bundleService,
+            BundleRepository bundleRepository,
+            BundlePassEventTicketRepository bundlePassEventTicketRepository
         )
         {
             _orderRepository = orderRepository;
@@ -67,6 +76,10 @@ namespace Odasoft.XBOL.Business.Services
             _ticketingClient = ticketingClient;
             _logger = logger;
             _clientCreditTransactionService = clientCreditTransactionService;
+            _bundlePassRepository = bundlePassRepository;
+            _bundleService = bundleService;
+            _bundleRepository = bundleRepository;
+            _bundlePassEventTicketRepository = bundlePassEventTicketRepository;
         }
 
         public async Task<OrderDTO?> GetOrderAsync(long? clientId, long orderId, bool? isPaymentLink = false)
@@ -77,6 +90,7 @@ namespace Odasoft.XBOL.Business.Services
         public async Task<long> CreateEventOrderAsync(EventBookingRequest request)
         {
             IDbContextTransaction transaction = await _orderRepository.BeginTransactionAsync();
+            OrderStatus orderStatus = OrderStatus.Pending;
 
             try
             {
@@ -92,6 +106,7 @@ namespace Odasoft.XBOL.Business.Services
                 List<Ticket> tickets = await CreateTicketsAsync(request.Seats, schedule.EventId, client);
 
                 // TODO: Retrieve Fee and Tax once dynamic pricing is implemented
+                // TODO: Retrieve prices from DB, do not trust in front
                 decimal Subtotal = request.Seats.Sum(x => x.SeatPrice);
                 decimal Fee = 0;
                 decimal Tax = 0;
@@ -121,7 +136,7 @@ namespace Odasoft.XBOL.Business.Services
                     ClientId = request.ClientContact.Id.Value,
                     UserId = null,
                     Reference = request.Localizer,
-                    Status = OrderStatus.Paid,
+                    Status = orderStatus,
                     PaidAt = now,
                     SubTotal = Subtotal,
                     TotalFees = Fee,
@@ -631,7 +646,7 @@ namespace Odasoft.XBOL.Business.Services
             await _ticketRepository.UpdateRangeAsync(tickets);
         }
 
-        public async Task<SeasonToRenovateDTO> GetOrderToRenovate(long orderId, long clientId)
+        public async Task<BundleToRenovateDTO> GetOrderToRenovate(long orderId, long clientId)
         {
             var now = DateTimeOffset.UtcNow;
             Order? order = await _orderRepository.GetOrderWithItems(orderId);
@@ -660,40 +675,40 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception("No tickets found for this order");
             }
 
-            SeasonPass? seasonPass = await _seasonPassRepository.Get(
-                    filter: sp => sp.Id == item.ItemReferenceId,
-                    includedProperties: ["Season"]
+            BundlePass? bundlePass = await _bundlePassRepository.Get(
+                    filter: bp => bp.Id == item.ItemReferenceId,
+                    includedProperties: ["Bundle"]
                 )
                 .FirstOrDefaultAsync();
 
-            if (seasonPass == null)
+            if (bundlePass == null)
             {
-                throw new Exception("Season pass not found");
+                throw new Exception("Bundle pass not found");
             }
 
-            if (seasonPass.Season.EndDate > now)
+            if (bundlePass.Bundle.EndDate > now)
             {
-                throw new Exception("The season has not ended yet");
+                throw new Exception("The bundle has not ended yet");
             }
 
-            Season? season = await _seasonRepository.Get(
-                    filter: season =>
-                        season.PreviousSeasonId == seasonPass.SeasonId
+            Bundle? bundle = await _bundleRepository.Get(
+                    filter: bundle =>
+                        bundle.PreviousBundleId == bundlePass.BundleId
                 ).FirstOrDefaultAsync();
 
-            if (season == null)
+            if (bundle == null)
             {
-                throw new Exception("Season not found");
+                throw new Exception("Bundle not found");
             }
 
-            if (season.ExternalSeasonKey == null)
+            if (bundle.ExternalKey == null)
             {
-                throw new Exception("Season has no key");
+                throw new Exception("Bundle has no key");
             }
 
-            if (season.EndDate < now)
+            if (bundle.EndDate < now)
             {
-                throw new Exception("The season is no longer available");
+                throw new Exception("The bundle is no longer available");
             }
 
             List<Ticket> tickets = await _ticketRepository.Get(
@@ -703,105 +718,129 @@ namespace Odasoft.XBOL.Business.Services
                     ]
                 ).ToListAsync();
 
-            if (!tickets.Any())
+            List<PreviousBundleSeat> previousSeats = tickets
+                .Select(t => new PreviousBundleSeat(
+                    t.SectionLabelSnapshot,
+                    t.SeatLabelSnapshot,
+                    t.EventSeat.BaseSeat.BaseRow.BaseSection.BaseZone.ExternalZoneKey))
+                .ToList();
+
+            if (!previousSeats.Any())
+            {
+                previousSeats = await GetBundlePassSeatsForOrderAsync(order.Id);
+            }
+
+            if (!previousSeats.Any())
             {
                 throw new Exception("No tickets found for the specified order");
             }
 
-            if (season.RenewalEndDate < now)
+            if (bundle.RenewalEndDate < now)
             {
-                var availableSeats = await CheckSeatStatus(season.ExternalSeasonKey, tickets.Select(t => t.SeatLabelSnapshot).ToList());
+                var availableSeats = await CheckSeatStatus(
+                    bundle.ExternalKey,
+                    previousSeats.Select(t => t.SeatLabel).ToList());
 
-                tickets = tickets
-                    .Where(t => availableSeats.Contains(t.SeatLabelSnapshot))
+                previousSeats = previousSeats
+                    .Where(t => availableSeats.Contains(t.SeatLabel))
                     .ToList();
 
-                if (!tickets.Any())
+                if (!previousSeats.Any())
                 {
                     throw new Exception("The seats are no longer available for renewal");
                 }
             }
 
             List<SeatDTO>? prevSeatPrices = null;
-            var seatLabels = tickets.Select(t => t.SeatLabelSnapshot);
+            var seatLabels = previousSeats.Select(t => t.SeatLabel);
 
-            var renewedObjects = await _orderRepository.Get(
-                    filter: o => o.RelatedOrderId == orderId,
-                    includedProperties: [
-                        "Items"
-                    ]
+            var renewedSeatLabels = await (
+                    from renewedOrder in _orderRepository.Get()
+                    from renewedItem in renewedOrder.Items
+                    join renewedPass in _bundlePassRepository.Get()
+                        on renewedItem.ItemReferenceId equals renewedPass.Id
+                    where renewedOrder.RelatedOrderId == orderId
+                        && renewedOrder.OrderType == OrderType.Bundle
+                        && renewedOrder.Status == OrderStatus.Paid
+                        && renewedItem.ItemType == Commons.Enums.ItemType.BundlePass
+                        && renewedPass.BundleId == bundle.Id
+                    select renewedPass.TrackingCode
                 )
-                .SelectMany(o => o.Items.Select(oi => oi.ItemReferenceId))
+                .Distinct()
                 .ToListAsync();
 
-            if (renewedObjects != null)
+            if (renewedSeatLabels.Count > 0)
             {
-                var renewedTickets = await _seasonPassEventTicketRepository.Get(
-                        filter: sp => renewedObjects.Contains(sp.SeasonPassId),
-                        includedProperties: ["Ticket"]
-                    )
-                    .Select(spet => spet.Ticket.SeatLabelSnapshot)
-                    .ToListAsync();
+                var renewedSeatLabelSet = renewedSeatLabels.ToHashSet();
+                seatLabels = seatLabels.Except(renewedSeatLabelSet);
 
-                seatLabels = seatLabels.Except(renewedTickets);
-
-                tickets = tickets
-                    .Where(t => !renewedTickets.Contains(t.SeatLabelSnapshot))
+                previousSeats = previousSeats
+                    .Where(t => !renewedSeatLabelSet.Contains(t.SeatLabel))
                     .ToList();
+            }
+
+            if (!previousSeats.Any())
+            {
+                throw new Exception("The order cannot be renewed");
             }
 
             if (seatLabels != null)
             {
-                var seasonPrices = await _ticketingClient.GetSeatsIoPricesAsync(SaleType.SeasonPass, season.Id);
+                var bundlePrices = await _ticketingClient.GetSeatsIoPricesAsync(SaleType.Bundle, bundle.Id, true) ?? [];
 
-                var seatOverrides = seasonPrices
+                var seatOverrides = bundlePrices
                     .Where(x => x.Objects != null)
-                    .SelectMany(x => x.Objects!.Select(seat => new
+                    .SelectMany(x => x.Objects!.Select(seat =>
                     {
-                        Seat = seat,
-                        Price = x.Price,
-                        PriceListItemId = x.PriceListItemId
+                        var price = x.BasePrice ?? x.Price;
+                        var priceListItemId = x.BasePriceListItemId ?? x.PriceListItemId;
+
+                        return new
+                        {
+                            Seat = seat,
+                            Price = price,
+                            PriceListItemId = priceListItemId
+                        };
                     }))
                     .ToDictionary(x => x.Seat);
 
-                var zonePrices = seasonPrices
+                var zonePrices = bundlePrices
                     .Where(x => x.Category.HasValue)
                     .ToDictionary(
                         x => x.Category!.Value,
-                        x => new
+                        x =>
                         {
-                            x.Price,
-                            x.PriceListItemId
+                            var price = x.BasePrice ?? x.Price;
+                            var priceListItemId = x.BasePriceListItemId ?? x.PriceListItemId;
+
+                            return new
+                            {
+                                Price = price,
+                                PriceListItemId = priceListItemId
+                            };
                         });
 
-                prevSeatPrices = tickets
-                    .Select(ticket =>
+                prevSeatPrices = previousSeats
+                    .Select(seat =>
                     {
                         if (seatOverrides.TryGetValue(
-                                ticket.SeatLabelSnapshot,
+                                seat.SeatLabel,
                                 out var overridePrice))
                         {
                             return new SeatDTO
                             {
-                                ExternalSeatObjectKey = ticket.SeatLabelSnapshot,
+                                ExternalSeatObjectKey = seat.SeatLabel,
                                 PriceOverride = overridePrice.Price,
                                 PriceListItemId = overridePrice.PriceListItemId
                             };
                         }
 
-                        var zoneKey = ticket.EventSeat
-                            .BaseSeat
-                            .BaseRow
-                            .BaseSection
-                            .BaseZone
-                            .ExternalZoneKey;
-
-                        if (zoneKey.HasValue &&
-                            zonePrices.TryGetValue(zoneKey.Value, out var zonePrice))
+                        if (seat.ZoneKey.HasValue &&
+                            zonePrices.TryGetValue(seat.ZoneKey.Value, out var zonePrice))
                         {
                             return new SeatDTO
                             {
-                                ExternalSeatObjectKey = ticket.SeatLabelSnapshot,
+                                ExternalSeatObjectKey = seat.SeatLabel,
                                 PriceOverride = zonePrice.Price,
                                 PriceListItemId = zonePrice.PriceListItemId
                             };
@@ -809,23 +848,23 @@ namespace Odasoft.XBOL.Business.Services
 
                         return new SeatDTO
                         {
-                            ExternalSeatObjectKey = ticket.SeatLabelSnapshot
+                            ExternalSeatObjectKey = seat.SeatLabel
                         };
                     })
                     .ToList();
             }
 
-            return new SeasonToRenovateDTO
+            return new BundleToRenovateDTO
             {
-                SeasonId = season.Id,
-                SeasonKey = season.ExternalSeasonKey,
-                PreviousSeasonId = seasonPass.SeasonId,
+                BundleId = bundle.Id,
+                BundleKey = bundle.ExternalKey,
+                PreviousBundleId = bundlePass.BundleId,
                 RelatedOrderId = order.Id,
-                PreviousSeats = tickets
+                PreviousSeats = previousSeats
                     .Select(t => new
                     {
-                        sectionLabel = t.SectionLabelSnapshot,
-                        seatLabel = t.SeatLabelSnapshot
+                        sectionLabel = t.SectionLabel,
+                        seatLabel = t.SeatLabel
                     })
                     .Distinct()
                     .GroupBy(g => g.sectionLabel)
@@ -835,11 +874,61 @@ namespace Odasoft.XBOL.Business.Services
                         Seats = string.Join(", ", gs.Select(s => s.seatLabel))
                     })
                     .ToList(),
-                PreviousSeatPrices = prevSeatPrices
+                PreviousSeatPrices = (prevSeatPrices ?? [])
                     .GroupBy(x => x.ExternalSeatObjectKey)
                     .Select(g => g.First())
                     .ToList()
             };
+        }
+
+        public async Task<List<SeatDTO>> GetOrderToRenovatePrices(long orderId, long clientId)
+        {
+            var renovation = await GetOrderToRenovate(orderId, clientId);
+
+            if (renovation.PreviousSeatPrices == null || renovation.PreviousSeatPrices.Count == 0)
+            {
+                throw new Exception("No renovation prices were found for this order");
+            }
+
+            return renovation.PreviousSeatPrices;
+        }
+
+        private sealed record PreviousBundleSeat(
+            string SectionLabel,
+            string SeatLabel,
+            long? ZoneKey);
+
+        private async Task<List<PreviousBundleSeat>> GetBundlePassSeatsForOrderAsync(long orderId)
+        {
+            var rows = await (
+                    from order in _orderRepository.Get()
+                    from item in order.Items
+                    join bundlePass in _bundlePassRepository.Get()
+                        on item.ItemReferenceId equals bundlePass.Id
+                    where order.Id == orderId
+                        && item.ItemType == Commons.Enums.ItemType.BundlePass
+                        && bundlePass.BundleSeatId != null
+                    select new
+                    {
+                        SectionLabel = bundlePass.BundleSeat!.BundleSection.DisplayName,
+                        BaseSectionName = bundlePass.BundleSeat.BundleSection.BaseSection.Name,
+                        bundlePass.BundleSeat.ExternalSeatObjectKey,
+                        SeatNumber = bundlePass.BundleSeat.BaseSeat.SeatNumber,
+                        ZoneKey = bundlePass.BundleSeat.BaseSeat.BaseRow.BaseSection.BaseZone.ExternalZoneKey
+                    }
+                )
+                .ToListAsync();
+
+            return rows
+                .Select(row => new PreviousBundleSeat(
+                    string.IsNullOrWhiteSpace(row.SectionLabel)
+                        ? row.BaseSectionName
+                        : row.SectionLabel,
+                    string.IsNullOrWhiteSpace(row.ExternalSeatObjectKey)
+                        ? row.SeatNumber
+                        : row.ExternalSeatObjectKey,
+                    row.ZoneKey))
+                .ToList();
         }
 
         public async Task<CanRenewOrderResponse> CanOrderBeRenewedAsync(string referenceId)
@@ -849,7 +938,7 @@ namespace Odasoft.XBOL.Business.Services
             Order? order = await _orderRepository.Get()
                                 .Include(x => x.Items)
                                 .AsNoTracking()
-                                .Where(o => o.Reference == referenceId)
+                                .Where(o => o.Reference == referenceId && o.Status == OrderStatus.Paid)
                                 .SingleOrDefaultAsync();
 
             if (order == null)
@@ -875,16 +964,20 @@ namespace Odasoft.XBOL.Business.Services
                 TotalSeats = 0
             };
 
-            if (order.OrderType != OrderType.SeasonPass)
+            if (order.OrderType != OrderType.Bundle)
             {
                 return response;
             }
 
             var passIds = order.Items.Select(oi => oi.ItemReferenceId).ToList();
 
-            var passData = await _seasonPassRepository.Get()
-                .Where(sp => passIds.Contains(sp.Id))
-                .Select(sp => new { sp.Id, sp.SeasonId, sp.TrackingCode })
+            //var passData = await _seasonPassRepository.Get()
+            //    .Where(sp => passIds.Contains(sp.Id))
+            //    .Select(sp => new { sp.Id, sp.SeasonId, sp.TrackingCode })
+            //    .ToListAsync();
+            var passData = await _bundlePassRepository.Get()
+                .Where(bp => passIds.Contains(bp.Id))
+                .Select(bp => new { bp.Id, bp.BundleId, bp.TrackingCode })
                 .ToListAsync();
 
             if (!passData.Any())
@@ -892,30 +985,30 @@ namespace Odasoft.XBOL.Business.Services
                 return response;
             }
 
-            long originalSeasonId = passData.First().SeasonId;
+            long originalSeasonId = passData.First().BundleId;
             var passTrackingCodes = passData.Select(p => p.TrackingCode).Distinct().ToList();
 
             response.TotalSeats = passTrackingCodes.Count;
 
-            Season? latestSeason = await _seasonService.GetLatestSeasonAsync(originalSeasonId);
+            Bundle? latestBundle = await _bundleService.GetLatestBundleAsync(originalSeasonId);
 
-            if (latestSeason == null || originalSeasonId == latestSeason.Id)
+            if (latestBundle == null || originalSeasonId == latestBundle.Id)
             {
                 return response;
             }
 
-            response.NewSeasonId = latestSeason.Id;
+            response.NewSeasonId = latestBundle.Id;
 
             bool isRenewalWindow =
-                latestSeason.RenewalStartDate <= now &&
-                latestSeason.RenewalEndDate >= now;
+                latestBundle.RenewalStartDate <= now &&
+                latestBundle.RenewalEndDate >= now;
 
             bool isPreSaleWindow =
-                latestSeason.PreSaleDate <= now &&
-                latestSeason.OnSaleDate > now;
+                latestBundle.PreSaleDate <= now &&
+                latestBundle.OnSaleDate > now;
 
             bool isOnSaleWindow =
-                latestSeason.OnSaleDate <= now;
+                latestBundle.OnSaleDate <= now;
 
             bool isWithinRenewableWindow =
                 isRenewalWindow ||
@@ -931,10 +1024,18 @@ namespace Odasoft.XBOL.Business.Services
             List<string>? remainingTrackingCodes;
             if (isRenewalWindow)
             {
-                renewedTrackingCodes = await _seasonPassRepository.Get()
-                .Where(sp =>
-                    sp.SeasonId == latestSeason.Id &&
-                    passTrackingCodes.Contains(sp.TrackingCode)
+                //renewedTrackingCodes = await _seasonPassRepository.Get()
+                //.Where(sp =>
+                //    sp.SeasonId == latestBundle.Id &&
+                //    passTrackingCodes.Contains(sp.TrackingCode)
+                //)
+                //.Select(sp => sp.TrackingCode)
+                //.Distinct()
+                //.ToListAsync();
+                renewedTrackingCodes = await _bundlePassRepository.Get()
+                .Where(bp =>
+                    bp.BundleId == latestBundle.Id &&
+                    passTrackingCodes.Contains(bp.TrackingCode)
                 )
                 .Select(sp => sp.TrackingCode)
                 .Distinct()
@@ -952,7 +1053,7 @@ namespace Odasoft.XBOL.Business.Services
 
             renewedTrackingCodes = await _seasonPassRepository.Get()
                 .Where(sp =>
-                    sp.SeasonId == latestSeason.Id &&
+                    sp.SeasonId == latestBundle.Id &&
                     passTrackingCodes.Contains(sp.TrackingCode)
                 )
                 .Select(sp => sp.TrackingCode)
@@ -971,7 +1072,7 @@ namespace Odasoft.XBOL.Business.Services
                 return response;
             }
 
-            var availableTickets = await CheckSeatStatus(latestSeason.ExternalSeasonKey, remainingTrackingCodes);
+            var availableTickets = await CheckSeatStatus(latestBundle.ExternalKey, remainingTrackingCodes);
 
             response.RenewableSeats = availableTickets.Count;
             response.CanRenew = availableTickets.Any();
@@ -1151,13 +1252,39 @@ namespace Odasoft.XBOL.Business.Services
                 orderType,
                 idClient);
 
+            _logger.LogInformation(
+                "Loaded candidate my-events for client {ClientId} order type {OrderType}: page {Page}, page size {PageSize}, total {TotalCount}, orders {OrderCount}",
+                idClient,
+                orderType,
+                currentPage,
+                currentPageSize,
+                result.TotalCount,
+                result.Orders.Count);
+
+            if (result.TotalCount == 0)
+            {
+                var diagnostics = await _orderRepository.GetMyEventsDiagnosticsAsync(orderType, idClient);
+
+                _logger.LogWarning(
+                    "Empty my-events for client {ClientId} order type {OrderType}: paid orders {PaidOrdersByType}, qualifying ticket orders {QualifyingTicketOrders}, bundle pass item orders {BundlePassItemOrders}, owned bundle passes {OwnedBundlePasses}, active owned bundle passes {ActiveOwnedBundlePasses}, published active bundle pass item orders {PublishedActiveBundlePassItemOrders}",
+                    idClient,
+                    orderType,
+                    diagnostics.PaidOrdersByType,
+                    diagnostics.QualifyingTicketOrders,
+                    diagnostics.BundlePassItemOrders,
+                    diagnostics.OwnedBundlePasses,
+                    diagnostics.ActiveOwnedBundlePasses,
+                    diagnostics.PublishedActiveBundlePassItemOrders);
+            }
+
             List<MyEventDTO> events = [];
 
             foreach (var order in result.Orders)
             {
-                bool isSeason = order.Tickets.Any(t =>
-                    t.TicketType.ToUpper().Trim() == SEASONPASS
+                bool isBundle = order.Tickets.Any(t =>
+                    t.TicketType.ToUpper().Trim() == BUNDLEPASS
                 );
+                bool canViewTickets = order.Tickets.Any(t => t.EventScheduleId > 0);
 
                 var currentSchedule = order.Tickets
                     .GroupBy(t => t.EventScheduleId)
@@ -1168,7 +1295,7 @@ namespace Odasoft.XBOL.Business.Services
 
                 bool isPastEvent;
 
-                if (isSeason)
+                if (isBundle)
                 {
                     isPastEvent = order.Tickets.All(t => t.EndDateTime < now);
                 }
@@ -1179,7 +1306,7 @@ namespace Odasoft.XBOL.Business.Services
 
                 bool canRenovateSeasonPass = false;
 
-                if (isSeason)
+                if (isBundle)
                 {
                     var renewalResult = await CanOrderBeRenewedAsync(order.Reference);
                     canRenovateSeasonPass = renewalResult.CanRenew;
@@ -1192,16 +1319,26 @@ namespace Odasoft.XBOL.Business.Services
                     EventImage = !string.IsNullOrWhiteSpace(currentSchedule.BannerUrl)
                         ? currentSchedule.BannerUrl
                         : currentSchedule.LegacyPosterUrl ?? string.Empty,
-                    Name = isSeason
+                    Name = isBundle
                         ? currentSchedule.SeasonName
                         : currentSchedule.EventName,
                     StartDate = currentSchedule.StartDateTime,
                     Location = currentSchedule.Location,
-                    IsSeasonPass = isSeason,
+                    IsSeasonPass = isBundle, // TODO: Update name
                     IsPastEvent = isPastEvent,
-                    CanRenovateSeasonPass = canRenovateSeasonPass
+                    CanRenovateSeasonPass = canRenovateSeasonPass,
+                    CanViewTickets = canViewTickets
                 });
             }
+
+            _logger.LogInformation(
+                "Mapped my-events for client {ClientId} order type {OrderType}: page {Page}, page size {PageSize}, total {TotalCount}, items {ItemCount}",
+                idClient,
+                orderType,
+                currentPage,
+                currentPageSize,
+                result.TotalCount,
+                events.Count);
 
             return new PagedResponse<MyEventDTO>
             {
@@ -1250,14 +1387,14 @@ namespace Odasoft.XBOL.Business.Services
             await _orderRepository.CommitAsync();
         }
 
-        private async Task<HashSet<string?>> CheckSeatStatus(string seasonKey, List<string> seatLabels)
+        private async Task<HashSet<string?>> CheckSeatStatus(string bundleKey, List<string> seatLabels)
         {
             if (!seatLabels.Any())
             {
                 return [];
             }
 
-            var response = await _ticketingClient.GetSeatsInfoAsync(seasonKey, seatLabels);
+            var response = await _ticketingClient.GetSeatsInfoAsync(bundleKey, seatLabels);
 
             if (response == null)
             {

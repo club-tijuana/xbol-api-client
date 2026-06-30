@@ -11,6 +11,10 @@ namespace Odasoft.XBOL.Data
         public DbSet<Bundle> Bundles => Set<Bundle>();
         public DbSet<BundleEventSchedule> BundleEventSchedules => Set<BundleEventSchedule>();
         public DbSet<BundleSection> BundleSections => Set<BundleSection>();
+        public DbSet<BundleSeat> BundleSeats => Set<BundleSeat>();
+        public DbSet<BundlePass> BundlePasses => Set<BundlePass>();
+        public DbSet<BundlePassEventTicket> BundlePassEventTickets => Set<BundlePassEventTicket>();
+        public DbSet<BundleTag> BundleTags => Set<BundleTag>();
         public DbSet<Order> Orders => Set<Order>();
         public DbSet<OrderItem> OrderItems => Set<OrderItem>();
         public DbSet<Client> Clients => Set<Client>();
@@ -39,6 +43,7 @@ namespace Odasoft.XBOL.Data
         public DbSet<Media> Media => Set<Media>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<PriceListItemFee> PriceListItemFees => Set<PriceListItemFee>();
 
         public XBOLDbContext() { }
 
@@ -83,6 +88,8 @@ namespace Odasoft.XBOL.Data
             modelBuilder.ApplyConfiguration(new MediaConfiguration());
             modelBuilder.ApplyConfiguration(new BundleConfiguration());
             modelBuilder.ApplyConfiguration(new BundleEventScheduleConfiguration());
+            modelBuilder.ApplyConfiguration(new BundlePassConfiguration());
+            modelBuilder.ApplyConfiguration(new BundleSeatConfiguration());
         }
     }
 }

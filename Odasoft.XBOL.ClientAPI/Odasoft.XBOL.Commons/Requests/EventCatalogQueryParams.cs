@@ -12,6 +12,7 @@ namespace Odasoft.XBOL.Commons.Requests
         public DateTimeOffset? StartDate { get; set; }
         public DateTimeOffset? EndDate { get; set; }
         public bool? Upcoming { get; set; }
+        public bool? BuyableOnly { get; set; }
         public string? SortBy { get; set; }
         public bool Descending { get; set; } = true;
         public int Page { get; set; } = 1;

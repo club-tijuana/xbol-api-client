@@ -46,7 +46,8 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [EndpointName("GetZonesBySeasonIdAsync")]
         public async Task<ActionResult<List<ZoneDTO>>> GetZonesBySeasonIdAsync([FromRoute] long seasonId)
         {
-            var result = await _bookingService.GetZonesBySeasonIdAsync(seasonId);
+            //var result = await _bookingService.GetZonesBySeasonIdAsync(seasonId);
+            var result = await _bookingService.GetZonesByBundleIdAsync(seasonId);
 
             return Ok(result);
         }
@@ -84,17 +85,45 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
         }
 
-        [HttpGet("season-by-id/{seasonId}")]
-        [EndpointName("GetSeasonByScheduleIdAsync")]
-        public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync(
-            [FromRoute] long seasonId,
+        //[HttpGet("season-by-id/{seasonId}")]
+        //[EndpointName("GetSeasonByScheduleIdAsync")]
+        //public async Task<ActionResult<SeasonItemDTO>> GetSeasonByIdAsync(
+        //    [FromRoute] long seasonId,
+        //    [FromQuery] bool includeMedia = false)
+        //{
+        //    var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+
+        //    try
+        //    {
+        //        var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id, includeMedia);
+
+        //        if (result != null)
+        //        {
+        //            return Ok(result);
+        //        }
+        //        else
+        //        {
+        //            return NotFound();
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Failed to get season by id {SeasonId}", seasonId);
+        //        return BadRequest(ex.Message);
+        //    }
+        //}
+
+        [HttpGet("bundle-by-id/{bundleId}")]
+        [EndpointName("GetBundleSeasonByIdAsync")]
+        public async Task<ActionResult<BundleItemDTO>> GetBundleSeasonByIdAsync(
+            [FromRoute] long bundleId,
             [FromQuery] bool includeMedia = false)
         {
             var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
 
             try
             {
-                var result = await _bookingService.GetSeasonByIdAsync(seasonId, client?.Id, includeMedia);
+                var result = await _bookingService.GetBundleSeasonByIdAsync(bundleId, client?.Id, includeMedia);
 
                 if (result != null)
                 {
@@ -107,7 +136,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get season by id {SeasonId}", seasonId);
+                _logger.LogError(ex, "Failed to get season by id {BundleId}", bundleId);
                 return BadRequest(ex.Message);
             }
         }

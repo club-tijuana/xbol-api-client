@@ -31,5 +31,18 @@ namespace Odasoft.XBOL.Data.Repositories
                 .Distinct()
                 .ToListAsync();
         }
+
+        public async Task<IList<ZoneDTO>> GetZonesByBundleIdAsync(long bundleId)
+        {
+            return await DbContext.Set<BundleSection>()
+                .Where(bs => bs.BundleId == bundleId)
+                .Select(bs => new ZoneDTO
+                {
+                    Id = bs.BaseSection.BaseZoneId,
+                    Name = bs.BaseSection.BaseZone.Name
+                })
+                .Distinct()
+                .ToListAsync();
+        }
     }
 }

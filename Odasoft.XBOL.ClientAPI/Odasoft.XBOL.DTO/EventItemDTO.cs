@@ -14,5 +14,7 @@ namespace Odasoft.XBOL.DTO
         public bool IsFavorite { get; set; } = false;
         public IList<EventCategoryDTO> Categories { get; set; } = new List<EventCategoryDTO>();
         public EventMediaSetResponse? Media { get; set; }
+        public int MyProperty { get; set; }
+        public bool IsFromSeasonPass { get; set; } = false;
     }
 }

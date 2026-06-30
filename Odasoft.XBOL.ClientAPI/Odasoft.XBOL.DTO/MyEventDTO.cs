@@ -11,5 +11,6 @@
         public bool IsSeasonPass { get; set; }
         public bool IsPastEvent { get; set; }
         public bool CanRenovateSeasonPass { get; set; }
+        public bool CanViewTickets { get; set; }
     }
 }

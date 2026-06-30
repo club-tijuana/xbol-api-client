@@ -8,8 +8,6 @@ namespace Odasoft.XBOL.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Bundle> builder)
         {
-            builder.ToTable("Bundle");
-
             builder.HasMany(b => b.BundleEventSchedules)
                 .WithOne(bes => bes.Bundle)
                 .HasForeignKey(bes => bes.BundleId)
@@ -18,6 +16,16 @@ namespace Odasoft.XBOL.Data.Configurations
             builder.HasMany(b => b.BundleSections)
                 .WithOne(bs => bs.Bundle)
                 .HasForeignKey(bs => bs.BundleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(b => b.BundleTags)
+                .WithOne(bt => bt.Bundle)
+                .HasForeignKey(bt => bt.BundleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(b => b.BundlePasses)
+                .WithOne(bp => bp.Bundle)
+                .HasForeignKey(bp => bp.BundleId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(b => b.PreviousBundle)

@@ -43,6 +43,18 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
+
+        [HttpGet("main/extended")]
+        [EndpointName("GetMainEventsExtendedAsync")]
+        public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetMainEventsExtendedAsync(
+            [FromQuery] bool includeMedia = false)
+        {
+            var client = await _clientIdentityService.TryResolveCurrentClientAsync(User);
+            var result = await _eventService.GetMainEventsExtendedAsync(includeMedia, client?.Id);
+
+            return Ok(result);
+        }
+
         /// <summary>
         /// Retrieves a paginated list of trending events.
         /// </summary>
@@ -185,9 +197,10 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [ProducesResponseType(typeof(PagedResponse<EventItemDTO>), StatusCodes.Status200OK)]
         public async Task<ActionResult<PagedResponse<EventItemDTO>>> GetUpcomingEventsAsync(
             [FromQuery] int? page,
-            [FromQuery] int? pageSize)
+            [FromQuery] int? pageSize,
+            [FromQuery] bool includeMedia = false)
         {
-            var result = await _eventService.GetUpcomingEventsAsync(page, pageSize);
+            var result = await _eventService.GetUpcomingEventsAsync(page, pageSize, includeMedia);
 
             return Ok(result);
         }
