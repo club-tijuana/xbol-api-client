@@ -8,6 +8,8 @@ namespace Odasoft.XBOL.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<Event> builder)
         {
+            builder.UseTpcMappingStrategy();
+
             builder.HasMany(e => e.Categories)
                .WithMany(c => c.Events)
                .UsingEntity(j => j.ToTable("EventEventCategory"));

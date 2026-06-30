@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests;
 using Odasoft.XBOL.Commons.Responses;
@@ -12,7 +13,7 @@ using ModelEventSchedule = Odasoft.XBOL.Models.EventSchedule;
 
 namespace Odasoft.XBOL.Business.Services
 {
-    public class EventCatalogService(XBOLDbContext dbContext)
+    public class EventCatalogService(XBOLDbContext dbContext, ILogger<EventCatalogService>? logger = null)
     {
         public async Task<PagedResponse<EventCatalogItemDTO>> GetItemsAsync(EventCatalogQueryParams queryParams)
         {
@@ -21,16 +22,29 @@ namespace Odasoft.XBOL.Business.Services
             var eventMedia = await LoadCatalogMediaAsync(events.Select(eventItem => eventItem.Id), ClientSaleType.Event);
             var bundleMedia = await LoadCatalogMediaAsync(bundles.Select(bundle => bundle.Id), ClientSaleType.Bundle);
 
+            logger?.LogInformation(
+                "Loaded event catalog image media: events {EventCount}, event media references {EventMediaReferenceCount}, bundles {BundleCount}, bundle media references {BundleMediaReferenceCount}, item type filter {ItemType}, buyable only {BuyableOnly}",
+                events.Count,
+                eventMedia.Count,
+                bundles.Count,
+                bundleMedia.Count,
+                queryParams.ItemType,
+                queryParams.BuyableOnly);
+
+            var bundleItems = bundles
+                .Where(bundle => queryParams.BuyableOnly != true || IsBuyableBundle(bundle))
+                .Select(bundle => MapBundle(bundle, bundleMedia));
+
             var items = events
                 .Select(eventItem => MapEvent(eventItem, eventMedia))
-                .Concat(bundles.Select(bundle => MapBundle(bundle, bundleMedia)))
+                .Concat(bundleItems)
                 .Where(item => MatchesCatalogFilters(item, queryParams))
                 .ToList();
 
             return Page(Sort(items, queryParams.SortBy, queryParams.Descending), queryParams.Page, queryParams.PageSize);
         }
 
-        public async Task<EventCatalogItemDTO?> GetItemAsync(long id, EventCatalogItemType? itemType = null)
+        public async Task<EventCatalogItemDTO?> GetItemAsync(long id, EventCatalogItemType? itemType = null, bool buyableOnly = false)
         {
             if (itemType is null or EventCatalogItemType.Event)
             {
@@ -45,9 +59,15 @@ namespace Odasoft.XBOL.Business.Services
             if (itemType is null or EventCatalogItemType.Bundle)
             {
                 var bundle = (await LoadBundlesAsync()).FirstOrDefault(item => item.Id == id);
-                if (bundle is not null)
+                if (bundle is not null && (!buyableOnly || IsBuyableBundle(bundle)))
                 {
                     var media = await LoadCatalogMediaAsync([bundle.Id], ClientSaleType.Bundle);
+                    logger?.LogInformation(
+                        "Loaded event catalog bundle image media for bundle {BundleId}: media references {MediaReferenceCount}, buyable only {BuyableOnly}",
+                        bundle.Id,
+                        media.Count,
+                        buyableOnly);
+
                     return MapBundle(bundle, media);
                 }
             }
@@ -76,6 +96,7 @@ namespace Odasoft.XBOL.Business.Services
                 .Include(bundle => bundle.VenueMap)
                     .ThenInclude(venueMap => venueMap!.Venue)
                 .Include(bundle => bundle.BundleSections)
+                    .ThenInclude(section => section.BundleSeats)
                 .Include(bundle => bundle.BundleEventSchedules)
                     .ThenInclude(link => link.EventSchedule)
                     .ThenInclude(schedule => schedule.Event)
@@ -164,10 +185,10 @@ namespace Odasoft.XBOL.Business.Services
         {
             var schedules = BundleSchedules(bundle).ToList();
             var schedule = PickDisplaySchedule(schedules);
-            var venueMapId = bundle.VenueMapId ?? schedule?.Event?.VenueMapId;
+            var venueMapId = bundle.VenueMapId;
             var mediaSet = MediaSet(media, bundle.Id);
             var bannerImageUrl = mediaSet.Banner?.Url;
-            var posterImageUrl = mediaSet.Logo?.Url;
+            var posterImageUrl = mediaSet.Logo?.Url ?? bannerImageUrl;
 
             return new EventCatalogItemDTO
             {
@@ -260,6 +281,32 @@ namespace Odasoft.XBOL.Business.Services
             return queryParams.Upcoming.Value
                 ? item.ScheduledStartDate >= DateTimeOffset.UtcNow
                 : item.ScheduledStartDate < DateTimeOffset.UtcNow;
+        }
+
+        internal static bool IsBuyableBundle(Bundle bundle)
+        {
+            return bundle.BundleType == Commons.Enums.BundleType.SeasonPass
+                ? BundleService.IsPublicVisible(bundle, DateTimeOffset.UtcNow)
+                : IsPublicBundleVisible(bundle, DateTimeOffset.UtcNow);
+        }
+
+        private static bool IsPublicBundleVisible(Bundle bundle, DateTimeOffset now)
+        {
+            return bundle.Status == Commons.Enums.EventStatus.Published
+                && bundle.PublishedDate is not null
+                && bundle.PublishedDate.Value <= now
+                && bundle.OnSaleDate is not null
+                && bundle.OffSaleDate is not null
+                && now >= bundle.OnSaleDate.Value
+                && now < bundle.OffSaleDate.Value
+                && HasForSaleSeat(bundle);
+        }
+
+        private static bool HasForSaleSeat(Bundle bundle)
+        {
+            return bundle.BundleSections
+                .SelectMany(section => section.BundleSeats)
+                .Any(seat => seat.ForSale);
         }
 
         private static bool MatchesSearch(string value, string? searchTerm)

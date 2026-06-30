@@ -10,9 +10,9 @@ namespace Odasoft.XBOL.Models
         public Gender? Gender { get; set; }
         public string? BusinessName { get; set; }
         public string? Email { get; set; }
-        public long? PhoneRegionCodeId { get; set; }
-        public PhoneRegionCode? PhoneRegionCode { get; set; }
-        public string? PhoneNumber { get; set; }
+        public long PhoneRegionCodeId { get; set; }
+        public PhoneRegionCode PhoneRegionCode { get; set; } = null!;
+        public string PhoneNumber { get; set; } = null!;
         public string? TaxId { get; set; }
         public string? Country { get; set; }
         public string? State { get; set; }

@@ -79,7 +79,7 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         [HttpGet("renovate/{orderId}")]
         [Authorize]
         [EndpointName("GetOrderToRenovate")]
-        public async Task<ActionResult<SeasonToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
+        public async Task<ActionResult<BundleToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
 
@@ -92,6 +92,26 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get order to renovate {OrderId}", orderId);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("renovate/{orderId}/prices")]
+        [Authorize]
+        [EndpointName("GetOrderToRenovatePrices")]
+        public async Task<ActionResult<List<SeatDTO>>> GetOrderToRenovatePricesAsync([FromRoute] long orderId)
+        {
+            var client = await _clientIdentityService.RequireCurrentClientAsync(User);
+
+            try
+            {
+                var result = await _orderService.GetOrderToRenovatePrices(orderId, client.Id);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get order renovation prices {OrderId}", orderId);
                 return BadRequest(ex.Message);
             }
         }

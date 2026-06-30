@@ -96,7 +96,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var query = DbContext.Set<Models.Event>()
                 .Where(e =>
-					e.Status == EventStatus.Published
+                    e.Status == EventStatus.Published
                     && e.DeletedAt == null
                     && e.ViewCount > 0
                     && e.Schedules.Any(es =>
@@ -279,7 +279,8 @@ namespace Odasoft.XBOL.Data.Repositories
 
         public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(
             int page,
-            int pageSize)
+            int pageSize,
+            bool includeMedia = false)
         {
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
@@ -301,7 +302,7 @@ namespace Odasoft.XBOL.Data.Repositories
 
             var events = await query
                 .GroupJoin(
-                    DbContext.Set<Media>().Where(x => x.ReferenceType == ClientSaleType.Event && x.DeletedAt == null),
+                    DbContext.Set<Media>().AvailableBlobMedia().Where(x => x.ReferenceType == ClientSaleType.Event),
                     eventObject => eventObject.Id,
                     media => media.ReferenceId,
                     (e, m) => new
@@ -328,7 +329,7 @@ namespace Odasoft.XBOL.Data.Repositories
                             Name = ec.Name,
                             DisplayName = ec.DisplayName
                         }).ToList(),
-                BannerFile = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).FirstOrDefault(),
+                BannerUrl = e.EventImages.Where(i => i.MediaType == ClientMediaType.Banner).OrderBy(i => i.Order).Select(i => i.BlobAsset.Url).FirstOrDefault(),
                 LegacyBannerUrl = e.Event.BannerImageUrl,
                 LegacyPosterUrl = e.Event.PosterImageUrl
             })
@@ -341,13 +342,15 @@ namespace Odasoft.XBOL.Data.Repositories
                 StartDate = e.StartDate,
                 Location = e.Location,
                 Categories = e.Categories,
-                BannerImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                BannerImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyBannerUrl ?? string.Empty,
-                PosterImageUrl = e.BannerFile != null && e.BannerFile.Url != null
-                    ? e.BannerFile.Url
+                PosterImageUrl = e.BannerUrl != null
+                    ? e.BannerUrl
                     : e.LegacyPosterUrl ?? string.Empty
             }).ToList();
+
+            await AttachEventMediaSetsAsync(result, includeMedia);
 
             return new PagedResponse<EventItemDTO>
             {

@@ -29,9 +29,9 @@ namespace Odasoft.XBOL.Models
 
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
+        public DateTimeOffset? DeletedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public Guid UpdatedBy { get; set; }
-        public DateTimeOffset? DeletedAt { get; set; }
 
         public IList<EventSchedule> Schedules { get; set; } = [];
         public IList<EventMedia> Media { get; set; } = [];

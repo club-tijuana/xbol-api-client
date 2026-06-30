@@ -69,6 +69,19 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 long orderId = await _orderService.CreateEventOrderAsync(command.Request);
 
+                // PAY
+                //if (!string.IsNullOrEmpty(command.Request.SessionId))
+                //{
+                //    var payResponse = await _ticketingClient.PayAsync(new PayRequest
+                //    {
+                //        OrderId = orderId,
+                //        OrderRefId = command.Request.OrderRefId,
+                //        SessionId = command.Request.SessionId,
+                //        TransactionRefId = command.Request.TransactionRefId
+                //    });
+                //}
+                // PAY
+
                 return new BookingResult
                 {
                     Message = "Booking created successfully",
@@ -111,11 +124,11 @@ namespace Odasoft.XBOL.Business.Handlers
 
                 ApplyVerifiedClientIdentity(command.Request.ClientContact, command.VerifiedClientId);
 
-                var canReserveSeason = await _bookingService.CanReserveSeasonAsync(season, command.VerifiedClientId);
-                if (!canReserveSeason.CanReserve)
-                {
-                    throw new Exception(canReserveSeason.Message);
-                }
+                //var canReserveSeason = await _bookingService.CanReserveSeasonAsync(season, command.VerifiedClientId);
+                //if (!canReserveSeason.CanReserve)
+                //{
+                //    throw new Exception(canReserveSeason.Message);
+                //}
 
                 command.Request.Localizer = await _sequenceTrackerService.GenerateLocalizerAsync(SEASON_ORDER_LOCALIZER_PREFIX);
 

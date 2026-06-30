@@ -15,6 +15,7 @@ namespace Odasoft.XBOL.Business.Services
         private readonly EventViewRepository _eventViewRepository;
         private readonly SearchSettings _searchSettings;
         private readonly EventsTrackingSettings _eventsTrackingSettings;
+        private readonly BundleService _bundleService;
         private readonly ILogger<EventService> _logger;
         private readonly ITicketingClient _ticketingClient;
 
@@ -30,6 +31,7 @@ namespace Odasoft.XBOL.Business.Services
             EventViewRepository eventViewRepository,
             SearchSettings searchSettings,
             EventsTrackingSettings eventsTrackingSettings,
+            BundleService bundleService,
             ILogger<EventService> logger,
             ITicketingClient ticketingClient)
         {
@@ -41,6 +43,7 @@ namespace Odasoft.XBOL.Business.Services
             _eventsTrackingSettings = eventsTrackingSettings;
             _logger = logger;
             _ticketingClient = ticketingClient;
+            _bundleService = bundleService;
         }
 
         public async Task<PagedResponse<EventItemDTO>> GetMainEventsAsync(bool includeMedia = false)
@@ -57,6 +60,44 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
+        public async Task<PagedResponse<EventItemDTO>> GetMainEventsExtendedAsync(bool includeMedia = false, long? clientId = null)
+        {
+            (List<EventItemDTO> result, int totalCount) = await _eventRepository.GetMainEventsAsync(MAIN_PAGE_SIZE, includeMedia);
+            
+            //bundle banner
+            BundleItemDTO? bundleResult = await _bundleService.GetBundleBannerAsync(clientId, includeMedia);
+            if (bundleResult != null)
+            {
+                var bundleEvent = new EventItemDTO
+                {
+                    Id = bundleResult.Id,
+                    BannerImageUrl = bundleResult.BannerImageUrl ?? string.Empty,
+                    PosterImageUrl = string.Empty,
+                    Name = bundleResult.Name ?? string.Empty,
+                    StartDate = bundleResult.StartDate ?? DateTimeOffset.MinValue,
+                    Location = bundleResult.Location ?? string.Empty,
+                    EventKey = bundleResult.ExternalKey,
+                    Media = bundleResult.Media,
+                    IsFavorite = false,
+                    Categories = new List<EventCategoryDTO>(),
+                    IsFromSeasonPass = true
+                };
+                
+                result.Insert(0,bundleEvent);
+                totalCount++;
+            }
+
+            return new PagedResponse<EventItemDTO>
+            {
+                Items = result,
+                Page = MAIN_CURRENT_PAGE,
+                PageSize = MAIN_PAGE_SIZE,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)MAIN_PAGE_SIZE)
+            };
+        }
+
+
         public async Task<PagedResponse<EventItemDTO>> GetTrendingEventsAsync(int? page, int? pageSize, bool includeMedia = false)
         {
             return await _eventRepository.GetTrendingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, includeMedia);
@@ -67,9 +108,9 @@ namespace Odasoft.XBOL.Business.Services
             return await _eventRepository.GetEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, eventCategoryId, searchTerm, includeMedia);
         }
 
-        public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(int? page, int? pageSize)
+        public async Task<PagedResponse<EventItemDTO>> GetUpcomingEventsAsync(int? page, int? pageSize, bool includeMedia = false)
         {
-            return await _eventRepository.GetUpcomingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE);
+            return await _eventRepository.GetUpcomingEventsAsync(page ?? MIN_PAGE, pageSize ?? MAX_PAGE, includeMedia);
         }
 
         public async Task<FilteredEventsResponse<PerformerDTO, ScheduleItemDTO>> GetFilteredEventsAsync(
@@ -98,7 +139,7 @@ namespace Odasoft.XBOL.Business.Services
 
         public async Task<EventDetailDTO?> GetEventDetailAsync(long eventId, bool includeImages = false, bool includeMedia = false)
         {
-            EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, includeImages);
+            EventDetailDTO? eventDetail = await _eventRepository.GetEventDetailAsync(eventId, includeImages, includeMedia);
 
             if (eventDetail != null)
             {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Odasoft.XBOL.Commons.Enums;
 using Odasoft.XBOL.Commons.Requests.Filters;
 using Odasoft.XBOL.Data.Mapping;
@@ -19,7 +20,10 @@ namespace Odasoft.XBOL.Business.Services
         private readonly SeasonPassRepository _seasonPassRepository;
         private readonly OrderRepository _orderRepository;
         private readonly ClientService _clientService;
+        private readonly BundleRepository _bundleRepository;
+        private readonly BundlePassRepository _bundlePassRepository;
         private readonly ITicketingClient _ticketingClient;
+        private readonly ILogger<BookingService> _logger;
 
         public BookingService(EventSectionRepository eventSectionRepository,
             EventScheduleRepository eventScheduleRepository,
@@ -28,7 +32,10 @@ namespace Odasoft.XBOL.Business.Services
             SeasonPassRepository seasonPassRepository,
             OrderRepository orderRepository,
             ClientService clientService,
-            ITicketingClient ticketingClient)
+            BundleRepository bundleRepository,
+            BundlePassRepository bundlePassRepository,
+            ITicketingClient ticketingClient,
+            ILogger<BookingService> logger)
         {
             _eventSectionRepository = eventSectionRepository;
             _eventScheduleRepository = eventScheduleRepository;
@@ -38,6 +45,9 @@ namespace Odasoft.XBOL.Business.Services
             _clientService = clientService;
             _seasonPassRepository = seasonPassRepository;
             _ticketingClient = ticketingClient;
+            _bundleRepository = bundleRepository;
+            _bundlePassRepository = bundlePassRepository;
+            _logger = logger;
         }
 
         public async Task<IList<ZoneDTO>> GetZonesByEventIdAsync(long scheduleId)
@@ -48,6 +58,11 @@ namespace Odasoft.XBOL.Business.Services
         public async Task<IList<ZoneDTO>> GetZonesBySeasonIdAsync(long seasonId)
         {
             return await _eventSectionRepository.GetZonesBySeasonIdAsync(seasonId);
+        }
+
+        public async Task<IList<ZoneDTO>> GetZonesByBundleIdAsync(long bundleId)
+        {
+            return await _eventSectionRepository.GetZonesByBundleIdAsync(bundleId);
         }
 
         public async Task<SeatAvailabilityDTO> GetSeatAvailabilityAsync(ReservationFilters filters)
@@ -68,14 +83,26 @@ namespace Odasoft.XBOL.Business.Services
                     Name = x.Name ?? string.Empty,
                     DisplayName = x.DisplayName ?? string.Empty,
                     Price = x.Price,
-                    PriceListItemId = x.PriceListItemId
+                    PriceListItemId = x.PriceListItemId,
+                    Fees = x.Fees?.Select(f => new OrderFeeDTO
+                    {
+                        FeeType = f.FeeName ?? string.Empty,
+                        Amount = f.FeeAmount ?? 0,
+                        ChargeCategory = string.IsNullOrEmpty(f.ChargeCategory) ? "Fee" : f.ChargeCategory
+                    }).ToList() ?? new List<OrderFeeDTO>()
                 }).ToList() ?? [],
                 SeatOverrides = response.SeatOverrides?.Select(x => new SeatDTO
                 {
                     Id = x.Id.HasValue ? x.Id.Value : 0,
                     ExternalSeatObjectKey = x.ExternalSeatObjectKey ?? string.Empty,
                     PriceOverride = x.PriceOverride,
-                    PriceListItemId = x.PriceListItemId
+                    PriceListItemId = x.PriceListItemId,
+                    Fees = x.Fees?.Select(f => new OrderFeeDTO
+                    {
+                        FeeType = f.FeeName ?? string.Empty,
+                        Amount = f.FeeAmount ?? 0,
+                        ChargeCategory = string.IsNullOrEmpty(f.ChargeCategory) ? "Fee" : f.ChargeCategory
+                    }).ToList() ?? new List<OrderFeeDTO>()
                 }).ToList() ?? []
             };
         }
@@ -143,38 +170,176 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<SeasonItemDTO?> GetSeasonByIdAsync(long seasonId, long? clientId, bool includeMedia = false)
+        //public async Task<SeasonItemDTO?> GetSeasonByIdAsync(long seasonId, long? clientId, bool includeMedia = false)
+        //{
+        //    var now = DateTimeOffset.UtcNow;
+
+        //    var season = await _seasonRepository.Get(s => s.Id == seasonId)
+        //        .FirstOrDefaultAsync();
+
+        //    if (season == null)
+        //    {
+        //        throw new Exception("Season not found");
+        //    }
+
+        //    var result = await CanReserveSeasonAsync(season, clientId);
+
+        //    if (!result.CanReserve)
+        //    {
+        //        throw new Exception(result.Message);
+        //    }
+
+        //    return await MapSeasonItemAsync(season, includeMedia);
+        //}
+        public async Task<BundleItemDTO?> GetBundleByIdAsync(long bundleId, long? clientId, bool includeMedia = false)
         {
             var now = DateTimeOffset.UtcNow;
 
-            var season = await _seasonRepository.Get(s => s.Id == seasonId)
+            var bundle = await _bundleRepository.Get(b => b.Id == bundleId,
+                includedProperties: ["VenueMap.Venue"])
                 .FirstOrDefaultAsync();
 
-            if (season == null)
+            if (bundle == null)
             {
-                throw new Exception("Season not found");
+                throw new Exception("Bundle not found");
             }
 
-            var result = await CanReserveSeasonAsync(season, clientId);
+            var result = await CanReserveBundleAsync(bundle, clientId);
 
             if (!result.CanReserve)
             {
                 throw new Exception(result.Message);
             }
 
-            return await MapSeasonItemAsync(season, includeMedia);
+            return await MapBundleSeasonItemAsync(bundle, includeMedia);
         }
 
-        public async Task<ReservationAvailabilityResult> CanReserveSeasonAsync(Season season, long? clientId)
+        public async Task<BundleItemDTO?> GetBundleSeasonByIdAsync(long bundleId, long? clientId, bool includeMedia = false)
         {
             var now = DateTimeOffset.UtcNow;
 
-            var isRenewal = now >= season.RenewalStartDate && now <= season.RenewalEndDate;
-            var isPreSale = now >= season.PreSaleDate && now < season.OnSaleDate;
-            var isGeneral = now >= season.OnSaleDate && now < season.OffSaleDate;
+            var bundle = await _bundleRepository.Get(
+                s => s.Id == bundleId,
+                includedProperties:
+                [
+                    "BundleEventSchedules.EventSchedule.Event.VenueMap.Venue",
+                    "VenueMap.Venue",
+                    "BundleSections.BundleSeats"
+                ])
+                .FirstOrDefaultAsync();
 
-            var hasStarted = season.RenewalStartDate == null ? true : now >= season.RenewalStartDate;
-            var isExpired = now >= season.OffSaleDate;
+            if (bundle == null)
+            {
+                throw new Exception("Bundle not found");
+            }
+
+            var result = await CanReserveBundleSeasonAsync(bundle, clientId);
+
+            if (!result.CanReserve)
+            {
+                return null;
+            }
+
+            return await MapBundleSeasonItemAsync(bundle, includeMedia);
+        }
+
+        //public async Task<ReservationAvailabilityResult> CanReserveSeasonAsync(Season season, long? clientId)
+        //{
+        //    var now = DateTimeOffset.UtcNow;
+
+        //    var isRenewal = now >= season.RenewalStartDate && now <= season.RenewalEndDate;
+        //    var isPreSale = now >= season.PreSaleDate && now < season.OnSaleDate;
+        //    var isGeneral = now >= season.OnSaleDate && now < season.OffSaleDate;
+
+        //    var hasStarted = season.RenewalStartDate == null ? true : now >= season.RenewalStartDate;
+        //    var isExpired = now >= season.OffSaleDate;
+
+        //    if (isExpired)
+        //    {
+        //        return new ReservationAvailabilityResult
+        //        {
+        //            CanReserve = false,
+        //            Message = "The season is no longer available"
+        //        };
+        //    }
+
+        //    if (!hasStarted)
+        //    {
+        //        return new ReservationAvailabilityResult
+        //        {
+        //            CanReserve = false,
+        //            Message = "The season is not yet available"
+        //        };
+        //    }
+
+        //    if (clientId == null)
+        //    {
+        //        if (!isGeneral)
+        //        {
+        //            return new ReservationAvailabilityResult
+        //            {
+        //                CanReserve = false,
+        //                Message = "General sale has not started yet"
+        //            };
+        //        }
+
+        //        return new ReservationAvailabilityResult { CanReserve = true };
+        //    }
+
+        //    bool hasPreviousSeason = false;
+
+        //    if (season.PreviousSeasonId.HasValue)
+        //    {
+        //        var seasonPassIds = await _seasonPassRepository.Get(sp =>
+        //            sp.ClientId == clientId
+        //            && sp.SeasonId == season.PreviousSeasonId
+        //        )
+        //        .Select(sp => sp.Id)
+        //        .ToListAsync();
+
+        //        hasPreviousSeason = await _orderRepository.Get(o =>
+        //            o.ClientId == clientId
+        //            && o.OrderType == Commons.Enums.OrderType.SeasonPass
+        //            && o.Items.Any(i => seasonPassIds.Contains(i.ItemReferenceId))
+        //        ).AnyAsync();
+        //    }
+
+        //    if (!hasPreviousSeason)
+        //    {
+        //        if (!isGeneral)
+        //        {
+        //            return new ReservationAvailabilityResult
+        //            {
+        //                CanReserve = false,
+        //                Message = "Available only during general sale"
+        //            };
+        //        }
+
+        //        return new ReservationAvailabilityResult { CanReserve = true };
+        //    }
+
+        //    if (isRenewal || isPreSale || isGeneral)
+        //    {
+        //        return new ReservationAvailabilityResult { CanReserve = true };
+        //    }
+
+        //    return new ReservationAvailabilityResult
+        //    {
+        //        CanReserve = false,
+        //        Message = "The season is not available at this time"
+        //    };
+        //}
+
+        public async Task<ReservationAvailabilityResult> CanReserveBundleAsync(Bundle bundle, long? clientId)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var isRenewal = now >= bundle.RenewalStartDate && now <= bundle.RenewalEndDate;
+            var isPreSale = now >= bundle.PreSaleDate && now < bundle.OnSaleDate;
+            var isGeneral = now >= bundle.OnSaleDate && now < bundle.OffSaleDate;
+
+            var hasStarted = bundle.RenewalStartDate == null ? true : now >= bundle.RenewalStartDate;
+            var isExpired = now >= bundle.OffSaleDate;
 
             if (isExpired)
             {
@@ -210,11 +375,11 @@ namespace Odasoft.XBOL.Business.Services
 
             bool hasPreviousSeason = false;
 
-            if (season.PreviousSeasonId.HasValue)
+            if (bundle.PreviousBundleId.HasValue)
             {
                 var seasonPassIds = await _seasonPassRepository.Get(sp =>
                     sp.ClientId == clientId
-                    && sp.SeasonId == season.PreviousSeasonId
+                    && sp.SeasonId == bundle.PreviousBundleId
                 )
                 .Select(sp => sp.Id)
                 .ToListAsync();
@@ -248,7 +413,87 @@ namespace Odasoft.XBOL.Business.Services
             return new ReservationAvailabilityResult
             {
                 CanReserve = false,
-                Message = "The season is not available at this time"
+                Message = "The bundle is not available at this time"
+            };
+        }
+
+        public async Task<ReservationAvailabilityResult> CanReserveBundleSeasonAsync(Bundle bundle, long? clientId)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            var isRenewal = BundleService.IsRenewalVisible(bundle, now);
+            var isGeneral = BundleService.IsPublicVisible(bundle, now);
+
+            if (!BundleService.IsSeasonPassWindowValid(bundle))
+            {
+                return new ReservationAvailabilityResult
+                {
+                    CanReserve = false,
+                    Message = "The bundle is not available at this time"
+                };
+            }
+
+            if (bundle.OffSaleDate is null || bundle.OffSaleDate <= now)
+            {
+                return new ReservationAvailabilityResult
+                {
+                    CanReserve = false,
+                    Message = "The bundle is no longer available"
+                };
+            }
+
+            if (clientId == null)
+            {
+                if (!isGeneral)
+                {
+                    return new ReservationAvailabilityResult
+                    {
+                        CanReserve = false,
+                        Message = "General sale has not started yet"
+                    };
+                }
+
+                return new ReservationAvailabilityResult { CanReserve = true };
+            }
+
+            var bundlePassIds = bundle.PreviousBundleId.HasValue
+                ? await _bundlePassRepository.Get(bp =>
+                        bp.ClientId == clientId
+                        && bp.BundleId == bundle.PreviousBundleId)
+                    .Select(sp => sp.Id)
+                    .ToListAsync()
+                : [];
+
+            var hasPreviousBundle = bundlePassIds.Count > 0 &&
+                await _orderRepository.Get(o =>
+                    o.ClientId == clientId
+                    && o.OrderType == Commons.Enums.OrderType.Bundle
+                    && o.Items.Any(i => bundlePassIds.Contains(i.ItemReferenceId))
+                ).AnyAsync();
+
+            if (!hasPreviousBundle)
+            {
+                if (!isGeneral)
+                {
+                    return new ReservationAvailabilityResult
+                    {
+                        CanReserve = false,
+                        Message = "Available only during general sale"
+                    };
+                }
+
+                return new ReservationAvailabilityResult { CanReserve = true };
+            }
+
+            if (isRenewal || isGeneral)
+            {
+                return new ReservationAvailabilityResult { CanReserve = true };
+            }
+
+            return new ReservationAvailabilityResult
+            {
+                CanReserve = false,
+                Message = "The bundle is not available at this time"
             };
         }
 
@@ -328,6 +573,54 @@ namespace Odasoft.XBOL.Business.Services
                 IsRenewal = now >= season.RenewalStartDate && now < season.RenewalEndDate,
                 IsPreSale = now >= season.PreSaleDate && now < season.OnSaleDate,
                 IsGeneralSale = now >= season.OnSaleDate
+            };
+        }
+
+        private async Task<BundleItemDTO> MapBundleSeasonItemAsync(Bundle bundle, bool includeMedia)
+        {
+            var media = await _mediaRepository
+                .Get(filter: m =>
+                    m.ReferenceId == bundle.Id &&
+                    m.ReferenceType == ClientSaleType.Bundle,
+                    includedProperties: "BlobAsset"
+                )
+                .AvailableBlobMedia()
+                .ToListAsync();
+
+            bool hasMedia = media.Any();
+
+            var banner = media
+                .Where(m => m.MediaType == ClientMediaType.Banner)
+                .OrderBy(m => m.Order)
+                .FirstOrDefault();
+
+            var now = DateTimeOffset.UtcNow;
+
+            _logger.LogInformation(
+                "Mapped booking bundle season media for bundle {BundleId}: includeMedia {IncludeMedia}, eligible media rows {MediaCount}, selected banner media {BannerMediaId}, selected banner has url {BannerHasUrl}, legacy banner has url {LegacyBannerHasUrl}",
+                bundle.Id,
+                includeMedia,
+                media.Count,
+                banner?.Id,
+                !string.IsNullOrWhiteSpace(banner?.Url),
+                !string.IsNullOrWhiteSpace(bundle.BannerImageUrl));
+
+            return new BundleItemDTO
+            {
+                Id = bundle.Id,
+                BannerImageUrl = banner != null && banner.Url != null
+                    ? banner.Url
+                    : bundle.BannerImageUrl,
+                Name = bundle.Name,
+                Location = bundle.VenueMap.Venue.Name,
+                StartDate = bundle.StartDate,
+                ExternalKey = bundle.ExternalKey,
+                Media = includeMedia && hasMedia
+                    ? EventMediaSetMapper.CreateMediaSet(media.Select(EventMediaSetMapper.CreateMediaResponse))
+                    : null,
+                IsRenewal = now >= bundle.RenewalStartDate && now < bundle.RenewalEndDate,
+                IsPreSale = now >= bundle.PreSaleDate && now < bundle.OnSaleDate,
+                IsGeneralSale = now >= bundle.OnSaleDate
             };
         }
     }

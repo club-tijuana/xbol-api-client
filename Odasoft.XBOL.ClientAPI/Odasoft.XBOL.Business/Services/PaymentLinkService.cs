@@ -140,16 +140,108 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception("Payment link not found.");
             }
 
+            await RecordPaymentAndMarkPaidAsync(paymentLink, paymentInfoRequest.CardAmount.Value, now);
+
+            return paymentLink.OrderId;
+        }
+
+        public async Task<InitiatePaymentLinkCheckoutResponse> InitiateCheckoutAsync(string code, InitiatePaymentLinkCheckoutRequest request)
+        {
+            var paymentLink = await _paymentLinkRepository.Get(
+                filter: pl => pl.Code == code
+            ).FirstOrDefaultAsync();
+
+            if (paymentLink == null)
+                throw new Exception("Payment link not found.");
+
+            if (paymentLink.ExpirationDateTime < DateTimeOffset.UtcNow || paymentLink.Status == PaymentLinkStatus.Expired)
+                throw new PaymentLinkExpiredException();
+
+            if (paymentLink.CancelledAt.HasValue || paymentLink.Status == PaymentLinkStatus.Cancelled)
+                throw new PaymentLinkCanceledException();
+
+            if (paymentLink.PaidAt.HasValue)
+                throw new PaymentLinkAlreadyUsedException();
+
+            var order = await _orderRepository.GetByIds(paymentLink.OrderId);
+            if (order == null)
+                throw new Exception("Order not found.");
+
+            var session = await _ticketingClient.CreateCheckoutSessionAsync(new CreateCheckoutSessionRequest
+            {
+                ReturnUrl = request.ReturnUrl,
+                Amount = order.Total,
+                Currency = request.Currency
+            });
+
+            return new InitiatePaymentLinkCheckoutResponse
+            {
+                SessionId = session.SessionId,
+                SuccessIndicator = session.SuccessIndicator,
+                OrderRefId = session.OrderRefId,
+                MerchantId = session.MerchantId,
+                ApiVersion = session.ApiVersion,
+                GatewayBaseUrl = session.GatewayBaseUrl,
+                Amount = session.Amount,
+                Currency = session.Currency
+            };
+        }
+
+        public async Task<long> ConfirmCheckoutAsync(string code, ConfirmPaymentLinkCheckoutRequest request)
+        {
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+
+            var paymentLink = await _paymentLinkRepository.Get(
+                filter: pl => pl.Code == code
+            ).FirstOrDefaultAsync();
+
+            if (paymentLink == null)
+                throw new Exception("Payment link not found.");
+
+            if (paymentLink.PaidAt.HasValue)
+                throw new PaymentLinkAlreadyUsedException();
+
+            if (request.ResultIndicator != request.SuccessIndicator)
+                throw new Exception($"El indicador de pago no coincide. ResultIndicator: '{request.ResultIndicator}', SuccessIndicator: '{request.SuccessIndicator}'.");
+
+            await _ticketingClient.ConfirmCheckoutAsync(new ConfirmCheckoutRequest
+            {
+                LocalOrderId = paymentLink.OrderId,
+                OrderRefId = request.OrderRefId,
+                ResultIndicator = request.ResultIndicator
+            });
+
+            await MarkPaymentLinkPaidAsync(paymentLink, now);
+
+            return paymentLink.OrderId;
+        }
+
+        private async Task MarkPaymentLinkPaidAsync(Models.PaymentLink paymentLink, DateTimeOffset now)
+        {
+            paymentLink.PaidAt = now;
+            paymentLink.Status = PaymentLinkStatus.Paid;
+            await _paymentLinkRepository.UpdateAsync(paymentLink);
+            await _paymentLinkRepository.CommitAsync();
+        }
+
+        private async Task RecordPaymentAndMarkPaidAsync(
+            Models.PaymentLink paymentLink,
+            decimal amount,
+            DateTimeOffset now,
+            string provider = "",
+            string providerReference = "")
+        {
             await _paymentRepository.InsertAsync(new Models.Payment
             {
                 OrderId = paymentLink.OrderId,
-                Currency = Commons.Enums.CurrencyType.MXN,
-                Amount = paymentInfoRequest.CardAmount.Value,
-                AmountMXN = paymentInfoRequest.CardAmount.Value,
+                Currency = CurrencyType.MXN,
+                Amount = amount,
+                AmountMXN = amount,
                 ExchangeRateId = 0,
-                PaymentType = Commons.Enums.PaymentType.Card,
-                Provider = "",
-                ProviderReference = "",
+                PaymentType = PaymentType.Card,
+                PaymentStatus = PaymentStatus.Captured,
+                Provider = provider,
+                ProviderReference = providerReference,
                 TransactionReference = Guid.Empty,
                 AppliedAt = now,
                 CreatedAt = now,
@@ -158,14 +250,9 @@ namespace Odasoft.XBOL.Business.Services
             });
             await _paymentRepository.CommitAsync();
 
-            paymentLink.PaidAt = now;
-            paymentLink.Status = Commons.Enums.PaymentLinkStatus.Paid;
-            await _paymentLinkRepository.UpdateAsync(paymentLink);
-            await _paymentLinkRepository.CommitAsync();
+            await MarkPaymentLinkPaidAsync(paymentLink, now);
 
             await _orderService.PayOrderAsync(paymentLink.OrderId);
-
-            return paymentLink.OrderId;
         }
 
         public async Task<SeoMetadataDTO> GetEventMetadataByPaymentCodeAsync(string code)

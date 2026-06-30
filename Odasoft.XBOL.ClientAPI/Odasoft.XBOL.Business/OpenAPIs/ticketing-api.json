@@ -2024,6 +2024,83 @@
         }
       }
     },
+    "/sync": {
+      "post": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "Synchronizes a seats.io chart asynchronously",
+        "operationId": "SyncChartAsync",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncChartRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/client-prices/seat-availability": {
       "get": {
         "tags": [
@@ -2306,6 +2383,20 @@
           },
           {
             "name": "Upcoming",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "BuyableOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "OverrideSaleWindow",
             "in": "query",
             "schema": {
               "type": "boolean"
@@ -4773,6 +4864,384 @@
         }
       }
     },
+    "/api/payments/create-checkout-session": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/payments/initiate-checkout": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/InitiateCheckoutRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateCheckoutResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateCheckoutResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiateCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/payments/confirm-checkout": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ConfirmCheckoutRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmCheckoutResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmCheckoutResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/payments/retrieve-order/{orderRefId}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "orderRefId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveOrderResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveOrderResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveOrderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
     "/api/prices": {
       "get": {
         "tags": [
@@ -4800,6 +5269,15 @@
             "schema": {
               "type": "integer",
               "format": "int64"
+            }
+          },
+          {
+            "name": "useBasePrice",
+            "in": "query",
+            "description": "Indicates whether to use base prices",
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           }
         ],
@@ -5162,6 +5640,11 @@
             "type": "integer",
             "format": "int64"
           },
+          "userProfileId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "ticketType": {
             "allOf": [
               {
@@ -5188,7 +5671,8 @@
               {
                 "$ref": "#/components/schemas/ChangeInfoRequest"
               }
-            ]
+            ],
+            "nullable": true
           },
           "localizer": {
             "type": "string",
@@ -5198,6 +5682,24 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          },
+          "overrideSaleWindow": {
+            "type": "boolean"
+          },
+          "isPaymentLink": {
+            "type": "boolean"
+          },
+          "paymentLinkRequest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "transactionRefId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "additionalProperties": false
@@ -5522,6 +6024,9 @@
           "externalKey": {
             "type": "string",
             "nullable": true
+          },
+          "isBookable": {
+            "type": "boolean"
           },
           "startDate": {
             "type": "string",
@@ -5985,6 +6490,11 @@
             "type": "integer",
             "format": "int64"
           },
+          "previousBundleId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
           "startDate": {
             "type": "string",
             "format": "date-time",
@@ -6054,6 +6564,11 @@
           "scheduledStartDate": {
             "type": "string",
             "format": "date-time"
+          },
+          "scheduledEndDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "name": {
             "type": "string"
@@ -6346,6 +6861,62 @@
         },
         "additionalProperties": false
       },
+      "CheckoutSeatRequest": {
+        "required": [
+          "seatKey"
+        ],
+        "type": "object",
+        "properties": {
+          "seatKey": {
+            "type": "string"
+          },
+          "priceListItemId": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CheckoutSessionResponse": {
+        "required": [
+          "amount",
+          "apiVersion",
+          "currency",
+          "gatewayBaseUrl",
+          "merchantId",
+          "orderRefId",
+          "sessionId",
+          "successIndicator"
+        ],
+        "type": "object",
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "successIndicator": {
+            "type": "string"
+          },
+          "apiVersion": {
+            "type": "string"
+          },
+          "gatewayBaseUrl": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ClientGender": {
         "enum": [
           "Female",
@@ -6354,6 +6925,10 @@
         "type": "string"
       },
       "ClientInfoRequest": {
+        "required": [
+          "phoneNumber",
+          "phoneRegionCodeId"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -6363,8 +6938,7 @@
           },
           "phoneRegionCodeId": {
             "type": "integer",
-            "format": "int64",
-            "nullable": true
+            "format": "int64"
           },
           "phoneNumber": {
             "type": "string"
@@ -6400,6 +6974,80 @@
           "birthday": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfirmCheckoutRequest": {
+        "required": [
+          "orderRefId"
+        ],
+        "type": "object",
+        "properties": {
+          "localOrderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "resultIndicator": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfirmCheckoutResponse": {
+        "required": [
+          "orderStatus",
+          "paymentStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orderStatus": {
+            "type": "string"
+          },
+          "paymentStatus": {
+            "type": "string"
+          },
+          "ticketsIssued": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateCheckoutSessionRequest": {
+        "required": [
+          "returnUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "returnUrl": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "amount": {
+            "maximum": 999999999999,
+            "minimum": 0.01,
+            "type": "number",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -6478,6 +7126,17 @@
           },
           "isPaymentLink": {
             "type": "boolean"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transactionRefId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "additionalProperties": false
@@ -6523,6 +7182,11 @@
           "scheduledStartDate": {
             "type": "string",
             "format": "date-time"
+          },
+          "scheduledEndDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           },
           "name": {
             "type": "string"
@@ -6586,6 +7250,9 @@
             "nullable": true
           },
           "isSeason": {
+            "type": "boolean"
+          },
+          "isBookable": {
             "type": "boolean"
           }
         },
@@ -7054,6 +7721,22 @@
         ],
         "type": "string"
       },
+      "FeeResponse": {
+        "type": "object",
+        "properties": {
+          "feeName": {
+            "type": "string"
+          },
+          "feeAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "chargeCategory": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "Floor": {
         "type": "object",
         "properties": {
@@ -7102,6 +7785,11 @@
         ],
         "type": "object",
         "properties": {
+          "bundleId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
           "eventKey": {
             "type": "string"
           },
@@ -7116,13 +7804,13 @@
       },
       "HoldSeatsRequest": {
         "required": [
-          "eventScheduleId",
+          "id",
           "saleType",
           "seats"
         ],
         "type": "object",
         "properties": {
-          "eventScheduleId": {
+          "id": {
             "type": "integer",
             "format": "int64"
           },
@@ -7178,6 +7866,99 @@
           "section": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "InitiateCheckoutRequest": {
+        "required": [
+          "clientContact",
+          "holdToken",
+          "returnUrl",
+          "seats"
+        ],
+        "type": "object",
+        "properties": {
+          "eventScheduleId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "bundleId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "relatedOrderId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "holdToken": {
+            "type": "string"
+          },
+          "seats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutSeatRequest"
+            }
+          },
+          "clientContact": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientInfoRequest"
+              }
+            ]
+          },
+          "returnUrl": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InitiateCheckoutResponse": {
+        "required": [
+          "amount",
+          "apiVersion",
+          "currency",
+          "gatewayBaseUrl",
+          "merchantId",
+          "orderRefId",
+          "sessionId",
+          "successIndicator"
+        ],
+        "type": "object",
+        "properties": {
+          "localOrderId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "successIndicator": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "apiVersion": {
+            "type": "string"
+          },
+          "gatewayBaseUrl": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -7382,19 +8163,9 @@
       "PaymentLinkRequest": {
         "type": "object",
         "properties": {
-          "expirationDays": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "expirationHours": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
-          },
-          "expirationMinutes": {
-            "type": "integer",
-            "format": "int64",
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         },
@@ -7475,6 +8246,52 @@
             "items": {
               "type": "string"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetrieveOrderResponse": {
+        "required": [
+          "orderRefId",
+          "result"
+        ],
+        "type": "object",
+        "properties": {
+          "orderRefId": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "gatewayCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalCapturedAmount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "totalAuthorizedAmount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardNumberMasked": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardBrand": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -7574,6 +8391,17 @@
           },
           "isPaymentLink": {
             "type": "boolean"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "orderRefId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transactionRefId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "additionalProperties": false
@@ -7592,6 +8420,25 @@
             "items": {
               "$ref": "#/components/schemas/SeatResponse"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SeatFeeDTO": {
+        "type": "object",
+        "properties": {
+          "feeName": {
+            "type": "string"
+          },
+          "feeType": {
+            "type": "string"
+          },
+          "chargeCategory": {
+            "type": "string"
+          },
+          "feeAmount": {
+            "type": "number",
+            "format": "decimal"
           }
         },
         "additionalProperties": false
@@ -7615,6 +8462,12 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeeResponse"
+            }
           }
         },
         "additionalProperties": false
@@ -7660,6 +8513,16 @@
             "format": "decimal",
             "nullable": true
           },
+          "basePriceListItemId": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "basePrice": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
           "objects": {
             "type": "array",
             "items": {
@@ -7681,6 +8544,12 @@
             "type": "number",
             "format": "decimal",
             "nullable": true
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeatFeeDTO"
+            }
           },
           "ticketTypes": {
             "type": "array",
@@ -7916,6 +8785,20 @@
         },
         "additionalProperties": false
       },
+      "SyncChartRequest": {
+        "type": "object",
+        "properties": {
+          "venueMapId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
       "TestResultObject": {
         "required": [
           "result"
@@ -7941,6 +8824,22 @@
           "price": {
             "type": "number",
             "format": "decimal"
+          },
+          "originalPrice": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "fee": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeatFeeDTO"
+            }
           },
           "label": {
             "type": "string",
@@ -8031,6 +8930,12 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          },
+          "fees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeeResponse"
+            }
           }
         },
         "additionalProperties": false
@@ -8115,6 +9020,9 @@
     },
     {
       "name": "ManageSeats"
+    },
+    {
+      "name": "Payment"
     },
     {
       "name": "Prices"
