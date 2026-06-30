@@ -59,10 +59,31 @@ namespace Odasoft.XBOL.Data.Repositories
                 .ToListAsync();
 
             var orderIds = orders.Select(o => o.Id).ToList();
+
+            HashSet<long> suspendedTicketIds = [];
+            if (orderType == OrderType.Bundle)
+            {
+                suspendedTicketIds = (
+                    await (
+                        from order in DbContext.Set<Order>()
+                        from item in order.Items
+                        join bp in DbContext.Set<BundlePass>()
+                            on item.ItemReferenceId equals bp.Id
+                        from bpet in bp.BundlePassEventTickets
+                        where orderIds.Contains(order.Id)
+                            && item.ItemType == ItemType.BundlePass
+                            && bp.Status == BundlePassStatus.Suspended
+                        select bpet.TicketId
+                    ).ToListAsync()
+                ).ToHashSet();
+            }
+
             var ticketRows = await DbContext.Set<Ticket>()
                 .Where(t =>
                     t.OriginalOrderId != null
                     && orderIds.Contains(t.OriginalOrderId.Value)
+                    && !suspendedTicketIds.Contains(t.Id)
+                    && t.Status == TicketStatus.Issued
                     && (t.OriginalClientId == idClient ||
                         t.CurrentClientId == idClient)
                     && t.EventSchedule.Event.Status == EventStatus.Published
@@ -159,6 +180,8 @@ namespace Odasoft.XBOL.Data.Repositories
                 }
             }
 
+            (var eventLookup, var bundleLookup) = await GetLookups(orderIds, orderType, idClient);
+
             return new PagedOrdersProjection
             {
                 Orders = orders
@@ -166,6 +189,8 @@ namespace Odasoft.XBOL.Data.Repositories
                     {
                         Id = o.Id,
                         Reference = o.Reference,
+                        Event = eventLookup?.GetValueOrDefault(o.Id),
+                        Bundle = bundleLookup?.GetValueOrDefault(o.Id),
                         Tickets = ticketLookup.TryGetValue(o.Id, out var tickets)
                             ? tickets
                             : []
@@ -236,10 +261,15 @@ namespace Odasoft.XBOL.Data.Repositories
             {
                 OrderType.Bundle =>
                     from oi in DbContext.Set<OrderItem>()
-                    where oi.OrderId == orderId
                     join bp in DbContext.Set<BundlePassEventTicket>()
                         on oi.ItemReferenceId equals bp.BundlePassId
+                    where oi.OrderId == orderId
+                        && bp.BundlePass.Status == BundlePassStatus.Active
                     select bp.Ticket,
+
+                OrderType.Ticket =>
+                    DbContext.Set<Ticket>()
+                    .Where(t => t.OriginalOrderId == orderId),
 
                 _ => DbContext.Set<Ticket>().Where(t => false)
             };
@@ -247,7 +277,8 @@ namespace Odasoft.XBOL.Data.Repositories
             var filteredTickets = ticketsQuery
                 .Where(t =>
                     t.EventSchedule.EventId == eventId &&
-                    (t.OriginalClientId == clientId || t.CurrentClientId == clientId)
+                    (t.OriginalClientId == clientId || t.CurrentClientId == clientId) &&
+                    t.Status == TicketStatus.Issued
                 )
                 .Where(t =>
                     t.EventSchedule.Event.Status == EventStatus.Published &&
@@ -349,20 +380,37 @@ namespace Odasoft.XBOL.Data.Repositories
             long clientId)
         {
             var order = await DbContext.Set<Order>()
+                .Include(o => o.Items)
                 .Where(o => o.Id == orderId)
                 .FirstOrDefaultAsync();
+
+            IQueryable<long> suspendedTicketIds = Enumerable.Empty<long>().AsQueryable();
+            if (order.OrderType == OrderType.Bundle)
+            {
+                var orderItemIds = order.Items.Select(oi => oi.ItemReferenceId);
+
+                suspendedTicketIds = DbContext.Set<BundlePass>()
+                    .Where(bp =>
+                        orderItemIds.Contains(bp.Id) &&
+                        bp.Status == BundlePassStatus.Suspended)
+                    .SelectMany(bp => bp.BundlePassEventTickets)
+                    .Select(bpet => bpet.TicketId);
+            }
 
             var query = DbContext.Set<Order>()
                 .Where(o => o.Id == orderId)
                 .SelectMany(o => o.Tickets)
                 .Where(t =>
-                    t.EventSchedule.EventId == eventId
-                    && (
+                    t.Status == TicketStatus.Issued &&
+                    t.EventSchedule.EventId == eventId &&
+                    !suspendedTicketIds.Contains(t.Id) &&
+                    (
                         t.OriginalClientId == clientId
                         || t.CurrentClientId == clientId
                     )
                 )
                 .OrderByDescending(t => t.EventSchedule.StartDateTime);
+
 
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
@@ -765,6 +813,107 @@ namespace Odasoft.XBOL.Data.Repositories
             return await DbContext.Set<Order>()
                 .Include(o => o.Items)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
+        }
+
+        private async Task<(Dictionary<long, EventCardProjection>, Dictionary<long, BundleCardProjection>)> GetLookups(
+            List<long> orderIds,
+            OrderType orderType,
+            long idClient
+        )
+        {
+            Dictionary<long, EventCardProjection>? eventLookup = null;
+            Dictionary<long, BundleCardProjection>? bundleLookup = null;
+
+            if (orderType == OrderType.Bundle)
+            {
+                var rows = await (
+                    from order in DbContext.Set<Order>()
+                    from item in order.Items
+                    join pass in DbContext.Set<BundlePass>()
+                        on item.ItemReferenceId equals pass.Id
+                    where orderIds.Contains(order.Id)
+                          && item.ItemType == ItemType.BundlePass
+                          && pass.ClientId == idClient
+                    select new
+                    {
+                        OrderId = order.Id,
+                        BundleCard = new BundleCardProjection
+                        {
+                            Name = pass.Bundle.Name,
+
+                            BannerUrl = DbContext.Set<Media>()
+                                .AvailableBlobMedia()
+                                .Where(m =>
+                                    m.ReferenceId == pass.Bundle.Id &&
+                                    m.ReferenceType == ClientSaleType.Bundle &&
+                                    m.MediaType == ClientMediaType.Banner
+                                )
+                                .OrderBy(m => m.Order)
+                                .ThenBy(m => m.Id)
+                                .Select(m => m.BlobAsset.Url)
+                                .FirstOrDefault(),
+
+                            LegacyPosterUrl = pass.Bundle.PosterImageUrl,
+                            Location = pass.Bundle.VenueMap.Venue.Name,
+                            StartDate = pass.Bundle.StartDate ?? pass.PurchasedAt,
+                            EndDate = pass.Bundle.EndDate ?? pass.PurchasedAt
+                        }
+                    }
+                )
+                .ToListAsync();
+
+                bundleLookup = rows
+                    .GroupBy(x => x.OrderId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().BundleCard
+                    );
+            }
+            else
+            {
+                var rows = await (
+                    from t in DbContext.Set<Ticket>()
+                    where orderIds.Contains(t.OriginalOrderId!.Value)
+                          && t.OriginalClientId == idClient
+                          && t.EventSchedule.Event.Status == EventStatus.Published
+                          && t.EventSchedule.Event.DeletedAt == null
+                    select new
+                    {
+                        OrderId = t.OriginalOrderId!.Value,
+                        EventCard = new EventCardProjection
+                        {
+                            Name = t.EventSchedule.Event.Name,
+
+                            BannerUrl = DbContext.Set<Media>()
+                                .AvailableBlobMedia()
+                                .Where(m =>
+                                    m.ReferenceId == t.EventSchedule.Event.Id &&
+                                    m.ReferenceType == ClientSaleType.Event &&
+                                    m.MediaType == ClientMediaType.Banner
+                                )
+                                .OrderBy(m => m.Order)
+                                .ThenBy(m => m.Id)
+                                .Select(m => m.BlobAsset.Url)
+                                .FirstOrDefault(),
+
+                            LegacyPosterUrl = t.EventSchedule.Event.PosterImageUrl,
+                            Location = t.EventSchedule.Event.VenueMap.Venue.Name,
+                            StartDate = t.EventSchedule.StartDateTime,
+                            EndDate = t.EventSchedule.EndDateTime
+                        }
+                    }
+                )
+                .ToListAsync();
+
+                eventLookup = rows
+                    .GroupBy(x => x.OrderId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.First().EventCard
+                    );
+            }
+
+            return (eventLookup, bundleLookup);
         }
     }
 }

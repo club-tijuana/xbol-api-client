@@ -1286,12 +1286,70 @@ namespace Odasoft.XBOL.Business.Services
                 );
                 bool canViewTickets = order.Tickets.Any(t => t.EventScheduleId > 0);
 
-                var currentSchedule = order.Tickets
+                var schedules = order.Tickets
                     .GroupBy(t => t.EventScheduleId)
                     .Select(g => g.First())
-                    .OrderBy(t => t.StartDateTime < now)
-                    .ThenByDescending(t => t.StartDateTime)
-                    .First();
+                    .ToList();
+
+                if (!schedules.Any())
+                {
+                    if (order.Bundle != null)
+                    {
+                        var bundle = order.Bundle;
+                        var renewalResult = await CanOrderBeRenewedAsync(order.Reference);
+
+                        events.Add(new MyEventDTO
+                        {
+                            OrderId = order.Id,
+                            EventId = 0,
+                            EventImage = !string.IsNullOrWhiteSpace(bundle.BannerUrl)
+                                ? bundle.BannerUrl
+                                : bundle.LegacyPosterUrl ?? string.Empty,
+                            Name = bundle.Name,
+                            StartDate = bundle.StartDate,
+                            Location = bundle.Location,
+                            IsSeasonPass = true,
+                            IsPastEvent = bundle.EndDate < now,
+                            CanRenovateSeasonPass = renewalResult.CanRenew,
+                            CanViewTickets = false
+                        });
+
+                        continue;
+                    }
+                    else if (order.Event != null)
+                    {
+                        var evnt = order.Event;
+
+                        events.Add(new MyEventDTO
+                        {
+                            OrderId = order.Id,
+                            EventId = 0,
+                            EventImage = evnt?.BannerUrl ?? evnt?.LegacyPosterUrl ?? "",
+                            Name = evnt?.Name ?? "",
+                            StartDate = evnt?.StartDate ?? now,
+                            Location = evnt?.Location ?? "",
+                            IsSeasonPass = false,
+                            IsPastEvent = evnt?.EndDate < now,
+                            CanViewTickets = false
+                        });
+
+                        continue;
+                    }
+                }
+
+                var currentSchedule =
+                    schedules.FirstOrDefault(t =>
+                        t.StartDateTime <= now &&
+                        now < t.EndDateTime)
+
+                    ?? schedules
+                        .Where(t => t.StartDateTime > now)
+                        .OrderBy(t => t.StartDateTime)
+                        .FirstOrDefault()
+
+                    ?? schedules
+                        .OrderByDescending(t => t.EndDateTime)
+                        .First();
 
                 bool isPastEvent;
 
