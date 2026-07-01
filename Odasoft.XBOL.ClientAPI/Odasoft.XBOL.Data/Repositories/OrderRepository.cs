@@ -411,7 +411,6 @@ namespace Odasoft.XBOL.Data.Repositories
                 )
                 .OrderByDescending(t => t.EventSchedule.StartDateTime);
 
-
             int totalCount = await query.CountAsync();
             var skip = (page - 1) * pageSize;
 
