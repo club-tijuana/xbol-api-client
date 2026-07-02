@@ -44,5 +44,12 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
         {
             return Ok(await _ticketingClient.ConfirmCheckoutAsync(request));
         }
+
+        [AllowAnonymous]
+        [HttpGet("is-order-paid/{orderRefId}")]
+        public async Task<ActionResult<bool>> IsOrderPaidAsync([FromRoute] string orderRefId)
+        {
+            return Ok(await _ticketingClient.IsOrderPaidAsync(orderRefId));
+        }
     }
 }

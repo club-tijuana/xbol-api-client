@@ -76,16 +76,16 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             return Ok(result);
         }
 
-        [HttpGet("renovate/{orderId}")]
+        [HttpGet("renovate/{orderId}/{ignoreCanRenew}")]
         [Authorize]
         [EndpointName("GetOrderToRenovate")]
-        public async Task<ActionResult<BundleToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId)
+        public async Task<ActionResult<BundleToRenovateDTO>> GetOrderToRenovateAstync([FromRoute] long orderId, [FromRoute] bool? ignoreCanRenew = false)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
 
             try
             {
-                var result = await _orderService.GetOrderToRenovate(orderId, client.Id);
+                var result = await _orderService.GetOrderToRenovate(orderId, client.Id, ignoreCanRenew);
 
                 return Ok(result);
             }
@@ -96,16 +96,16 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
         }
 
-        [HttpGet("renovate/{orderId}/prices")]
+        [HttpGet("renovate/{orderId}/prices/{ignoreCanRenew}")]
         [Authorize]
         [EndpointName("GetOrderToRenovatePrices")]
-        public async Task<ActionResult<List<SeatDTO>>> GetOrderToRenovatePricesAsync([FromRoute] long orderId)
+        public async Task<ActionResult<List<SeatDTO>>> GetOrderToRenovatePricesAsync([FromRoute] long orderId, [FromRoute] bool? ignoreCanRenew = false)
         {
             var client = await _clientIdentityService.RequireCurrentClientAsync(User);
 
             try
             {
-                var result = await _orderService.GetOrderToRenovatePrices(orderId, client.Id);
+                var result = await _orderService.GetOrderToRenovatePrices(orderId, client.Id, ignoreCanRenew);
 
                 return Ok(result);
             }
@@ -135,6 +135,28 @@ namespace Odasoft.XBOL.ClientAPI.Controllers
             }
 
             return Ok(canRenew);
+        }
+
+        [HttpGet("order-by-evo-ref/{orderRefId}")]
+        [EndpointName("GetOrderTotalsByEvoOrderRefAsync")]
+        public async Task<ActionResult<OrderTotalsDTO>> GetOrderTotalsByEvoOrderRefAsync([FromRoute] string orderRefId)
+        {
+            try
+            {
+                var result = await _orderService.GetOrderTotalsByEvoOrderRefAsync(orderRefId);
+
+                if (result == null)
+                {
+                    return NotFound("Order not found");
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load the order with provider reference {OrderRefId}", orderRefId);
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

@@ -169,6 +169,14 @@ namespace Odasoft.XBOL.Business.Services
                 now < bundle.RenewalEndDate;
         }
 
+        public static bool IsPreSaleVisible(Bundle bundle, DateTimeOffset now)
+        {
+            return IsSeasonPassWindowValid(bundle) &&
+                bundle.PreviousBundleId is not null &&
+                bundle.PreSaleDate <= now &&
+                now < bundle.OnSaleDate;
+        }
+
         private static bool HasUnrenewedSeat(Bundle bundle, IEnumerable<BundlePass> clientBundlePasses)
         {
             if (bundle.PreviousBundleId is null)

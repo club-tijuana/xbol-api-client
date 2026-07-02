@@ -646,7 +646,7 @@ namespace Odasoft.XBOL.Business.Services
             await _ticketRepository.UpdateRangeAsync(tickets);
         }
 
-        public async Task<BundleToRenovateDTO> GetOrderToRenovate(long orderId, long clientId)
+        public async Task<BundleToRenovateDTO> GetOrderToRenovate(long orderId, long clientId, bool? ignoreCanRenew = false)
         {
             var now = DateTimeOffset.UtcNow;
             Order? order = await _orderRepository.GetOrderWithItems(orderId);
@@ -661,11 +661,14 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception("This order does not belong to the user");
             }
 
-            var canOrderBeRenew = await CanOrderBeRenewedAsync(order.Reference);
-
-            if (!canOrderBeRenew.CanRenew)
+            if (ignoreCanRenew == false)
             {
-                throw new Exception("The order cannot be renewed");
+                var canOrderBeRenew = await CanOrderBeRenewedAsync(order.Reference);
+
+                if (!canOrderBeRenew.CanRenew)
+                {
+                    throw new Exception("The order cannot be renewed");
+                }
             }
 
             OrderItem? item = order.Items.FirstOrDefault();
@@ -735,7 +738,7 @@ namespace Odasoft.XBOL.Business.Services
                 throw new Exception("No tickets found for the specified order");
             }
 
-            if (bundle.RenewalEndDate < now)
+            if (bundle.RenewalEndDate < now && ignoreCanRenew == false)
             {
                 var availableSeats = await CheckSeatStatus(
                     bundle.ExternalKey,
@@ -881,9 +884,9 @@ namespace Odasoft.XBOL.Business.Services
             };
         }
 
-        public async Task<List<SeatDTO>> GetOrderToRenovatePrices(long orderId, long clientId)
+        public async Task<List<SeatDTO>> GetOrderToRenovatePrices(long orderId, long clientId, bool? ignoreCanRenew = false)
         {
-            var renovation = await GetOrderToRenovate(orderId, clientId);
+            var renovation = await GetOrderToRenovate(orderId, clientId, ignoreCanRenew);
 
             if (renovation.PreviousSeatPrices == null || renovation.PreviousSeatPrices.Count == 0)
             {
@@ -1443,6 +1446,23 @@ namespace Odasoft.XBOL.Business.Services
 
             await _orderRepository.UpdateAsync(order);
             await _orderRepository.CommitAsync();
+        }
+
+        public async Task<OrderTotalsDTO?> GetOrderTotalsByEvoOrderRefAsync(string orderRefId)
+        {
+            return await _orderRepository.Get(
+                    o => o.Payments.Any(op => op.ProviderReference == orderRefId),
+                    includedProperties: ["Payments"]
+                )
+                .Select(o => new OrderTotalsDTO
+                {
+                    SubTotal = o.SubTotal,
+                    TotalTaxes = o.TotalTaxes,
+                    TotalFees = o.TotalFees,
+                    Discount = o.Discount,
+                    Total = o.Total
+                })
+                .FirstOrDefaultAsync();
         }
 
         private async Task<HashSet<string?>> CheckSeatStatus(string bundleKey, List<string> seatLabels)

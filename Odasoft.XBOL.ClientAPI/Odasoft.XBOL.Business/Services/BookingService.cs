@@ -422,6 +422,7 @@ namespace Odasoft.XBOL.Business.Services
             var now = DateTimeOffset.UtcNow;
 
             var isRenewal = BundleService.IsRenewalVisible(bundle, now);
+            var isPreSale = BundleService.IsPreSaleVisible(bundle, now);
             var isGeneral = BundleService.IsPublicVisible(bundle, now);
 
             if (!BundleService.IsSeasonPassWindowValid(bundle))
@@ -485,7 +486,7 @@ namespace Odasoft.XBOL.Business.Services
                 return new ReservationAvailabilityResult { CanReserve = true };
             }
 
-            if (isRenewal || isGeneral)
+            if (isRenewal || isPreSale || isGeneral)
             {
                 return new ReservationAvailabilityResult { CanReserve = true };
             }
