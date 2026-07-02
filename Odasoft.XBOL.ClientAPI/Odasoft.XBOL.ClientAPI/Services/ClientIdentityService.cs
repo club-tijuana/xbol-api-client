@@ -228,7 +228,7 @@ public sealed class ClientIdentityService(
             FirebaseUid = identity.FirebaseUid,
             Email = string.Empty,
             PhoneRegionCodeId = phoneRegion.Id,
-            PhoneNumber = phone,
+            PhoneNumber = GetNationalNumber(phone),
             FullName = fullName,
             ClientType = ClientType.Individual,
             IsActive = true,
@@ -900,5 +900,18 @@ public sealed class ClientIdentityService(
             && (text.Contains("IX_Client_FirebaseUid", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase)
                 || text.Contains("23505", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetNationalNumber(string e164PhoneNumber)
+    {
+        try
+        {
+            var parsed = PhoneNumberParser.Parse(e164PhoneNumber, "ZZ");
+            return PhoneNumberParser.GetNationalSignificantNumber(parsed);
+        }
+        catch (NumberParseException)
+        {
+            return string.Empty;
+        }
     }
 }
